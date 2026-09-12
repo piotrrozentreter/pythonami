@@ -91,6 +91,188 @@ int main(void)
     py68_runtime_shutdown(&runtime);
     passed &= runtime.allocator.stats.current_bytes == 0;
 
+    {
+        const char *break_text =
+            "total = 0\n"
+            "i = 0\n"
+            "while i < 10:\n"
+            "    if i == 3:\n"
+            "        break\n"
+            "    total = total + i\n"
+            "    i = i + 1\n";
+        Py68Value break_total;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "break_test.py", (const Py68U8 *)break_text,
+            (Py68U32)strlen(break_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_code_add_name(&runtime.allocator, &code, 0, 5,
+                                     &name_idx) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, name_idx, &break_total) ==
+                  PY68_STATUS_OK;
+        passed &= break_total.type == PY68_VALUE_INT &&
+                  break_total.as.integer == 3;
+        py68_value_release(&runtime, break_total);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
+    {
+        const char *continue_text =
+            "total = 0\n"
+            "for i in range(5):\n"
+            "    if i == 2:\n"
+            "        continue\n"
+            "    total = total + i\n";
+        Py68Value continue_total;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "continue_test.py", (const Py68U8 *)continue_text,
+            (Py68U32)strlen(continue_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_code_add_name(&runtime.allocator, &code, 0, 5,
+                                     &name_idx) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, name_idx, &continue_total) ==
+                  PY68_STATUS_OK;
+        passed &= continue_total.type == PY68_VALUE_INT &&
+                  continue_total.as.integer == 8;
+        py68_value_release(&runtime, continue_total);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
+    {
+        const char *while_else_text =
+            "marker = 0\n"
+            "i = 0\n"
+            "while i < 3:\n"
+            "    i = i + 1\n"
+            "else:\n"
+            "    marker = 1\n";
+        Py68Value marker_val;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "while_else_test.py", (const Py68U8 *)while_else_text,
+            (Py68U32)strlen(while_else_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_code_add_name(&runtime.allocator, &code, 0, 6,
+                                     &name_idx) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, name_idx, &marker_val) ==
+                  PY68_STATUS_OK;
+        passed &= marker_val.type == PY68_VALUE_INT &&
+                  marker_val.as.integer == 1;
+        py68_value_release(&runtime, marker_val);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
+    {
+        const char *while_else_break_text =
+            "marker = 0\n"
+            "i = 0\n"
+            "while i < 3:\n"
+            "    if i == 1:\n"
+            "        break\n"
+            "    i = i + 1\n"
+            "else:\n"
+            "    marker = 1\n";
+        Py68Value marker_val;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "while_else_break_test.py", (const Py68U8 *)while_else_break_text,
+            (Py68U32)strlen(while_else_break_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_code_add_name(&runtime.allocator, &code, 0, 6,
+                                     &name_idx) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, name_idx, &marker_val) ==
+                  PY68_STATUS_OK;
+        passed &= marker_val.type == PY68_VALUE_INT &&
+                  marker_val.as.integer == 0;
+        py68_value_release(&runtime, marker_val);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
     if (passed) { puts("PASS: compiler tests"); return 0; }
     return 1;
 }

@@ -5,3 +5,5 @@ Host checks are driven by `make test`. Phase 0 covers type/runtime bootstrap sta
 The cross-target fixture `examples/print_values.py` is intentionally platform-neutral. Its expected stdout is recorded in `tests/fixtures/print_values.expected.txt`; run the same source with the host executable and AmigaDOS `python` and compare stdout byte-for-byte. The current CLI does not yet execute source files, so this fixture is prepared for the source-execution increment.
 
 The host source-execution path is now active: `build/host/pythonami examples/print_values.py` produced the expected fixture output with exit code 0. The Amiga Hunk `pythonami` artifact builds successfully but requires an AmigaDOS runtime or 680x0 emulator; it cannot execute as a Linux binary.
+
+`tests/unit/test_compiler.c` covers `break`/`continue` bytecode generation and jump patching: `break` inside a `while` body, `continue` inside a `for` body (verified via executed VM state), and `while`-`else` compilation for both the normal-completion path (else runs) and the `break`-exits-early path (else is skipped), each checked with `allocator.stats.current_bytes == 0` after teardown.

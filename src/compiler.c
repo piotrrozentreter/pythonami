@@ -11,6 +11,45 @@ static void py68_compile_error(Py68Error *error, const Py68Source *source,
                    message);
 }
 
+typedef struct Py68LoopContext {
+    Py68U32 continue_target;
+    Py68U32 *break_operands;
+    Py68U16 break_count;
+    Py68U16 break_capacity;
+} Py68LoopContext;
+
+static void py68_loop_context_initialize(Py68LoopContext *loop,
+                                         Py68U32 continue_target)
+{
+    loop->continue_target = continue_target;
+    loop->break_operands = NULL;
+    loop->break_count = 0;
+    loop->break_capacity = 0;
+}
+
+static Py68Status py68_loop_context_add_break(Py68Allocator *allocator,
+                                              Py68LoopContext *loop,
+                                              Py68U32 operand_offset)
+{
+    Py68U16 capacity;
+    Py68U32 *replacement;
+    if (loop->break_count == loop->break_capacity) {
+        capacity = loop->break_capacity == 0 ? 4 :
+                   (Py68U16)(loop->break_capacity * 2);
+        if (capacity < loop->break_capacity) return PY68_STATUS_MEMORY_ERROR;
+        replacement = (Py68U32 *)py68_realloc(
+            allocator, PY68_MEM_TEMP, loop->break_operands,
+            (Py68U32)loop->break_capacity * sizeof(Py68U32),
+            (Py68U32)capacity * sizeof(Py68U32));
+        if (replacement == NULL) return PY68_STATUS_MEMORY_ERROR;
+        loop->break_operands = replacement;
+        loop->break_capacity = capacity;
+    }
+    loop->break_operands[loop->break_count] = operand_offset;
+    ++loop->break_count;
+    return PY68_STATUS_OK;
+}
+
 static Py68Status py68_emit_op(Py68Allocator *allocator, Py68Code *code,
                                Py68U8 opcode)
 {
@@ -50,6 +89,29 @@ static Py68Status py68_patch_jump(Py68Code *code, Py68U32 operand_offset,
     return py68_code_patch_i16_be(code, operand_offset, displacement);
 }
 
+static Py68Status py68_loop_context_patch_breaks(Py68Code *code,
+                                                 Py68LoopContext *loop,
+                                                 Py68U32 target)
+{
+    Py68U16 index;
+    Py68Status status;
+    for (index = 0; index < loop->break_count; ++index) {
+        status = py68_patch_jump(code, loop->break_operands[index], target);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
+static void py68_loop_context_destroy(Py68Allocator *allocator,
+                                      Py68LoopContext *loop)
+{
+    py68_free(allocator, PY68_MEM_TEMP, loop->break_operands,
+             (Py68U32)loop->break_capacity * sizeof(Py68U32));
+    loop->break_operands = NULL;
+    loop->break_count = 0;
+    loop->break_capacity = 0;
+}
+
 static Py68Status py68_compile_expression(Py68Allocator *allocator,
                                           const Py68Source *source,
                                           Py68AstNode *node, Py68Code *code,
@@ -58,7 +120,8 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
 static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                           const Py68Source *source,
                                           Py68AstList *statements,
-                                          Py68Code *code, Py68Error *error)
+                                          Py68Code *code, Py68Error *error,
+                                          Py68LoopContext *loop)
 {
     Py68U16 index;
     Py68U16 name_index;
@@ -99,7 +162,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.if_statement.body,
-                                             code, error);
+                                             code, error, loop);
             if (status != PY68_STATUS_OK) return status;
             status = py68_emit_jump(allocator, code, OP_JUMP, &end_operand);
             if (status != PY68_STATUS_OK) return status;
@@ -107,7 +170,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.if_statement.else_body,
-                                             code, error);
+                                             code, error, loop);
             if (status != PY68_STATUS_OK) return status;
             status = py68_patch_jump(code, end_operand, code->bytecode_length);
             break;
@@ -116,6 +179,8 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             Py68U32 start = code->bytecode_length;
             Py68U32 end_operand;
             Py68U32 back_operand;
+            Py68LoopContext while_loop;
+            py68_loop_context_initialize(&while_loop, start);
             status = py68_compile_expression(allocator, source,
                                               statement->as.while_statement.condition,
                                               code, error);
@@ -125,13 +190,27 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.while_statement.body,
-                                             code, error);
-            if (status != PY68_STATUS_OK) return status;
+                                             code, error, &while_loop);
+            if (status != PY68_STATUS_OK) {
+                py68_loop_context_destroy(allocator, &while_loop);
+                return status;
+            }
             status = py68_emit_jump(allocator, code, OP_JUMP, &back_operand);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_patch_jump(code, back_operand, start);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_patch_jump(code, end_operand, code->bytecode_length);
+            if (status == PY68_STATUS_OK)
+                status = py68_patch_jump(code, back_operand, start);
+            if (status == PY68_STATUS_OK)
+                status = py68_patch_jump(code, end_operand, code->bytecode_length);
+            if (status == PY68_STATUS_OK &&
+                statement->as.while_statement.else_body.count > 0) {
+                status = py68_compile_statements(
+                    allocator, source,
+                    &statement->as.while_statement.else_body,
+                    code, error, loop);
+            }
+            if (status == PY68_STATUS_OK)
+                status = py68_loop_context_patch_breaks(code, &while_loop,
+                                                        code->bytecode_length);
+            py68_loop_context_destroy(allocator, &while_loop);
             break;
         }
         case PY68_AST_FOR: {
@@ -139,6 +218,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             Py68U32 back_operand;
             Py68U32 end_operand;
             Py68U16 name_index;
+            Py68LoopContext for_loop;
             Py68AstNode *iterable = statement->as.for_statement.iterable;
             if (iterable != NULL && iterable->kind == PY68_AST_CALL &&
                 iterable->as.call.callee != NULL &&
@@ -171,6 +251,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 if (status != PY68_STATUS_OK) return status;
             }
             range_next_op = code->bytecode_length;
+            py68_loop_context_initialize(&for_loop, range_next_op);
             status = py68_emit_jump(allocator, code, OP_RANGE_NEXT, &end_operand);
             if (status != PY68_STATUS_OK) return status;
             status = py68_code_add_name(allocator, code,
@@ -183,21 +264,51 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.for_statement.body,
-                                             code, error);
-            if (status != PY68_STATUS_OK) return status;
+                                             code, error, &for_loop);
+            if (status != PY68_STATUS_OK) {
+                py68_loop_context_destroy(allocator, &for_loop);
+                return status;
+            }
             status = py68_emit_jump(allocator, code, OP_JUMP, &back_operand);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_patch_jump(code, back_operand, range_next_op);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_patch_jump(code, end_operand, code->bytecode_length);
-            if (status != PY68_STATUS_OK) return status;
-            if (statement->as.for_statement.else_body.count > 0) {
+            if (status == PY68_STATUS_OK)
+                status = py68_patch_jump(code, back_operand, range_next_op);
+            if (status == PY68_STATUS_OK)
+                status = py68_patch_jump(code, end_operand, code->bytecode_length);
+            if (status == PY68_STATUS_OK &&
+                statement->as.for_statement.else_body.count > 0) {
                 status = py68_compile_statements(
                     allocator, source,
                     &statement->as.for_statement.else_body,
-                    code, error);
-                if (status != PY68_STATUS_OK) return status;
+                    code, error, loop);
             }
+            if (status == PY68_STATUS_OK)
+                status = py68_loop_context_patch_breaks(code, &for_loop,
+                                                        code->bytecode_length);
+            py68_loop_context_destroy(allocator, &for_loop);
+            break;
+        }
+        case PY68_AST_BREAK: {
+            Py68U32 break_operand;
+            if (loop == NULL) {
+                py68_compile_error(error, source, statement->location,
+                                   "break outside loop");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            status = py68_emit_jump(allocator, code, OP_JUMP, &break_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_loop_context_add_break(allocator, loop, break_operand);
+            break;
+        }
+        case PY68_AST_CONTINUE: {
+            Py68U32 continue_operand;
+            if (loop == NULL) {
+                py68_compile_error(error, source, statement->location,
+                                   "continue outside loop");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            status = py68_emit_jump(allocator, code, OP_JUMP, &continue_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_patch_jump(code, continue_operand, loop->continue_target);
             break;
         }
         case PY68_AST_FUNCTION_DEF:
@@ -356,7 +467,7 @@ Py68Status py68_compile_module(Py68Allocator *allocator,
     py68_error_clear(error);
     status = py68_compile_statements(allocator, source,
                                      &module->as.module.statements,
-                                     code, error);
+                                     code, error, NULL);
     if (status != PY68_STATUS_OK) {
         py68_code_destroy(allocator, code);
         return status;

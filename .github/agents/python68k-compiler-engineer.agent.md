@@ -2,7 +2,7 @@
 name: Python68K Compiler Engineer
 description: "Use when implementing, testing, reviewing, or documenting Python68K: a portable C, bytecode-compiled, stack-VM interpreter for Motorola 68000 AmigaOS and modern host builds. Use for tokenizer, indentation grammar, Pratt parsing, ASTs, symbol analysis, bytecode, verification, VM/runtime values, ownership, allocator failure testing, vbcc/AmigaDOS builds, and Language Level 0.1 compatibility."
 tools: [read, search, edit, execute, todo]
-agents: []
+agents: [Python68K Test Engineer]
 user-invocable: true
 argument-hint: "Implement or review one narrowly scoped Python68K phase increment, with tests and evidence"
 ---
