@@ -1,0 +1,9 @@
+0
+42
+-7
+True
+False
+None
+Python68K
+7
+[1, 2, 3]

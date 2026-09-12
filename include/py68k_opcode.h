@@ -1,0 +1,33 @@
+#ifndef PY68K_OPCODE_H
+#define PY68K_OPCODE_H
+
+#include "py68k_types.h"
+
+typedef enum Py68Opcode {
+    OP_HALT = 0x00, OP_POP = 0x01, OP_DUP = 0x02,
+    OP_LOAD_NONE = 0x03, OP_LOAD_TRUE = 0x04, OP_LOAD_FALSE = 0x05,
+    OP_LOAD_CONST = 0x06, OP_LOAD_GLOBAL = 0x07, OP_STORE_GLOBAL = 0x08,
+    OP_LOAD_LOCAL = 0x09, OP_STORE_LOCAL = 0x0A, OP_NEGATE = 0x0B,
+    OP_POSITIVE = 0x0C, OP_NOT = 0x0D,
+    OP_ADD = 0x10, OP_SUBTRACT = 0x11, OP_MULTIPLY = 0x12,
+    OP_FLOOR_DIVIDE = 0x13, OP_MODULO = 0x14,
+    OP_EQUAL = 0x18, OP_NOT_EQUAL = 0x19, OP_LESS = 0x1A,
+    OP_LESS_EQUAL = 0x1B, OP_GREATER = 0x1C, OP_GREATER_EQUAL = 0x1D,
+    OP_JUMP = 0x20, OP_JUMP_IF_FALSE = 0x21, OP_JUMP_IF_TRUE = 0x22,
+    OP_JUMP_IF_FALSE_OR_POP = 0x23, OP_JUMP_IF_TRUE_OR_POP = 0x24,
+    OP_BUILD_LIST = 0x28, OP_LOAD_INDEX = 0x29, OP_STORE_INDEX = 0x2A,
+    OP_LOAD_SLICE = 0x2B, OP_RANGE_INIT = 0x30, OP_RANGE_NEXT = 0x31,
+    OP_MAKE_FUNCTION = 0x38, OP_CALL = 0x39,
+    OP_RETURN_VALUE = 0x3A, OP_RETURN_NONE = 0x3B,
+    OP_PRINT_DEBUG = 0x40
+} Py68Opcode;
+
+typedef struct Py68OpcodeInfo {
+    Py68U8 width;
+    Py68I8 stack_effect;
+    const char *name;
+} Py68OpcodeInfo;
+
+const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode);
+
+#endif

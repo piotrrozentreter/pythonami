@@ -1,0 +1,22 @@
+VBCC ?= /home/piotr/local/vbcc
+VC ?= $(VBCC)/bin/vc
+NDK ?= /run/media/piotr/BACKUP/Rozen/Programy/Amiga/NDK3.2
+AMIGA_TARGET ?= +aos68k
+AMIGA_CPU := -cpu=68000 -fpu=0
+AMIGA_DEBUG := -g -use-framepointer -no-delayed-popping
+AMIGA_RELEASE := -O=1 -use-framepointer -no-delayed-popping
+VBCC_INCLUDE := $(VBCC)/targets/m68k-amigaos/include
+VBCC_LIB := $(VBCC)/targets/m68k-amigaos/lib
+CPPFLAGS := -Iinclude -I$(VBCC_INCLUDE) -I$(NDK)/Include_H -DPY68K_AMIGA=1
+SOURCES := src/main.c src/error.c src/memory.c src/platform_amiga.c src/file_amiga.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
+
+.PHONY: amiga-debug amiga-release clean
+
+amiga-debug:
+	$(VC) $(AMIGA_TARGET) $(AMIGA_CPU) $(AMIGA_DEBUG) $(CPPFLAGS) $(SOURCES) -o pythonami-debug
+
+amiga-release:
+	$(VC) $(AMIGA_TARGET) $(AMIGA_CPU) $(AMIGA_RELEASE) $(CPPFLAGS) $(SOURCES) -o pythonami
+
+clean:
+	rm -f python python-debug pythonami pythonami-debug

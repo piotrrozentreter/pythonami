@@ -1,0 +1,6 @@
++aos68k
+-cpu=68000
+-fpu=0
+-g
+-use-framepointer
+-no-delayed-popping

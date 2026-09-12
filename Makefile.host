@@ -1,0 +1,111 @@
+CC ?= gcc
+CPPFLAGS ?= -Iinclude
+CFLAGS ?= -std=c89 -pedantic -Wall -Wextra -Werror -O0 -g
+LDFLAGS ?=
+
+HOST_BUILD := build/host
+HOST_PROGRAM := $(HOST_BUILD)/pythonami
+HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
+TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
+TEST_MEMORY_SOURCES := tests/unit/test_memory.c $(TEST_COMMON)
+TEST_TOKENIZER_SOURCES := tests/unit/test_tokenizer.c $(TEST_COMMON) src/tokenizer.c
+TEST_PARSER_SOURCES := tests/unit/test_parser.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
+TEST_STATEMENT_SOURCES := tests/unit/test_statements.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
+TEST_SYMBOL_SOURCES := tests/unit/test_symbols.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c
+TEST_CODE_SOURCES := tests/unit/test_code.c src/memory.c src/code.c src/opcode.c
+TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/native.c src/function.c
+TEST_VERIFY_SOURCES := tests/unit/test_verify.c src/error.c src/memory.c src/code.c src/opcode.c src/verify.c
+TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/native.c src/function.c
+TEST_OBJECT_SOURCES := tests/unit/test_objects.c $(TEST_COMMON)
+TEST_LIST_SOURCES := tests/unit/test_lists.c $(TEST_COMMON)
+TEST_FUNCTION_SOURCES := tests/unit/test_functions.c $(TEST_COMMON) src/function.c src/native.c src/code.c
+TEST_FRAME_SOURCES := tests/unit/test_frames.c $(TEST_COMMON) src/code.c
+TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c src/native.c
+TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON) src/native.c
+TEST_BUILTIN_IO_SOURCES := tests/unit/test_builtin_io.c $(TEST_COMMON)
+
+.PHONY: all debug release test clean
+
+all: debug
+
+debug: $(HOST_PROGRAM)
+
+release: CFLAGS := -std=c89 -pedantic -Wall -Wextra -Werror -O2
+release: $(HOST_PROGRAM)
+
+$(HOST_BUILD):
+	mkdir -p $(HOST_BUILD)
+
+$(HOST_PROGRAM): $(HOST_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(HOST_SOURCES) -o $@
+
+$(HOST_BUILD)/test_memory: $(TEST_MEMORY_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_MEMORY_SOURCES) -o $@
+
+$(HOST_BUILD)/test_tokenizer: $(TEST_TOKENIZER_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_TOKENIZER_SOURCES) -o $@
+
+$(HOST_BUILD)/test_parser: $(TEST_PARSER_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_PARSER_SOURCES) -o $@
+
+$(HOST_BUILD)/test_statements: $(TEST_STATEMENT_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_STATEMENT_SOURCES) -o $@
+
+$(HOST_BUILD)/test_symbols: $(TEST_SYMBOL_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_SYMBOL_SOURCES) -o $@
+
+$(HOST_BUILD)/test_code: $(TEST_CODE_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_CODE_SOURCES) -o $@
+
+$(HOST_BUILD)/test_compiler: $(TEST_COMPILER_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_COMPILER_SOURCES) -o $@
+
+$(HOST_BUILD)/test_verify: $(TEST_VERIFY_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_VERIFY_SOURCES) -o $@
+
+$(HOST_BUILD)/test_vm: $(TEST_VM_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_VM_SOURCES) -o $@
+
+$(HOST_BUILD)/test_objects: $(TEST_OBJECT_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_OBJECT_SOURCES) -o $@
+
+$(HOST_BUILD)/test_lists: $(TEST_LIST_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_LIST_SOURCES) -o $@
+
+$(HOST_BUILD)/test_functions: $(TEST_FUNCTION_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_FUNCTION_SOURCES) -o $@
+
+$(HOST_BUILD)/test_frames: $(TEST_FRAME_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_FRAME_SOURCES) -o $@
+
+$(HOST_BUILD)/test_calls: $(TEST_CALL_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_CALL_SOURCES) -o $@
+
+$(HOST_BUILD)/test_builtins: $(TEST_BUILTIN_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_BUILTIN_SOURCES) -o $@
+
+$(HOST_BUILD)/test_builtin_io: $(TEST_BUILTIN_IO_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_BUILTIN_IO_SOURCES) -o $@
+
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_PROGRAM)
+	$(HOST_BUILD)/test_memory
+	$(HOST_BUILD)/test_tokenizer
+	$(HOST_BUILD)/test_parser
+	$(HOST_BUILD)/test_statements
+	$(HOST_BUILD)/test_symbols
+	$(HOST_BUILD)/test_code
+	$(HOST_BUILD)/test_compiler
+	$(HOST_BUILD)/test_verify
+	$(HOST_BUILD)/test_vm
+	$(HOST_BUILD)/test_objects
+	$(HOST_BUILD)/test_lists
+	$(HOST_BUILD)/test_functions
+	$(HOST_BUILD)/test_frames
+	$(HOST_BUILD)/test_calls
+	$(HOST_BUILD)/test_builtins
+	$(HOST_BUILD)/test_builtin_io
+	$(HOST_PROGRAM) -V
+	$(HOST_PROGRAM) --help
+
+clean:
+	rm -rf build python python-debug pythonami pythonami-debug

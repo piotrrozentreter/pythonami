@@ -1,0 +1,3 @@
+# Ownership
+
+The full ownership model is normative in `Python68K_Full_Agent_Implementation_Brief.md`. Runtime values distinguish scalar-by-value values from reference-counted objects. `py68_value_retain` and `py68_value_release` operate on object values, string/list/function/native constructors return one owned reference, list copy operations retain before replacement release, move operations invalidate sources only after success, native callbacks borrow argument arrays and return one owned result, frame locals retain transferred parameters and release every local during pop/unwind, and shutdown releases all tracked objects before returning.
