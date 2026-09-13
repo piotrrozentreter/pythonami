@@ -29,6 +29,9 @@ typedef struct Py68Constant {
 typedef struct Py68Code {
     const Py68U8 *source_data;
     Py68U32 source_length;
+    const char *source_filename;
+    Py68U32 function_name_offset;
+    Py68U16 function_name_length;
     Py68U8 *bytecode;
     Py68U32 bytecode_length;
     Py68U32 bytecode_capacity;
@@ -40,6 +43,11 @@ typedef struct Py68Code {
     Py68String **name_strings;
     Py68U16 name_count;
     Py68U16 name_capacity;
+    Py68U32 *local_offsets;
+    Py68U16 *local_lengths;
+    Py68U16 local_count;
+    Py68U16 local_capacity;
+    Py68U16 argument_count;
     Py68U16 maximum_stack;
 } Py68Code;
 
@@ -59,6 +67,11 @@ Py68Status py68_code_add_code_move(Py68Allocator *allocator, Py68Code *code,
 Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
                               Py68U32 offset, Py68U16 length,
                               Py68U16 *index_out);
+Py68Status py68_code_add_local(Py68Allocator *allocator, Py68Code *code,
+                               Py68U32 offset, Py68U16 length,
+                               Py68U16 *slot_out);
+int py68_code_find_local(const Py68Code *code, Py68U32 offset,
+                         Py68U16 length, Py68U16 *slot_out);
 Py68Status py68_code_intern_names(struct Py68Runtime *runtime,
                                   Py68Code *code);
 

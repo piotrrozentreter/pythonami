@@ -10,7 +10,8 @@ typedef enum Py68ValueType {
     PY68_VALUE_NONE = 0,
     PY68_VALUE_BOOL = 1,
     PY68_VALUE_INT = 2,
-    PY68_VALUE_OBJECT = 3
+    PY68_VALUE_OBJECT = 3,
+    PY68_VALUE_UNBOUND = 4
 } Py68ValueType;
 
 typedef struct Py68Value {

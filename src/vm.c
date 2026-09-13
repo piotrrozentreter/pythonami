@@ -19,6 +19,95 @@ static void py68_vm_error(Py68Runtime *runtime, Py68ErrorKind kind,
     py68_error_set(&runtime->error, kind, location, NULL, message);
 }
 
+static void py68_vm_error_at(Py68Runtime *runtime, Py68Code *code,
+                             Py68U32 offset, Py68U16 length,
+                             Py68ErrorKind kind, const char *message)
+{
+    Py68Location location;
+    Py68U32 index;
+    location.offset = offset;
+    location.length = length;
+    location.line = 1;
+    location.column = 1;
+    for (index = 0; index < location.offset &&
+         index < code->source_length; ++index) {
+        if (code->source_data[index] == (Py68U8)'\n') {
+            ++location.line;
+            location.column = 1;
+        } else {
+            ++location.column;
+        }
+    }
+    if (runtime->traceback_count == 0) {
+        Py68U16 frame_index;
+        Py68U16 trace_index = 0;
+        for (frame_index = runtime->frame_count;
+             frame_index != 0 && trace_index < 16; --frame_index) {
+            Py68Frame *frame = &runtime->frames[frame_index - 1];
+            Py68Code *frame_code = frame->code;
+            Py68U32 frame_offset = frame->instruction_offset;
+            Py68U32 frame_line = 1;
+            Py68U16 frame_column = 1;
+            Py68U32 source_index;
+            if (frame_code != NULL && frame_code->source_data != NULL) {
+                for (source_index = 0;
+                     source_index < frame_offset &&
+                     source_index < frame_code->source_length; ++source_index) {
+                    if (frame_code->source_data[source_index] ==
+                        (Py68U8)'\n') {
+                        ++frame_line;
+                        frame_column = 1;
+                    } else {
+                        ++frame_column;
+                    }
+                }
+                {
+                    Py68U16 copy_index;
+                    Py68U16 filename_length = 0;
+                    Py68U16 function_length =
+                        frame_code->function_name_length;
+                    if (frame_code->source_filename != NULL) {
+                        while (frame_code->source_filename[filename_length] !=
+                                   '\0' && filename_length < 63)
+                            ++filename_length;
+                    }
+                    for (copy_index = 0; copy_index < filename_length;
+                         ++copy_index)
+                        runtime->traceback[trace_index].filename[copy_index] =
+                            frame_code->source_filename[copy_index];
+                    runtime->traceback[trace_index].filename[filename_length] =
+                        '\0';
+                    if (function_length > 31) function_length = 31;
+                    if (function_length != 0 && frame_code->source_data != NULL)
+                        for (copy_index = 0; copy_index < function_length;
+                             ++copy_index)
+                            runtime->traceback[trace_index].function_name[
+                                copy_index] = (char)frame_code->source_data[
+                                    frame_code->function_name_offset + copy_index];
+                    runtime->traceback[trace_index].function_name_length =
+                        function_length;
+                }
+                runtime->traceback[trace_index].offset = frame_offset;
+                runtime->traceback[trace_index].line = frame_line;
+                runtime->traceback[trace_index].column = frame_column;
+                ++trace_index;
+            }
+        }
+        runtime->traceback_count = trace_index;
+    }
+    py68_error_set(&runtime->error, kind, location,
+                   code->source_filename, message);
+}
+
+static void py68_vm_local_error(Py68Runtime *runtime, Py68Code *code,
+                                Py68U16 slot, const char *message)
+{
+    py68_vm_error_at(runtime, code,
+                     slot < code->local_count ? code->local_offsets[slot] : 0,
+                     slot < code->local_count ? code->local_lengths[slot] : 0,
+                     PY68_ERROR_NAME, message);
+}
+
 static Py68Status py68_vm_grow(Py68Runtime *runtime)
 {
     Py68U16 capacity = runtime->value_stack_capacity == 0 ? 32 :
@@ -101,14 +190,16 @@ static int py68_vm_multiply(Py68I32 left, Py68I32 right, Py68I32 *result)
     return 1;
 }
 
-static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
+static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68Code *code,
+                                 Py68U32 ip, Py68U8 opcode)
 {
     Py68Value left, right, result;
     Py68I32 quotient, remainder, integer;
     if (py68_vm_pop(runtime, &right) != PY68_STATUS_OK ||
         py68_vm_pop(runtime, &left) != PY68_STATUS_OK ||
         left.type != PY68_VM_INT || right.type != PY68_VM_INT) {
-        py68_vm_error(runtime, PY68_ERROR_TYPE, "integer operands required");
+        py68_vm_error_at(runtime, code, ip, 1, PY68_ERROR_TYPE,
+                 "integer operands required");
         return PY68_STATUS_RUNTIME_ERROR;
     }
     result.type = PY68_VM_INT; result.reserved = 0;
@@ -120,7 +211,8 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
         if (!py68_vm_multiply(left.as.integer, right.as.integer, &integer)) goto overflow;
     } else if (opcode == OP_FLOOR_DIVIDE || opcode == OP_MODULO) {
         if (right.as.integer == 0) {
-            py68_vm_error(runtime, PY68_ERROR_ZERO_DIVISION, "division by zero");
+            py68_vm_error_at(runtime, code, ip, 1, PY68_ERROR_ZERO_DIVISION,
+                             "division by zero");
             return PY68_STATUS_RUNTIME_ERROR;
         }
         if (left.as.integer == (Py68I32)-2147483647 - 1 && right.as.integer == -1)
@@ -145,7 +237,8 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
     result.as.integer = integer;
     return py68_vm_push(runtime, result);
 overflow:
-    py68_vm_error(runtime, PY68_ERROR_OVERFLOW, "integer overflow");
+    py68_vm_error_at(runtime, code, ip, 1, PY68_ERROR_OVERFLOW,
+                     "integer overflow");
     return PY68_STATUS_RUNTIME_ERROR;
 bad_opcode:
     py68_vm_error(runtime, PY68_ERROR_BYTECODE, "unsupported arithmetic opcode");
@@ -170,6 +263,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
     status = py68_frame_push(runtime, current_code, NULL, 0, 0, NULL, 0);
     if (status != PY68_STATUS_OK) return status;
     while (ip < current_code->bytecode_length) {
+        if (runtime->frame_count != 0)
+            runtime->frames[runtime->frame_count - 1].instruction_offset = ip;
         opcode = current_code->bytecode[ip];
         switch (opcode) {
         case OP_HALT:
@@ -216,6 +311,33 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             }
             value = py68_value_int(current_code->constants[index].integer);
             status = py68_vm_push(runtime, value); ip += 3; break;
+        case OP_MAKE_FUNCTION: {
+            Py68Function *function;
+            Py68Code *function_code;
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            if (current_code->constants[index].kind != PY68_CONSTANT_CODE ||
+                current_code->constants[index].code == NULL) {
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "function code constant required");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            function_code = current_code->constants[index].code;
+            status = py68_function_new_owned(
+                runtime, function_code, function_code->argument_count,
+                function_code->local_count, &function);
+            if (status == PY68_STATUS_OK) {
+                current_code->constants[index].code = NULL;
+                status = py68_vm_push(runtime,
+                    py68_value_from_object(&function->base));
+                if (status != PY68_STATUS_OK)
+                    py68_object_release(runtime, &function->base);
+            }
+            ip += 3;
+            break;
+        }
         case OP_LOAD_GLOBAL:
             index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                               current_code->bytecode[ip + 2]);
@@ -246,6 +368,26 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                         value);
                 else
                     status = py68_global_set_copy(runtime, index, value);
+                py68_value_release(runtime, value);
+            }
+            ip += 3; break;
+        case OP_LOAD_LOCAL:
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            status = py68_frame_get_local(runtime, index, &value);
+            if (status == PY68_STATUS_OK && value.type == PY68_VALUE_UNBOUND) {
+                py68_vm_local_error(runtime, current_code, index,
+                                    "local name referenced before assignment");
+                status = PY68_STATUS_RUNTIME_ERROR;
+            } else if (status == PY68_STATUS_OK)
+                status = py68_vm_push(runtime, value);
+            ip += 3; break;
+        case OP_STORE_LOCAL:
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            status = py68_vm_pop(runtime, &value);
+            if (status == PY68_STATUS_OK) {
+                status = py68_frame_set_local_copy(runtime, index, value);
                 py68_value_release(runtime, value);
             }
             ip += 3; break;
@@ -290,7 +432,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             Py68Range *range_obj = NULL;
             Py68Value arg0, arg1, arg2;
             if (argc < 1 || argc > 3 || runtime->value_stack_count < argc) {
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "range arguments invalid");
+                py68_vm_error_at(runtime, current_code, ip, 2,
+                                 PY68_ERROR_TYPE, "range arguments invalid");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
                 break;
@@ -318,7 +461,9 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 }
                 if (arg0.type != PY68_VALUE_INT) {
                     py68_value_release(runtime, arg0);
-                    py68_vm_error(runtime, PY68_ERROR_TYPE, "integer required for range");
+                    py68_vm_error_at(runtime, current_code, ip, 2,
+                                     PY68_ERROR_TYPE,
+                                     "integer required for range");
                     status = PY68_STATUS_RUNTIME_ERROR;
                     ip = current_code->bytecode_length;
                     break;
@@ -329,7 +474,9 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 if (status == PY68_STATUS_OK) status = py68_vm_pop(runtime, &arg0);
                 if (status != PY68_STATUS_OK ||
                     arg0.type != PY68_VALUE_INT || arg1.type != PY68_VALUE_INT) {
-                    py68_vm_error(runtime, PY68_ERROR_TYPE, "integers required for range");
+                    py68_vm_error_at(runtime, current_code, ip, 2,
+                                     PY68_ERROR_TYPE,
+                                     "integers required for range");
                     status = PY68_STATUS_RUNTIME_ERROR;
                     ip = current_code->bytecode_length;
                     break;
@@ -343,7 +490,9 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 if (status != PY68_STATUS_OK ||
                     arg0.type != PY68_VALUE_INT || arg1.type != PY68_VALUE_INT ||
                     arg2.type != PY68_VALUE_INT) {
-                    py68_vm_error(runtime, PY68_ERROR_TYPE, "integers required for range");
+                    py68_vm_error_at(runtime, current_code, ip, 2,
+                                     PY68_ERROR_TYPE,
+                                     "integers required for range");
                     status = PY68_STATUS_RUNTIME_ERROR;
                     ip = current_code->bytecode_length;
                     break;
@@ -353,7 +502,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 step = arg2.as.integer;
             }
             if (step == 0) {
-                py68_vm_error(runtime, PY68_ERROR_VALUE, "range step cannot be zero");
+                py68_vm_error_at(runtime, current_code, ip, 2,
+                                 PY68_ERROR_VALUE, "range step cannot be zero");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
                 break;
@@ -382,7 +532,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             range_val = runtime->value_stack[runtime->value_stack_count - 1];
             if (range_val.type != PY68_VALUE_OBJECT || range_val.as.object == NULL ||
                 range_val.as.object->type != PY68_OBJECT_RANGE) {
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "range iterator required");
+                py68_vm_error_at(runtime, current_code, ip, 3,
+                                 PY68_ERROR_TYPE, "range iterator required");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
                 break;
@@ -423,7 +574,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             if (index_val.type != PY68_VALUE_INT) {
                 py68_value_release(runtime, index_val);
                 py68_value_release(runtime, container_val);
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "index must be integer");
+                py68_vm_error_at(runtime, current_code, ip, 1,
+                                 PY68_ERROR_TYPE, "index must be integer");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
                 break;
@@ -435,14 +587,18 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                     (Py68List *)container_val.as.object,
                     index_val.as.integer, &item_val);
                 if (status != PY68_STATUS_OK) {
-                    py68_vm_error(runtime, PY68_ERROR_INDEX, "list index out of range");
+                    py68_vm_error_at(runtime, current_code, ip, 1,
+                                     PY68_ERROR_INDEX,
+                                     "list index out of range");
                     status = PY68_STATUS_RUNTIME_ERROR;
                     ip = current_code->bytecode_length;
                 } else {
                     status = py68_vm_push(runtime, item_val);
                 }
             } else {
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "container does not support indexing");
+                py68_vm_error_at(runtime, current_code, ip, 1,
+                                 PY68_ERROR_TYPE,
+                                 "container does not support indexing");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
             }
@@ -454,7 +610,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
         case OP_ADD: case OP_SUBTRACT: case OP_MULTIPLY: case OP_FLOOR_DIVIDE:
         case OP_MODULO: case OP_EQUAL: case OP_NOT_EQUAL: case OP_LESS:
         case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL:
-            status = py68_vm_binary(runtime, opcode); ip += 1; break;
+            status = py68_vm_binary(runtime, current_code, ip, opcode);
+            ip += 1; break;
         case OP_NEGATE:
             status = py68_vm_pop(runtime, &value);
             if (status == PY68_STATUS_OK && value.type == PY68_VM_INT) {
@@ -539,7 +696,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             callee = runtime->value_stack[
                 runtime->value_stack_count - argument_count - 1];
             if (callee.type != PY68_VALUE_OBJECT || callee.as.object == NULL) {
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "callable required");
+                py68_vm_error_at(runtime, current_code, ip, 2,
+                                 PY68_ERROR_TYPE, "callable required");
                 status = PY68_STATUS_RUNTIME_ERROR;
                 ip = current_code->bytecode_length;
                 break;
@@ -553,6 +711,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 Py68Code *callee_code = function->code;
                 Py68U16 local_count = function->local_count;
                 status = py68_function_check_arguments(function, argument_count);
+                if (status == PY68_STATUS_OK)
+                    status = py68_code_intern_names(runtime, callee_code);
                 if (status == PY68_STATUS_OK)
                     status = py68_verify_code(callee_code, &runtime->error);
                 if (status == PY68_STATUS_OK)
@@ -572,7 +732,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 }
                 break;
             } else {
-                py68_vm_error(runtime, PY68_ERROR_TYPE, "unsupported callable");
+                py68_vm_error_at(runtime, current_code, ip, 2,
+                                 PY68_ERROR_TYPE, "unsupported callable");
                 status = PY68_STATUS_RUNTIME_ERROR;
             }
             if (status == PY68_STATUS_OK) {

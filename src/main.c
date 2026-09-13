@@ -20,6 +20,56 @@ static Py68Status py68_write_literal(Py68Runtime *runtime, const char *text)
     return py68_platform_write_stdout(runtime, text, (Py68U32)strlen(text));
 }
 
+static Py68Status py68_write_decimal(Py68Runtime *runtime, Py68U32 value)
+{
+    char digits[10];
+    Py68U16 count = 0;
+    Py68U16 index;
+    if (value == 0) return py68_write_literal(runtime, "0");
+    while (value != 0) {
+        digits[count++] = (char)('0' + (value % 10));
+        value /= 10;
+    }
+    for (index = count; index != 0; --index) {
+        Py68Status status = py68_platform_write_stderr(
+            runtime, &digits[index - 1], 1);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_write_traceback(Py68Runtime *runtime)
+{
+    Py68U16 index;
+    Py68Status status;
+    for (index = 0; index < runtime->traceback_count; ++index) {
+        const Py68TraceEntry *entry = &runtime->traceback[index];
+        status = py68_platform_write_stderr(runtime, "  at ", 6);
+        if (status != PY68_STATUS_OK) return status;
+        if (entry->function_name_length != 0) {
+            status = py68_platform_write_stderr(
+                runtime,
+                entry->function_name,
+                entry->function_name_length);
+        } else {
+            status = py68_platform_write_stderr(runtime, "<module>", 8);
+        }
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_platform_write_stderr(runtime, " (", 2);
+        if (status == PY68_STATUS_OK && entry->filename[0] != '\0')
+            status = py68_platform_write_stderr(
+                runtime, entry->filename,
+                (Py68U32)strlen(entry->filename));
+        if (status == PY68_STATUS_OK) status = py68_platform_write_stderr(runtime, ":", 1);
+        if (status == PY68_STATUS_OK) status = py68_write_decimal(runtime, entry->line);
+        if (status == PY68_STATUS_OK) status = py68_platform_write_stderr(runtime, ":", 1);
+        if (status == PY68_STATUS_OK) status = py68_write_decimal(runtime, entry->column);
+        if (status == PY68_STATUS_OK) status = py68_platform_write_stderr(runtime, ")\n", 2);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
 static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
 {
     Py68U8 *file_data;
@@ -59,6 +109,8 @@ static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
     status = py68_compile_module(&runtime->allocator, &source, module,
                                  &code, &runtime->error);
     if (status != PY68_STATUS_OK) goto cleanup_arena;
+    status = py68_code_intern_names(runtime, &code);
+    if (status != PY68_STATUS_OK) goto cleanup_code;
     for (index = 0; index < code.name_count; ++index) {
         Py68U16 len = code.name_lengths[index];
         const char *name_str = (const char *)source.data + code.name_offsets[index];
@@ -130,6 +182,13 @@ int main(int argc, char **argv)
         if (status == PY68_STATUS_OK) {
             status = PY68_STATUS_SOURCE_ERROR;
         }
+    }
+
+    if (status != PY68_STATUS_OK && runtime.error.message[0] != '\0') {
+        py68_platform_write_stderr(&runtime, runtime.error.message,
+                                   (Py68U32)strlen(runtime.error.message));
+        py68_platform_write_stderr(&runtime, "\n", 1);
+        py68_write_traceback(&runtime);
     }
 
     py68_runtime_shutdown(&runtime);

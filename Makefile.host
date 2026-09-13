@@ -38,6 +38,7 @@ TEST_SYMBOL_SOURCES := tests/unit/test_symbols.c $(TEST_COMMON) src/code.c src/t
 TEST_CODE_SOURCES := tests/unit/test_code.c $(TEST_COMMON) src/code.c src/opcode.c
 TEST_CODE_OWNERSHIP_SOURCES := tests/unit/test_code_ownership.c $(TEST_COMMON) src/code.c src/opcode.c
 TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/native.c src/function.c
+TEST_LOCALS_SOURCES := tests/unit/test_locals.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/native.c src/function.c
 TEST_VERIFY_SOURCES := tests/unit/test_verify.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c
 TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/native.c src/function.c
 TEST_OBJECT_SOURCES := tests/unit/test_objects.c $(TEST_COMMON) src/code.c
@@ -84,10 +85,11 @@ $(HOST_BUILD)/test_code: $(TEST_CODE_SOURCES) | $(HOST_BUILD)
 
 $(HOST_BUILD)/test_code_ownership: $(TEST_CODE_OWNERSHIP_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_CODE_OWNERSHIP_SOURCES) $(HOST_OUTPUT) $(LDFLAGS)
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_code_ownership $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_intern $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_program
-
 $(HOST_BUILD)/test_compiler: $(TEST_COMPILER_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_COMPILER_SOURCES) $(HOST_OUTPUT) $(LDFLAGS)
+
+$(HOST_BUILD)/test_locals: $(TEST_LOCALS_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_LOCALS_SOURCES) $(HOST_OUTPUT) $(LDFLAGS)
 
 $(HOST_BUILD)/test_verify: $(TEST_VERIFY_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_VERIFY_SOURCES) $(HOST_OUTPUT) $(LDFLAGS)
@@ -119,15 +121,16 @@ $(HOST_BUILD)/test_builtins: $(TEST_BUILTIN_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_builtin_io: $(TEST_BUILTIN_IO_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_BUILTIN_IO_SOURCES) $(HOST_OUTPUT) $(LDFLAGS)
 
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_intern $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_PROGRAM)
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_code_ownership $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_locals $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_intern $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_PROGRAM)
 	$(HOST_BUILD)/test_memory
 	$(HOST_BUILD)/test_tokenizer
 	$(HOST_BUILD)/test_parser
 	$(HOST_BUILD)/test_statements
 	$(HOST_BUILD)/test_symbols
 	$(HOST_BUILD)/test_code
-		$(HOST_BUILD)/test_code_ownership
+	$(HOST_BUILD)/test_code_ownership
 	$(HOST_BUILD)/test_compiler
+	$(HOST_BUILD)/test_locals
 	$(HOST_BUILD)/test_verify
 	$(HOST_BUILD)/test_vm
 	$(HOST_BUILD)/test_objects

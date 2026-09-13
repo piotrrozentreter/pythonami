@@ -79,4 +79,25 @@ print(1 or missing_name)
 print(2 and 3)
 print(0 or 4)
 
+print("=== 10. Zero-Argument Functions ===")
+def get_function_value():
+    return 42
+
+function_value = get_function_value()
+print(function_value)
+
+print("=== 11. Function Parameters ===")
+def add_values(left, right):
+    return left + right
+
+print(add_values(7, 5))
+
+print("=== 12. Recursive Functions ===")
+def fibonacci(number):
+    if number < 2:
+        return number
+    return fibonacci(number - 1) + fibonacci(number - 2)
+
+print(fibonacci(8))
+
 print("=== Feature Test Complete ===")

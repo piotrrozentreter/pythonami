@@ -122,9 +122,13 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         boundaries[offset] = 1;
         if ((opcode == OP_LOAD_CONST &&
              py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
+              (opcode == OP_MAKE_FUNCTION &&
+               py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
             ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL ||
-              opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
-             py68_read_u16(code->bytecode, offset + 1) >= code->name_count)) {
+                            opcode == OP_STORE_GLOBAL) &&
+                         py68_read_u16(code->bytecode, offset + 1) >= code->name_count) ||
+                        ((opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
+                         py68_read_u16(code->bytecode, offset + 1) >= code->local_count)) {
             py68_verify_error(error, "bytecode table index is out of range", offset);
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;
