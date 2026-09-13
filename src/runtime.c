@@ -9,6 +9,7 @@ void py68_runtime_initialize_struct(Py68Runtime *runtime)
 {
     memset(runtime, 0, sizeof(*runtime));
     py68_allocator_initialize(&runtime->allocator);
+    py68_intern_initialize(&runtime->interned_names);
 }
 
 Py68Status py68_runtime_initialize(Py68Runtime *runtime)
@@ -23,6 +24,7 @@ void py68_runtime_shutdown(Py68Runtime *runtime)
     py68_frame_unwind(runtime);
     py68_global_clear(runtime);
     py68_builtin_clear(runtime);
+    py68_intern_destroy(runtime, &runtime->interned_names);
     while (runtime->live_objects != NULL) {
         Py68Object *object = runtime->live_objects;
         object->reference_count = 1;

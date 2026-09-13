@@ -82,8 +82,13 @@ static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
             status = py68_native_new(runtime, fn_name, min_args, max_args,
                                      cb, &builtin_fn);
             if (status != PY68_STATUS_OK) goto cleanup_code;
-            status = py68_builtin_set_copy(
-                runtime, name_index, py68_value_from_object(&builtin_fn->base));
+            if (code.name_strings != NULL)
+                status = py68_builtin_set_string_copy(
+                    runtime, name_index, code.name_strings[name_index],
+                    py68_value_from_object(&builtin_fn->base));
+            else
+                status = py68_builtin_set_copy(
+                    runtime, name_index, py68_value_from_object(&builtin_fn->base));
             py68_object_release(runtime, &builtin_fn->base);
             if (status != PY68_STATUS_OK) goto cleanup_code;
         }

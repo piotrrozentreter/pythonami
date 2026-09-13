@@ -162,6 +162,8 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
     Py68Value value, duplicate;
     Py68Status status;
 
+    status = py68_code_intern_names(runtime, code);
+    if (status != PY68_STATUS_OK) return status;
     status = py68_verify_code(current_code, &runtime->error);
     if (status != PY68_STATUS_OK) return status;
     runtime->frame_count = 0;
@@ -217,9 +219,17 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
         case OP_LOAD_GLOBAL:
             index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                               current_code->bytecode[ip + 2]);
-            status = py68_global_get_copy(runtime, index, &value);
-            if (status != PY68_STATUS_OK)
-                status = py68_builtin_get_copy(runtime, index, &value);
+            if (current_code->name_strings != NULL) {
+                status = py68_global_get_string_copy(
+                    runtime, current_code->name_strings[index], &value);
+                if (status != PY68_STATUS_OK)
+                    status = py68_builtin_get_string_copy(
+                        runtime, current_code->name_strings[index], &value);
+            } else {
+                status = py68_global_get_copy(runtime, index, &value);
+                if (status != PY68_STATUS_OK)
+                    status = py68_builtin_get_copy(runtime, index, &value);
+            }
             if (status == PY68_STATUS_OK)
                 status = py68_vm_push(runtime, value);
             else
@@ -230,7 +240,12 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                               current_code->bytecode[ip + 2]);
             status = py68_vm_pop(runtime, &value);
             if (status == PY68_STATUS_OK) {
-                status = py68_global_set_copy(runtime, index, value);
+                if (current_code->name_strings != NULL)
+                    status = py68_global_set_string_copy(
+                        runtime, index, current_code->name_strings[index],
+                        value);
+                else
+                    status = py68_global_set_copy(runtime, index, value);
                 py68_value_release(runtime, value);
             }
             ip += 3; break;
@@ -482,6 +497,29 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                     (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                                        current_code->bytecode[ip + 2]));
             } else ip += 3;
+            break;
+        case OP_JUMP_IF_FALSE_OR_POP: case OP_JUMP_IF_TRUE_OR_POP:
+            if (runtime->value_stack_count == 0) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "value stack underflow");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            value = runtime->value_stack[runtime->value_stack_count - 1];
+            if ((opcode == OP_JUMP_IF_FALSE_OR_POP && !py68_vm_truth(value)) ||
+                (opcode == OP_JUMP_IF_TRUE_OR_POP && py68_vm_truth(value))) {
+                target = (Py68U32)((Py68I32)(ip + 3) +
+                    (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                                       current_code->bytecode[ip + 2]));
+                ip = target;
+            } else {
+                status = py68_vm_pop(runtime, &value);
+                if (status == PY68_STATUS_OK) {
+                    py68_value_release(runtime, value);
+                    ip += 3;
+                }
+            }
             break;
         case OP_CALL: {
             Py68U8 argument_count = current_code->bytecode[ip + 1];

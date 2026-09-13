@@ -48,4 +48,35 @@ for x in range(1, 10, 2):
     r_total = r_total + x
 print(r_total)
 
+print("=== 7. Break and Continue ===")
+break_total = 0
+break_index = 0
+while break_index < 5:
+    if break_index == 3:
+        break
+    break_total = break_total + break_index
+    break_index = break_index + 1
+print(break_total)
+
+continue_total = 0
+for continue_index in range(5):
+    if continue_index == 2:
+        continue
+    continue_total = continue_total + continue_index
+print(continue_total)
+
+print("=== 8. Loop Else ===")
+exhausted = 0
+for value in range(2):
+    exhausted = exhausted + value
+else:
+    exhausted = exhausted + 10
+print(exhausted)
+
+print("=== 9. Short-Circuit Logic ===")
+print(0 and missing_name)
+print(1 or missing_name)
+print(2 and 3)
+print(0 or 4)
+
 print("=== Feature Test Complete ===")

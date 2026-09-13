@@ -1,4 +1,5 @@
 #include "py68k_builtin.h"
+#include "py68k_string.h"
 
 #include <stddef.h>
 
@@ -35,11 +36,57 @@ Py68Status py68_builtin_set_copy(Py68Runtime *runtime, Py68U16 name_index,
         py68_builtin_grow(runtime) != PY68_STATUS_OK)
         return PY68_STATUS_MEMORY_ERROR;
     runtime->builtins[runtime->builtin_count].name_index = name_index;
+    runtime->builtins[runtime->builtin_count].name_string = NULL;
     runtime->builtins[runtime->builtin_count].value = value;
     runtime->builtins[runtime->builtin_count].occupied = 1;
     py68_value_retain(value);
     ++runtime->builtin_count;
     return PY68_STATUS_OK;
+}
+
+Py68Status py68_builtin_set_string_copy(Py68Runtime *runtime,
+                                        Py68U16 name_index, Py68String *name,
+                                        Py68Value value)
+{
+    Py68U16 index;
+    if (runtime == NULL || name == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    for (index = 0; index < runtime->builtin_count; ++index) {
+        if (runtime->builtins[index].occupied &&
+            runtime->builtins[index].name_string == name) {
+            Py68Value old = runtime->builtins[index].value;
+            py68_value_retain(value);
+            runtime->builtins[index].value = value;
+            py68_value_release(runtime, old);
+            return PY68_STATUS_OK;
+        }
+    }
+    if (runtime->builtin_count == runtime->builtin_capacity &&
+        py68_builtin_grow(runtime) != PY68_STATUS_OK)
+        return PY68_STATUS_MEMORY_ERROR;
+    runtime->builtins[runtime->builtin_count].name_index = name_index;
+    runtime->builtins[runtime->builtin_count].name_string = name;
+    runtime->builtins[runtime->builtin_count].value = value;
+    runtime->builtins[runtime->builtin_count].occupied = 1;
+    py68_value_retain(value);
+    ++runtime->builtin_count;
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_builtin_get_string_copy(Py68Runtime *runtime,
+                                        Py68String *name, Py68Value *result)
+{
+    Py68U16 index;
+    if (runtime == NULL || name == NULL || result == NULL)
+        return PY68_STATUS_INTERNAL_ERROR;
+    for (index = 0; index < runtime->builtin_count; ++index) {
+        if (runtime->builtins[index].occupied &&
+            runtime->builtins[index].name_string == name) {
+            *result = runtime->builtins[index].value;
+            py68_value_retain(*result);
+            return PY68_STATUS_OK;
+        }
+    }
+    return PY68_STATUS_SOURCE_ERROR;
 }
 
 Py68Status py68_builtin_get_copy(Py68Runtime *runtime, Py68U16 name_index,

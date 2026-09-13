@@ -342,6 +342,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         constant.integer = node->as.integer_literal.value;
         constant.offset = 0;
         constant.length = 0;
+        constant.code = NULL;
         status = py68_code_add_constant(allocator, code, constant, &index);
         if (status != PY68_STATUS_OK) return status;
         return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
@@ -353,6 +354,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         constant.integer = 0;
         constant.offset = node->as.string_literal.offset;
         constant.length = node->as.string_literal.length;
+        constant.code = NULL;
         status = py68_code_add_constant(allocator, code, constant, &index);
         if (status != PY68_STATUS_OK) return status;
         return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
@@ -380,6 +382,21 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         status = py68_compile_expression(allocator, source,
                                          node->as.binary.left, code, error);
         if (status != PY68_STATUS_OK) return status;
+        if (node->as.binary.operator_kind == PY68_TOKEN_AND ||
+            node->as.binary.operator_kind == PY68_TOKEN_OR) {
+            Py68U32 short_circuit_operand;
+            Py68U8 short_circuit_opcode =
+                node->as.binary.operator_kind == PY68_TOKEN_AND ?
+                OP_JUMP_IF_FALSE_OR_POP : OP_JUMP_IF_TRUE_OR_POP;
+            status = py68_emit_jump(allocator, code, short_circuit_opcode,
+                                    &short_circuit_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source,
+                                             node->as.binary.right, code, error);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_patch_jump(code, short_circuit_operand,
+                                   code->bytecode_length);
+        }
         status = py68_compile_expression(allocator, source,
                                          node->as.binary.right, code, error);
         if (status != PY68_STATUS_OK) return status;

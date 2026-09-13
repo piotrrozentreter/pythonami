@@ -5,6 +5,7 @@
 #include "py68k_code.h"
 #include "py68k_memory.h"
 #include "py68k_object.h"
+#include "py68k_intern.h"
 #include "py68k_platform.h"
 #include "py68k_status.h"
 #include "py68k_types.h"
@@ -20,6 +21,7 @@ typedef struct Py68Frame {
 
 typedef struct Py68GlobalEntry {
     Py68U16 name_index;
+    Py68String *name_string;
     Py68Value value;
     Py68U16 occupied;
 } Py68GlobalEntry;
@@ -40,6 +42,7 @@ struct Py68Runtime {
     Py68GlobalEntry *builtins;
     Py68U16 builtin_count;
     Py68U16 builtin_capacity;
+    Py68InternTable interned_names;
     Py68Object *live_objects;
     Py68I32 requested_exit_code;
     Py68U16 trace_enabled;

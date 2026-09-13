@@ -6,11 +6,15 @@
 #include "py68k_source.h"
 #include "py68k_status.h"
 
+struct Py68Runtime;
+typedef struct Py68String Py68String;
+
 typedef enum Py68ConstantKind {
     PY68_CONSTANT_NONE = 0,
     PY68_CONSTANT_BOOL,
     PY68_CONSTANT_INTEGER,
-    PY68_CONSTANT_STRING
+    PY68_CONSTANT_STRING,
+    PY68_CONSTANT_CODE
 } Py68ConstantKind;
 
 typedef struct Py68Constant {
@@ -19,6 +23,7 @@ typedef struct Py68Constant {
     Py68I32 integer;
     Py68U32 offset;
     Py68U16 length;
+    struct Py68Code *code;
 } Py68Constant;
 
 typedef struct Py68Code {
@@ -32,6 +37,7 @@ typedef struct Py68Code {
     Py68U16 constant_capacity;
     Py68U32 *name_offsets;
     Py68U16 *name_lengths;
+    Py68String **name_strings;
     Py68U16 name_count;
     Py68U16 name_capacity;
     Py68U16 maximum_stack;
@@ -47,8 +53,13 @@ Py68Status py68_code_patch_i16_be(Py68Code *code, Py68U32 operand_offset,
                                   Py68I32 displacement);
 Py68Status py68_code_add_constant(Py68Allocator *allocator, Py68Code *code,
                                   Py68Constant constant, Py68U16 *index_out);
+Py68Status py68_code_add_code_move(Py68Allocator *allocator, Py68Code *code,
+                                   struct Py68Code *nested,
+                                   Py68U16 *index_out);
 Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
                               Py68U32 offset, Py68U16 length,
                               Py68U16 *index_out);
+Py68Status py68_code_intern_names(struct Py68Runtime *runtime,
+                                  Py68Code *code);
 
 #endif

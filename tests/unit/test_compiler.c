@@ -273,6 +273,64 @@ int main(void)
         passed &= runtime.allocator.stats.current_bytes == 0;
     }
 
+    {
+        const char *short_circuit_text =
+            "and_value = 0 and missing_name\n"
+            "or_value = 1 or missing_name\n"
+            "and_result = 2 and 3\n"
+            "or_result = 0 or 4\n";
+        const char *names[] = { "and_value", "or_value",
+                                "and_result", "or_result" };
+        const Py68U16 lengths[] = { 9, 8, 10, 9 };
+        const Py68I32 expected[] = { 0, 1, 3, 4 };
+        Py68U16 name_index;
+        Py68U16 value_index;
+        Py68Value short_value;
+        Py68U16 name_count;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "short_circuit_test.py", (const Py68U8 *)short_circuit_text,
+            (Py68U32)strlen(short_circuit_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= code.name_strings != NULL;
+        name_count = (Py68U16)(sizeof(names) / sizeof(names[0]));
+        for (name_index = 0; name_index < name_count; ++name_index) {
+            value_index = 0;
+            passed &= py68_code_add_name(
+                &runtime.allocator, &code,
+                (Py68U32)(strstr(short_circuit_text, names[name_index]) -
+                          short_circuit_text),
+                lengths[name_index], &value_index) == PY68_STATUS_OK;
+            passed &= py68_global_get_copy(&runtime, value_index,
+                                           &short_value) == PY68_STATUS_OK;
+            passed &= short_value.type == PY68_VALUE_INT &&
+                      short_value.as.integer == expected[name_index];
+            py68_value_release(&runtime, short_value);
+        }
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
     if (passed) { puts("PASS: compiler tests"); return 0; }
     return 1;
 }
