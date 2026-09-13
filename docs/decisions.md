@@ -53,3 +53,24 @@
 - Decision: Compile `and`/`or` with `OP_JUMP_IF_FALSE_OR_POP` / `OP_JUMP_IF_TRUE_OR_POP`. Verifier treats the jump path as keeping TOS and the fall-through path as popping TOS (stack effect -1).
 - Alternatives considered: Always evaluate both sides into booleans with `OP_AND`/`OP_OR` opcodes.
 - Consequences: Matches Python value-preserving short-circuit semantics; empty strings/lists are falsy via updated truthiness rules.
+
+## D-0009: for-break pops the range iterator
+
+- Context: `for` compilation leaves a range object on the value stack for `OP_RANGE_NEXT`. Exhausted iteration pops it before joining the exit/else path, but `break` previously jumped to the same join with the iterator still on the stack, so the verifier reported inconsistent stack depth.
+- Decision: Mark for-loop contexts with `pop_on_break` and emit `OP_POP` immediately before each for-`break` jump. `OP_POP` releases the popped value. While-loops leave `pop_on_break` clear.
+- Alternatives considered: Dedicated break-cleanup label after the loop, or changing `OP_RANGE_NEXT` metadata so break could jump through a shared pop block only.
+- Consequences: for-`break` verifies and runs; else clauses remain skipped on break; continue is unchanged (jumps back to `RANGE_NEXT` with the iterator still under the body).
+
+## D-0010: Subscript assignment via OP_STORE_INDEX
+
+- Context: Language Level 0.1 documents list item assignment and `OP_STORE_INDEX` existed, but the statement parser only accepted bare-name targets, so `L[1] = 99` failed before codegen.
+- Decision: After parsing a leading expression, if `=` follows and the expression is an `INDEX` node, emit an assignment whose `target` is that index. Compile as container, index, value, then `OP_STORE_INDEX`. Symbol analysis treats the target as a use (not a new binding). String item assignment remains a TypeError.
+- Alternatives considered: Restrict targets to `NAME[index]` only, or invent a separate AST kind.
+- Consequences: Nested stores such as `G[1][1] = 40` work because the outer index container may itself be an index expression.
+
+## D-0011: Equality for None and bool/int
+
+- Context: Comparisons required both operands to be `INT`, so `None == None` and `True == 1` raised TypeError despite Language Level 0.1 scalar equality rules.
+- Decision: Handle `OP_EQUAL`/`OP_NOT_EQUAL` for `None` first (`None` equals only `None`). Accept `BOOL` alongside `INT` for equality and ordering by using the stored 0/1 integer payload (Python numeric policy for booleans).
+- Alternatives considered: Coerce bool to int at load time only, or reject bool/int mixed comparisons.
+- Consequences: `True == 1`, `False == 0`, and `None == None` match Python; unrelated types still TypeError on arithmetic/order paths that do not special-case them.

@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_source.h"
 
 #include <string.h>

@@ -1,0 +1,34 @@
+=== 1. Floor division and modulo (negatives) ===
+-3
+2
+-3
+-2
+=== 2. Short-circuit truthiness ===
+[]
+2
+x
+5
+True
+False
+=== 3. Elif and while-else ===
+two
+0
+1
+while-done
+=== 4. Nested loops and continue ===
+66
+=== 5. Recursion and list build ===
+[0, 1, 4, 9]
+120
+=== 6. Strings and slices ===
+bcd
+abcdef!
+6
+=== 7. Range reverse and builtins ===
+21
+8
+-2
+3
+False
+1
+=== Advanced Suite Complete ===

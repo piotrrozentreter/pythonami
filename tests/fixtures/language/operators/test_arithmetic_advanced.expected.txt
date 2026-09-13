@@ -1,0 +1,28 @@
+=== floor/mod negatives ===
+-3
+2
+-3
+-2
+2
+-1
+-1
+1
+0
+1
+=== precedence ===
+14
+20
+5
+12
+-7
+5
+=== comparisons ===
+True
+True
+True
+True
+True
+True
+False
+True
+True

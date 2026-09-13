@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include <proto/dos.h>
 
 static void write_text(const char *text)

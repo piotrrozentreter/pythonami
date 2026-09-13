@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_parser.h"
 
 #include <stddef.h>
@@ -319,6 +321,7 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
                 if (status != PY68_STATUS_OK) return status;
                 node->as.assign.name_offset = target_token.location.offset;
                 node->as.assign.name_length = target_token.location.length;
+                node->as.assign.target = NULL;
                 node->as.assign.value = value;
             } else {
                 Py68AstNode *target;
@@ -341,6 +344,35 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
     }
     status = py68_parse_expression(&parser->expression, &value);
     if (status != PY68_STATUS_OK) return status;
+    if (py68_statement_accept(parser, PY68_TOKEN_ASSIGN)) {
+        if (value->kind == PY68_AST_NAME) {
+            status = py68_statement_new(parser, PY68_AST_ASSIGN, token, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.assign.name_offset = value->as.name.offset;
+            node->as.assign.name_length = value->as.name.length;
+            node->as.assign.target = NULL;
+            node->as.assign.value = NULL;
+            status = py68_parse_expression(&parser->expression,
+                                           &node->as.assign.value);
+            if (status != PY68_STATUS_OK) return status;
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        if (value->kind == PY68_AST_INDEX) {
+            status = py68_statement_new(parser, PY68_AST_ASSIGN, token, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.assign.name_offset = 0;
+            node->as.assign.name_length = 0;
+            node->as.assign.target = value;
+            status = py68_parse_expression(&parser->expression,
+                                           &node->as.assign.value);
+            if (status != PY68_STATUS_OK) return status;
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        return py68_statement_error(parser, py68_statement_current(parser),
+                                    "invalid assignment target");
+    }
     status = py68_statement_new(parser, PY68_AST_EXPRESSION_STATEMENT,
                                 token, &node);
     if (status == PY68_STATUS_OK) node->as.expression_statement.value = value;

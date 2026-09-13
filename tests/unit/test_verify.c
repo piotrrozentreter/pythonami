@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_code.h"
 #include "py68k_verify.h"
 

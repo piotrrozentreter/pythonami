@@ -1,0 +1,26 @@
+=== elif ladder ===
+b
+pos
+=== while else completes ===
+0
+1
+2
+while-ok
+=== while else skipped by break ===
+1
+after-while-break
+=== for else ===
+0
+1
+2
+for-else
+=== for continue ===
+0
+2
+4
+=== nested for ===
+63
+=== while continue ===
+1
+3
+5

@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #ifndef PY68K_OBJECT_H
 #define PY68K_OBJECT_H
 

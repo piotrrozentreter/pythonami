@@ -1,0 +1,41 @@
+# for-break, index assignment, and bool/None equality.
+
+print("=== for break ===")
+total = 0
+for i in range(10):
+    if i == 3:
+        break
+    total = total + i
+print(total)
+
+print("=== for break skips else ===")
+marker = 0
+for i in range(5):
+    if i == 2:
+        break
+else:
+    marker = 1
+print(marker)
+
+print("=== index assignment ===")
+L = [10, 20, 30]
+L[1] = 99
+print(L[0])
+print(L[1])
+print(L[2])
+
+print("=== nested index assignment ===")
+G = [[1, 2], [3, 4]]
+G[1][1] = 40
+print(G[1][0])
+print(G[1][1])
+
+print("=== bool/None equality ===")
+print(None == None)
+print(None != None)
+print(None == 0)
+print(True == 1)
+print(False == 0)
+print(True != False)
+print(True == False)
+print(False != 1)

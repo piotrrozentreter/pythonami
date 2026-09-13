@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_ast_arena.h"
 #include "py68k_builtin.h"
 #include "py68k_code.h"
@@ -169,6 +171,48 @@ int main(void)
         passed &= continue_total.type == PY68_VALUE_INT &&
                   continue_total.as.integer == 8;
         py68_value_release(&runtime, continue_total);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
+    {
+        const char *for_break_text =
+            "total = 0\n"
+            "for i in range(10):\n"
+            "    if i == 3:\n"
+            "        break\n"
+            "    total = total + i\n";
+        Py68Value for_break_total;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "for_break_test.py", (const Py68U8 *)for_break_text,
+            (Py68U32)strlen(for_break_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"total", 5,
+                                       &for_break_total) == PY68_STATUS_OK;
+        passed &= for_break_total.type == PY68_VALUE_INT &&
+                  for_break_total.as.integer == 3;
+        py68_value_release(&runtime, for_break_total);
         py68_code_destroy(&runtime.allocator, &code);
         py68_ast_arena_destroy(&arena);
         py68_token_array_destroy(&runtime.allocator, &tokens);

@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_ast_arena.h"
 #include "py68k_error.h"
 #include "py68k_memory.h"

@@ -121,4 +121,96 @@ print(abs(-3))
 print(min(2, 9))
 print(max(2, 9))
 
+print("=== 13. Floor/Mod Negatives ===")
+print((-7) // 3)
+print((-7) % 3)
+print(7 // (-3))
+print(7 % (-3))
+
+print("=== 14. Truthiness & not ===")
+print([] and 1)
+print([1] and 2)
+print("" or "x")
+print(None or 0 or 5)
+print(not [])
+print(not [1])
+print(not "")
+
+print("=== 15. Elif & while-else ===")
+x = 2
+if x == 1:
+    print("one")
+elif x == 2:
+    print("two")
+else:
+    print("other")
+i = 0
+while i < 2:
+    print(i)
+    i = i + 1
+else:
+    print("while-done")
+
+print("=== 16. Nested Loops & continue ===")
+nested = 0
+for a in range(3):
+    for b in range(3):
+        if b == 1:
+            continue
+        nested = nested + a * 10 + b
+print(nested)
+
+print("=== 17. Recursion & list build ===")
+
+
+def squares(n):
+    out = []
+    for i in range(n):
+        list_append(out, i * i)
+    return out
+
+
+def fact(n):
+    if n <= 1:
+        return 1
+    return n * fact(n - 1)
+
+
+print(squares(4))
+print(fact(5))
+
+print("=== 18. Range reverse ===")
+rev = 0
+for n in range(6, 0, -1):
+    rev = rev + n
+print(rev)
+
+print("=== 19. for-break ===")
+broken = 0
+for n in range(8):
+    if n == 5:
+        break
+    broken = broken + n
+print(broken)
+
+print("=== 20. Index Assignment ===")
+vals = [1, 2, 3]
+vals[0] = 9
+vals[2] = 7
+print(vals[0])
+print(vals[1])
+print(vals[2])
+grid = [[0, 0], [0, 0]]
+grid[0][1] = 5
+grid[1][0] = 6
+print(grid[0][1])
+print(grid[1][0])
+
+print("=== 21. Bool/None Equality ===")
+print(None == None)
+print(None == 1)
+print(True == 1)
+print(False == 0)
+print(True != False)
+
 print("=== Feature Test Complete ===")

@@ -1,0 +1,20 @@
+=== for break ===
+3
+=== for break skips else ===
+0
+=== index assignment ===
+10
+99
+30
+=== nested index assignment ===
+3
+40
+=== bool/None equality ===
+True
+False
+False
+True
+True
+True
+False
+True

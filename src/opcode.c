@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_opcode.h"
 
 #define INFO(width, effect, text) { width, effect, text }

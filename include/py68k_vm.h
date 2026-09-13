@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #ifndef PY68K_VM_H
 #define PY68K_VM_H
 

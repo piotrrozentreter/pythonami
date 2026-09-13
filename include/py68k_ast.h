@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #ifndef PY68K_AST_H
 #define PY68K_AST_H
 
@@ -46,6 +48,7 @@ struct Py68AstNode {
     union {
         struct { Py68AstList statements; } module;
         struct { Py68U32 name_offset; Py68U16 name_length;
+                 Py68AstNode *target; /* NULL = simple name; INDEX = store */
                  Py68AstNode *value; } assign;
         struct { Py68U16 operator_kind; Py68AstNode *target;
                  Py68AstNode *value; } augmented_assign;

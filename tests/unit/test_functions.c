@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_function.h"
 #include "py68k_native.h"
 #include "py68k_runtime.h"

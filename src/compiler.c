@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_compiler.h"
 #include "py68k_symbol.h"
 #include "py68k_token.h"
@@ -17,15 +19,19 @@ typedef struct Py68LoopContext {
     Py68U32 *break_operands;
     Py68U16 break_count;
     Py68U16 break_capacity;
+    /* for-loops keep the range iterator under the body; break must POP it. */
+    int pop_on_break;
 } Py68LoopContext;
 
 static void py68_loop_context_initialize(Py68LoopContext *loop,
-                                         Py68U32 continue_target)
+                                         Py68U32 continue_target,
+                                         int pop_on_break)
 {
     loop->continue_target = continue_target;
     loop->break_operands = NULL;
     loop->break_count = 0;
     loop->break_capacity = 0;
+    loop->pop_on_break = pop_on_break;
 }
 
 static Py68Status py68_loop_context_add_break(Py68Allocator *allocator,
@@ -185,13 +191,33 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
         code->emit_line = statement->location.line;
         switch ((Py68AstKind)statement->kind) {
         case PY68_AST_ASSIGN:
-            status = py68_compile_expression(allocator, source,
-                                             statement->as.assign.value,
-                                             code, error, analysis, function);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_store_name(allocator, source, function, code,
-                                          statement->as.assign.name_offset,
-                                          statement->as.assign.name_length);
+            if (statement->as.assign.target != NULL &&
+                statement->as.assign.target->kind == PY68_AST_INDEX) {
+                Py68AstNode *index_target = statement->as.assign.target;
+                status = py68_compile_expression(
+                    allocator, source, index_target->as.index.container,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, index_target->as.index.index,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, statement->as.assign.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, OP_STORE_INDEX);
+            } else {
+                status = py68_compile_expression(allocator, source,
+                                                 statement->as.assign.value,
+                                                 code, error, analysis,
+                                                 function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    statement->as.assign.name_offset,
+                    statement->as.assign.name_length);
+            }
             break;
         case PY68_AST_AUGMENTED_ASSIGN: {
             Py68U8 opcode = py68_augmented_opcode(
@@ -252,7 +278,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             Py68U32 end_operand;
             Py68U32 back_operand;
             Py68LoopContext while_loop;
-            py68_loop_context_initialize(&while_loop, start);
+            py68_loop_context_initialize(&while_loop, start, 0);
             status = py68_compile_expression(allocator, source,
                                               statement->as.while_statement.condition,
                                               code, error, analysis, function);
@@ -324,7 +350,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 if (status != PY68_STATUS_OK) return status;
             }
             range_next_op = code->bytecode_length;
-            py68_loop_context_initialize(&for_loop, range_next_op);
+            py68_loop_context_initialize(&for_loop, range_next_op, 1);
             status = py68_emit_jump(allocator, code, OP_RANGE_NEXT, &end_operand);
             if (status != PY68_STATUS_OK) return status;
             status = py68_emit_store_name(allocator, source, function, code,
@@ -363,6 +389,10 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 py68_compile_error(error, source, statement->location,
                                    "break outside loop");
                 return PY68_STATUS_SOURCE_ERROR;
+            }
+            if (loop->pop_on_break) {
+                status = py68_emit_op(allocator, code, OP_POP);
+                if (status != PY68_STATUS_OK) return status;
             }
             status = py68_emit_jump(allocator, code, OP_JUMP, &break_operand);
             if (status != PY68_STATUS_OK) return status;

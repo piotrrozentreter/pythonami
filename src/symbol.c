@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_symbol.h"
 
 #include <stddef.h>
@@ -261,9 +263,14 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
         statement = statements->items[index];
         switch ((Py68AstKind)statement->kind) {
         case PY68_AST_ASSIGN:
-            status = py68_add_local(allocator, source, function,
-                                    statement->as.assign.name_offset,
-                                    statement->as.assign.name_length);
+            if (statement->as.assign.target != NULL) {
+                status = py68_collect_expression(allocator, source, function,
+                                                 statement->as.assign.target);
+            } else {
+                status = py68_add_local(allocator, source, function,
+                                        statement->as.assign.name_offset,
+                                        statement->as.assign.name_length);
+            }
             if (status != PY68_STATUS_OK) return status;
             status = py68_collect_expression(allocator, source, function,
                                              statement->as.assign.value);
@@ -375,6 +382,8 @@ static Py68Status py68_analyze_statement(Py68Allocator *allocator,
                                        &statement->as.function_def.body, error);
     }
     if (statement->kind == PY68_AST_ASSIGN) {
+        if (statement->as.assign.target != NULL)
+            return PY68_STATUS_OK;
         return py68_add_global(allocator, source, analysis,
                                statement->as.assign.name_offset,
                                statement->as.assign.name_length);

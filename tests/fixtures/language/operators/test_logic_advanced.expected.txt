@@ -1,0 +1,22 @@
+=== and/or values ===
+2
+0
+5
+4
+[]
+99
+fallback
+keep
+7
+2
+3
+=== not ===
+True
+False
+True
+False
+True
+False
+True
+False
+True

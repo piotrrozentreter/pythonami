@@ -24,7 +24,9 @@ TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcod
 TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON)
 TEST_BUILTIN_IO_SOURCES := tests/unit/test_builtin_io.c $(TEST_COMMON)
 
-.PHONY: all debug release test clean
+LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
+
+.PHONY: all debug release test language-test clean
 
 all: debug
 
@@ -106,6 +108,20 @@ test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_
 	$(HOST_BUILD)/test_builtin_io
 	$(HOST_PROGRAM) -V
 	$(HOST_PROGRAM) --help
+	$(MAKE) -f Makefile.host language-test
+
+language-test: $(HOST_PROGRAM)
+	chmod +x $(LANGUAGE_CHECK)
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) examples/print_values.py tests/fixtures/print_values.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) examples/test_features.py tests/fixtures/test_features.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_advanced_suite.py tests/fixtures/language/test_advanced_suite.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_arithmetic_advanced.py tests/fixtures/language/operators/test_arithmetic_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_logic_advanced.py tests/fixtures/language/operators/test_logic_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/control_flow/test_control_advanced.py tests/fixtures/language/control_flow/test_control_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/functions/test_functions_advanced.py tests/fixtures/language/functions/test_functions_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/lists/test_lists_advanced.py tests/fixtures/language/lists/test_lists_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_strings_advanced.py tests/fixtures/language/strings/test_strings_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_bugfix_suite.py tests/fixtures/language/test_bugfix_suite.expected.txt
 
 clean:
 	rm -rf build python python-debug pythonami pythonami-debug

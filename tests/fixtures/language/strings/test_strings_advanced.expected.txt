@@ -1,0 +1,23 @@
+=== concat ===
+abcd
+Hi!
+x
+y
+=== index and slice ===
+P
+6
+Python
+68K
+ytho
+9
+=== empty and falsy ===
+0
+False
+True
+=== str/int round trip ===
+7
+42
+0
+0
+True
+False

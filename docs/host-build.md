@@ -1,11 +1,10 @@
 # Host Build
 
-The Phase 0 host build uses GCC or a compatible C compiler with strict warnings:
-
 ```text
-make debug
-make test
-make release
+make host              # debug → build/host/pythonami
+make host MODE=release # optimized host build
+make test              # unit + language fixtures
+make clean
 ```
 
-The executable is written to `build/host/pythonami`. Phase 0 supports `-V` and `--help` only; source execution is intentionally not implemented yet.
+Aliases `make debug` / `make release` still forward to `Makefile.host`. The executable is written to `build/host/pythonami`.

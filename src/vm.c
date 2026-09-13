@@ -1,3 +1,5 @@
+/* 2026 by Piotr Rozentreter (Rozsoft) */
+
 #include "py68k_vm.h"
 #include "py68k_verify.h"
 #include "py68k_native.h"
@@ -233,7 +235,21 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
             return py68_vm_push(runtime, py68_value_from_object(&list->base));
         }
     }
-    if (left.type != PY68_VM_INT || right.type != PY68_VM_INT) {
+    if (opcode == OP_EQUAL || opcode == OP_NOT_EQUAL) {
+        if (left.type == PY68_VALUE_NONE || right.type == PY68_VALUE_NONE) {
+            integer = (left.type == PY68_VALUE_NONE &&
+                       right.type == PY68_VALUE_NONE);
+            if (opcode == OP_NOT_EQUAL) integer = !integer;
+            py68_value_release(runtime, left);
+            py68_value_release(runtime, right);
+            result.type = PY68_VM_BOOL;
+            result.reserved = 0;
+            result.as.integer = integer;
+            return py68_vm_push(runtime, result);
+        }
+    }
+    if ((left.type != PY68_VM_INT && left.type != PY68_VM_BOOL) ||
+        (right.type != PY68_VM_INT && right.type != PY68_VM_BOOL)) {
         py68_value_release(runtime, left);
         py68_value_release(runtime, right);
         py68_vm_error(runtime, PY68_ERROR_TYPE, "integer operands required");
@@ -425,7 +441,61 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             }
             ip += 3; break;
         }
-        case OP_POP: status = py68_vm_pop(runtime, &value); ip += 1; break;
+        case OP_POP:
+            status = py68_vm_pop(runtime, &value);
+            if (status == PY68_STATUS_OK)
+                py68_value_release(runtime, value);
+            ip += 1;
+            break;
+        case OP_STORE_INDEX: {
+            Py68Value value_val, index_val, container_val;
+            status = py68_vm_pop(runtime, &value_val);
+            if (status == PY68_STATUS_OK)
+                status = py68_vm_pop(runtime, &index_val);
+            if (status == PY68_STATUS_OK)
+                status = py68_vm_pop(runtime, &container_val);
+            if (status != PY68_STATUS_OK) break;
+            if (index_val.type != PY68_VALUE_INT &&
+                index_val.type != PY68_VALUE_BOOL) {
+                py68_value_release(runtime, value_val);
+                py68_value_release(runtime, index_val);
+                py68_value_release(runtime, container_val);
+                py68_vm_error(runtime, PY68_ERROR_TYPE, "index must be integer");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            if (container_val.type == PY68_VALUE_OBJECT &&
+                container_val.as.object != NULL &&
+                container_val.as.object->type == PY68_OBJECT_LIST) {
+                status = py68_list_set_copy(
+                    runtime, (Py68List *)container_val.as.object,
+                    index_val.as.integer, value_val);
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_INDEX,
+                                  "list index out of range");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                }
+            } else if (container_val.type == PY68_VALUE_OBJECT &&
+                       container_val.as.object != NULL &&
+                       container_val.as.object->type == PY68_OBJECT_STRING) {
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "strings do not support item assignment");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+            } else {
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "container does not support item assignment");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+            }
+            py68_value_release(runtime, value_val);
+            py68_value_release(runtime, index_val);
+            py68_value_release(runtime, container_val);
+            ip += 1;
+            break;
+        }
         case OP_BUILD_LIST: {
             Py68U16 count = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                                       current_code->bytecode[ip + 2]);
@@ -733,13 +803,16 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 status = PY68_STATUS_RUNTIME_ERROR;
             }
             ip += 1; break;
-        case OP_NOT:
+        case OP_NOT: {
+            int truth;
             status = py68_vm_pop(runtime, &value);
             if (status == PY68_STATUS_OK) {
-                value.type = PY68_VM_BOOL; value.as.integer = !py68_vm_truth(value);
-                status = py68_vm_push(runtime, value);
+                truth = py68_vm_truth(value);
+                py68_value_release(runtime, value);
+                status = py68_vm_push(runtime, py68_value_bool(!truth));
             }
             ip += 1; break;
+        }
         case OP_JUMP:
             target = (Py68U32)((Py68I32)(ip + 3) +
                 (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |

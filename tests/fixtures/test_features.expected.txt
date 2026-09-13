@@ -1,0 +1,106 @@
+=== 1. Scalar Arithmetic ===
+13
+7
+30
+3
+1
+=== 2. Comparisons & Logic ===
+True
+True
+False
+=== 3. Conditional Statements ===
+a is greater than 5
+=== 4. While Loops ===
+3
+2
+1
+=== 5. Builtin Functions & Lists ===
+[10, 20, 30]
+3
+20
+30
+[10, 20]
+2
+=== 6. For Loops & Range ===
+10
+25
+=== 7. Augmented Assignment ===
+15
+12
+24
+6
+2
+=== 8. Function Definitions ===
+7
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+15
+=== 9. Lists with list_append ===
+[1, 2, 3, 4]
+4
+=== 10. Short-circuit and/or ===
+2
+5
+0
+4
+=== 11. Strings ===
+abcd
+e
+ell
+5
+=== 12. Remaining Builtins ===
+42
+7
+False
+True
+3
+2
+9
+=== 13. Floor/Mod Negatives ===
+-3
+2
+-3
+-2
+=== 14. Truthiness & not ===
+[]
+2
+x
+5
+True
+False
+True
+=== 15. Elif & while-else ===
+two
+0
+1
+while-done
+=== 16. Nested Loops & continue ===
+66
+=== 17. Recursion & list build ===
+[0, 1, 4, 9]
+120
+=== 18. Range reverse ===
+21
+=== 19. for-break ===
+10
+=== 20. Index Assignment ===
+9
+2
+7
+5
+6
+=== 21. Bool/None Equality ===
+True
+False
+True
+True
+True
+=== Feature Test Complete ===

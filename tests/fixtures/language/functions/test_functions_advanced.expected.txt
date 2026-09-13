@@ -1,0 +1,22 @@
+=== recursion fibonacci ===
+55
+=== factorial ===
+720
+=== deep sum ===
+210
+=== local shadows global ===
+6
+100
+=== read global from function ===
+0
+5
+=== filter even sum ===
+20
+=== augassign in locals ===
+1
+=== multi return paths ===
+4
+0
+9
+=== implicit None return ===
+None
