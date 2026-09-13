@@ -55,7 +55,7 @@ Py68Status py68_frame_push(Py68Runtime *runtime, Py68Code *code,
     frame->argument_count = argument_count;
     frame->return_ip = return_ip;
     for (index = 0; index < local_count; ++index)
-        frame->locals[index] = py68_value_none();
+        frame->locals[index] = py68_value_unbound();
     for (index = 0; index < argument_count; ++index) {
         frame->locals[index] = arguments[index];
         py68_value_retain(frame->locals[index]);

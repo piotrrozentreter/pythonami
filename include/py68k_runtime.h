@@ -19,7 +19,8 @@ typedef struct Py68Frame {
 } Py68Frame;
 
 typedef struct Py68GlobalEntry {
-    Py68U16 name_index;
+    const Py68U8 *name;      /* borrowed: bytes owned by a live source buffer */
+    Py68U16 name_length;
     Py68Value value;
     Py68U16 occupied;
 } Py68GlobalEntry;

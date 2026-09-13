@@ -11,6 +11,13 @@ Py68Value py68_value_none(void)
     return value;
 }
 
+Py68Value py68_value_unbound(void)
+{
+    Py68Value value = py68_value_none();
+    value.type = PY68_VALUE_UNBOUND;
+    return value;
+}
+
 Py68Value py68_value_bool(int truth)
 {
     Py68Value value = py68_value_none();

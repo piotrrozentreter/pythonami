@@ -10,6 +10,11 @@ void py68_code_initialize(Py68Code *code)
 
 void py68_code_destroy(Py68Allocator *allocator, Py68Code *code)
 {
+    Py68U16 index;
+    for (index = 0; index < code->nested_count; ++index)
+        py68_code_destroy(allocator, &code->nested[index]);
+    py68_free(allocator, PY68_MEM_CODE, code->nested,
+              (Py68U32)code->nested_capacity * sizeof(Py68Code));
     py68_free(allocator, PY68_MEM_CODE, code->bytecode,
               code->bytecode_capacity);
     py68_free(allocator, PY68_MEM_CONSTANT, code->constants,
@@ -19,6 +24,31 @@ void py68_code_destroy(Py68Allocator *allocator, Py68Code *code)
     py68_free(allocator, PY68_MEM_CODE, code->name_lengths,
               (Py68U32)code->name_capacity * sizeof(Py68U16));
     py68_code_initialize(code);
+}
+
+Py68Status py68_code_reserve_nested(Py68Allocator *allocator, Py68Code *code,
+                                    Py68Code **child_out, Py68U16 *index_out)
+{
+    Py68Code *replacement;
+    Py68U16 capacity;
+    Py68U32 old_size;
+    Py68U32 new_size;
+    if (code->nested_count == code->nested_capacity) {
+        capacity = code->nested_capacity == 0 ? 4 :
+                   (Py68U16)(code->nested_capacity * 2);
+        old_size = (Py68U32)code->nested_capacity * sizeof(Py68Code);
+        new_size = (Py68U32)capacity * sizeof(Py68Code);
+        replacement = (Py68Code *)py68_realloc(
+            allocator, PY68_MEM_CODE, code->nested, old_size, new_size);
+        if (replacement == NULL) return PY68_STATUS_MEMORY_ERROR;
+        code->nested = replacement;
+        code->nested_capacity = capacity;
+    }
+    *index_out = code->nested_count;
+    py68_code_initialize(&code->nested[code->nested_count]);
+    *child_out = &code->nested[code->nested_count];
+    ++code->nested_count;
+    return PY68_STATUS_OK;
 }
 
 static Py68Status py68_grow_bytes(Py68Allocator *allocator, Py68Code *code)

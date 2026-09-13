@@ -20,6 +20,49 @@ static Py68Status py68_write_literal(Py68Runtime *runtime, const char *text)
     return py68_platform_write_stdout(runtime, text, (Py68U32)strlen(text));
 }
 
+static Py68U32 py68_format_u32(char *buffer, Py68U32 capacity, Py68U32 value)
+{
+    char digits[10];
+    Py68U32 digit_count = 0;
+    Py68U32 written = 0;
+    do {
+        digits[digit_count++] = (char)('0' + (value % 10));
+        value /= 10;
+    } while (value != 0 && digit_count < sizeof(digits));
+    while (digit_count != 0 && written < capacity) {
+        buffer[written++] = digits[--digit_count];
+    }
+    return written;
+}
+
+static Py68Status py68_report_error(Py68Runtime *runtime, const char *path)
+{
+    /* Note: runtime->error.filename may already be a dangling pointer into
+       a destroyed Py68Source by the time this runs, so always use the
+       caller-owned `path` string instead. */
+    char buffer[320];
+    Py68U32 length = 0;
+    Py68U32 index;
+
+    for (index = 0; path[index] != '\0' && length < sizeof(buffer) - 1;
+         ++index) buffer[length++] = path[index];
+    if (length < sizeof(buffer) - 1) buffer[length++] = ':';
+    length += py68_format_u32(buffer + length, (Py68U32)sizeof(buffer) - length,
+                              runtime->error.location.line);
+    if (length < sizeof(buffer) - 1) buffer[length++] = ':';
+    length += py68_format_u32(buffer + length, (Py68U32)sizeof(buffer) - length,
+                              runtime->error.location.column);
+    if (length < sizeof(buffer) - 2) {
+        buffer[length++] = ':';
+        buffer[length++] = ' ';
+    }
+    for (index = 0; runtime->error.message[index] != '\0' &&
+         length < sizeof(buffer) - 1; ++index)
+        buffer[length++] = runtime->error.message[index];
+    if (length < sizeof(buffer) - 1) buffer[length++] = '\n';
+    return py68_platform_write_stderr(runtime, buffer, length);
+}
+
 static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
 {
     Py68U8 *file_data;
@@ -30,8 +73,6 @@ static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
     Py68StatementParser parser;
     Py68AstNode *module;
     Py68Code code;
-    Py68U16 name_index;
-    Py68U16 index;
     Py68Status status;
 
     status = py68_platform_read_file(runtime, path, &file_data, &file_length);
@@ -59,35 +100,8 @@ static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path)
     status = py68_compile_module(&runtime->allocator, &source, module,
                                  &code, &runtime->error);
     if (status != PY68_STATUS_OK) goto cleanup_arena;
-    for (index = 0; index < code.name_count; ++index) {
-        Py68U16 len = code.name_lengths[index];
-        const char *name_str = (const char *)source.data + code.name_offsets[index];
-        Py68NativeFunction *builtin_fn = NULL;
-        Py68NativeCallback cb = NULL;
-        Py68U16 min_args = 0, max_args = 0;
-        const char *fn_name = NULL;
-
-        if (len == 5 && memcmp(name_str, "print", 5) == 0) {
-            cb = py68_builtin_print; min_args = 0; max_args = 65535; fn_name = "print";
-        } else if (len == 3 && memcmp(name_str, "len", 3) == 0) {
-            cb = py68_builtin_len; min_args = 1; max_args = 1; fn_name = "len";
-        } else if (len == 5 && memcmp(name_str, "range", 5) == 0) {
-            cb = py68_builtin_range; min_args = 1; max_args = 3; fn_name = "range";
-        } else if (len == 8 && memcmp(name_str, "list_pop", 8) == 0) {
-            cb = py68_builtin_list_pop; min_args = 1; max_args = 1; fn_name = "list_pop";
-        }
-
-        if (cb != NULL) {
-            name_index = index;
-            status = py68_native_new(runtime, fn_name, min_args, max_args,
-                                     cb, &builtin_fn);
-            if (status != PY68_STATUS_OK) goto cleanup_code;
-            status = py68_builtin_set_copy(
-                runtime, name_index, py68_value_from_object(&builtin_fn->base));
-            py68_object_release(runtime, &builtin_fn->base);
-            if (status != PY68_STATUS_OK) goto cleanup_code;
-        }
-    }
+    status = py68_builtins_install(runtime);
+    if (status != PY68_STATUS_OK) goto cleanup_code;
     status = py68_vm_execute(runtime, &code);
 cleanup_code:
     py68_code_destroy(&runtime->allocator, &code);
@@ -96,6 +110,9 @@ cleanup_arena:
     py68_token_array_destroy(&runtime->allocator, &tokens);
 cleanup_source:
     py68_source_destroy(&runtime->allocator, &source);
+    if (status != PY68_STATUS_OK && status != PY68_STATUS_EXIT) {
+        py68_report_error(runtime, path);
+    }
     return status;
 }
 

@@ -35,10 +35,11 @@ int main(void)
     passed &= py68_native_new(&runtime, "sum", 2, 2, native_sum, &native) ==
               PY68_STATUS_OK;
     py68_code_initialize(&code);
+    code.source_data = (const Py68U8 *)"sum";
+    code.source_length = 3;
     passed &= py68_code_add_name(&runtime.allocator, &code, 0, 3, &value_index) ==
               PY68_STATUS_OK;
-    passed &= py68_global_set_copy(&runtime,
-                                   value_index,
+    passed &= py68_global_set_copy(&runtime, (const Py68U8 *)"sum", 3,
                                    py68_value_from_object(&native->base)) ==
               PY68_STATUS_OK;
     py68_object_release(&runtime, &native->base);
@@ -103,9 +104,11 @@ int main(void)
     passed &= py68_function_new(&runtime, &function_code, 0, 0,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
+    code.source_data = (const Py68U8 *)"myfun";
+    code.source_length = 5;
     passed &= py68_code_add_name(&runtime.allocator, &code, 0, 5,
                                  &value_index) == PY68_STATUS_OK;
-    passed &= py68_global_set_copy(&runtime, value_index,
+    passed &= py68_global_set_copy(&runtime, (const Py68U8 *)"myfun", 5,
                                    py68_value_from_object(&user_function->base)) ==
               PY68_STATUS_OK;
     py68_object_release(&runtime, &user_function->base);
@@ -128,6 +131,8 @@ int main(void)
 
     runtime.recursion_limit = 4;
     py68_code_initialize(&function_code);
+    function_code.source_data = (const Py68U8 *)"loop";
+    function_code.source_length = 4;
     passed &= py68_code_add_name(&runtime.allocator, &function_code, 0, 4,
                                  &value_index) == PY68_STATUS_OK;
     passed &= py68_code_emit_u8(&runtime.allocator, &function_code,
@@ -143,9 +148,11 @@ int main(void)
     passed &= py68_function_new(&runtime, &function_code, 0, 0,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
+    code.source_data = (const Py68U8 *)"loop";
+    code.source_length = 4;
     passed &= py68_code_add_name(&runtime.allocator, &code, 0, 4,
                                  &value_index) == PY68_STATUS_OK;
-    passed &= py68_global_set_copy(&runtime, value_index,
+    passed &= py68_global_set_copy(&runtime, (const Py68U8 *)"loop", 4,
                                    py68_value_from_object(&user_function->base)) ==
               PY68_STATUS_OK;
     py68_object_release(&runtime, &user_function->base);
@@ -173,9 +180,11 @@ int main(void)
     passed &= py68_function_new(&runtime, &function_code, 0, 0,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
+    code.source_data = (const Py68U8 *)"haltfun";
+    code.source_length = 7;
     passed &= py68_code_add_name(&runtime.allocator, &code, 0, 7,
                                  &value_index) == PY68_STATUS_OK;
-    passed &= py68_global_set_copy(&runtime, value_index,
+    passed &= py68_global_set_copy(&runtime, (const Py68U8 *)"haltfun", 7,
                                    py68_value_from_object(&user_function->base)) ==
               PY68_STATUS_OK;
     py68_object_release(&runtime, &user_function->base);

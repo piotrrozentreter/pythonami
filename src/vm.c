@@ -214,26 +214,89 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             }
             value = py68_value_int(current_code->constants[index].integer);
             status = py68_vm_push(runtime, value); ip += 3; break;
-        case OP_LOAD_GLOBAL:
+        case OP_LOAD_GLOBAL: {
+            const Py68U8 *name_bytes;
+            Py68U16 name_length;
             index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                               current_code->bytecode[ip + 2]);
-            status = py68_global_get_copy(runtime, index, &value);
+            name_bytes = current_code->source_data +
+                        current_code->name_offsets[index];
+            name_length = current_code->name_lengths[index];
+            status = py68_global_get_copy(runtime, name_bytes, name_length,
+                                          &value);
             if (status != PY68_STATUS_OK)
-                status = py68_builtin_get_copy(runtime, index, &value);
+                status = py68_builtin_get_copy(runtime, name_bytes,
+                                               name_length, &value);
             if (status == PY68_STATUS_OK)
                 status = py68_vm_push(runtime, value);
             else
                 py68_vm_error(runtime, PY68_ERROR_NAME, "name is not defined");
             ip += 3; break;
-        case OP_STORE_GLOBAL:
+        }
+        case OP_STORE_GLOBAL: {
+            const Py68U8 *name_bytes;
+            Py68U16 name_length;
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            name_bytes = current_code->source_data +
+                        current_code->name_offsets[index];
+            name_length = current_code->name_lengths[index];
+            status = py68_vm_pop(runtime, &value);
+            if (status == PY68_STATUS_OK) {
+                status = py68_global_set_copy(runtime, name_bytes,
+                                              name_length, value);
+                py68_value_release(runtime, value);
+            }
+            ip += 3; break;
+        }
+        case OP_LOAD_LOCAL:
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            status = py68_frame_get_local(runtime, index, &value);
+            if (status == PY68_STATUS_OK && value.type == PY68_VALUE_UNBOUND) {
+                py68_vm_error(runtime, PY68_ERROR_NAME,
+                              "local variable referenced before assignment");
+                status = PY68_STATUS_RUNTIME_ERROR;
+            } else if (status == PY68_STATUS_OK) {
+                status = py68_vm_push(runtime, value);
+            }
+            ip += 3; break;
+        case OP_STORE_LOCAL:
             index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                               current_code->bytecode[ip + 2]);
             status = py68_vm_pop(runtime, &value);
             if (status == PY68_STATUS_OK) {
-                status = py68_global_set_copy(runtime, index, value);
+                status = py68_frame_set_local_copy(runtime, index, value);
                 py68_value_release(runtime, value);
             }
             ip += 3; break;
+        case OP_MAKE_FUNCTION: {
+            Py68Code *nested_code;
+            Py68Function *made_function;
+            index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                              current_code->bytecode[ip + 2]);
+            if (index >= current_code->constant_count ||
+                current_code->constants[index].kind != PY68_CONSTANT_CODE ||
+                current_code->constants[index].integer >=
+                    current_code->nested_count) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "invalid function constant");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            nested_code = &current_code->nested[
+                current_code->constants[index].integer];
+            status = py68_function_new(runtime, nested_code,
+                                       nested_code->argument_count,
+                                       nested_code->local_count,
+                                       &made_function);
+            if (status == PY68_STATUS_OK) {
+                status = py68_vm_push(runtime,
+                    py68_value_from_object(&made_function->base));
+            }
+            ip += 3; break;
+        }
         case OP_POP: status = py68_vm_pop(runtime, &value); ip += 1; break;
         case OP_BUILD_LIST: {
             Py68U16 count = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |

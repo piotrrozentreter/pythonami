@@ -474,7 +474,11 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
             kind = PY68_TOKEN_STRING;
         } else {
             Py68U32 width = 1;
-            if (character == (Py68U8)'/' && position + 1 < source->length &&
+            if (character == (Py68U8)'/' && position + 2 < source->length &&
+                source->data[position + 1] == (Py68U8)'/' &&
+                source->data[position + 2] == (Py68U8)'=') {
+                kind = PY68_TOKEN_FLOOR_DIVIDE_ASSIGN; width = 3;
+            } else if (character == (Py68U8)'/' && position + 1 < source->length &&
                 source->data[position + 1] == (Py68U8)'/') {
                 kind = PY68_TOKEN_FLOOR_DIVIDE;
                 width = 2;
@@ -490,10 +494,6 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
             } else if (character == (Py68U8)'%' && position + 1 < source->length &&
                        source->data[position + 1] == (Py68U8)'=') {
                 kind = PY68_TOKEN_PERCENT_ASSIGN; width = 2;
-            } else if (character == (Py68U8)'/' && position + 2 < source->length &&
-                       source->data[position + 1] == (Py68U8)'/' &&
-                       source->data[position + 2] == (Py68U8)'=') {
-                kind = PY68_TOKEN_FLOOR_DIVIDE_ASSIGN; width = 3;
             } else if (character == (Py68U8)'=' && position + 1 < source->length &&
                        source->data[position + 1] == (Py68U8)'=') {
                 kind = PY68_TOKEN_EQUAL; width = 2;

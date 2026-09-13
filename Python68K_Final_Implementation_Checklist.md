@@ -50,10 +50,10 @@
 - [x] Constant pool implementation
 - [x] Name table implementation
 - [ ] String interning
-- [ ] FNV-1a hashing
+- [x] FNV-1a hashing
 - [x] Opcode metadata generation
 - [x] Branch patching
-- [ ] Function code generation
+- [x] Function code generation
 - [x] Control-flow code generation
 - [ ] Short-circuit logic generation
 
@@ -87,12 +87,12 @@
 - [ ] Traceback support implemented
 
 ## Phase 8 - Arithmetic Semantics
-- [ ] Checked add
-- [ ] Checked subtract
-- [ ] Checked multiply
-- [ ] Checked negate
-- [ ] Python floor division semantics
-- [ ] Python modulo semantics
+- [x] Checked add
+- [x] Checked subtract
+- [x] Checked multiply
+- [x] Checked negate
+- [x] Python floor division semantics
+- [x] Python modulo semantics
 - [ ] Overflow tests passing
 
 ## Phase 9 - Strings, Lists, Range
@@ -100,10 +100,10 @@
 - [ ] String slicing
 - [ ] String indexing
 - [x] List append
-- [ ] List pop
+- [x] List pop
 - [x] List indexing
 - [x] List assignment
-- [ ] Range implementation
+- [x] Range implementation
 - [x] Cycle detection for lists
 
 ## Phase 10 - Functions
@@ -116,16 +116,16 @@
 
 ## Phase 11 - Builtins
 - [x] print
-- [ ] len
-- [ ] range
+- [x] len
+- [x] range
 - [ ] int
 - [ ] str
 - [ ] bool
 - [ ] abs
 - [ ] min
 - [ ] max
-- [ ] list_append
-- [ ] list_pop
+- [x] list_append
+- [x] list_pop
 - [ ] exit
 
 ## Phase 12 - AmigaDOS Integration
@@ -138,8 +138,8 @@
 - [ ] Memory stats output
 
 ## Quality Gates
-- [ ] No memory leaks
-- [ ] All unit tests pass
+- [x] No memory leaks (full `make test` suite run under ASan/UBSan, zero findings)
+- [x] All unit tests pass
 - [ ] All negative tests pass
 - [ ] All differential tests pass
 - [ ] Allocation-failure tests pass
@@ -153,11 +153,11 @@
 ## MVP Acceptance
 - [x] python script.py works
 - [ ] python -c works
-- [ ] Bytecode VM executes code
-- [ ] Functions work
-- [ ] Recursion works
-- [ ] Strings work
-- [ ] Lists work
+- [x] Bytecode VM executes code
+- [x] Functions work
+- [x] Recursion works
+- [ ] Strings work (literals only; no concatenation/indexing/slicing yet)
+- [x] Lists work
 - [ ] Tracebacks work
 - [ ] Unsupported syntax rejected cleanly
 - [ ] No 68020 instructions present

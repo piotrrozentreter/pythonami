@@ -54,5 +54,11 @@ Py68SymbolKind py68_symbol_classify(const Py68Source *source,
                                     const char *const *builtins,
                                     Py68U16 builtin_count);
 int py68_symbol_is_unbound(Py68U16 slot, Py68U16 parameter_count);
+int py68_symbol_lookup_local(const Py68Source *source,
+                             const Py68FunctionSymbols *function,
+                             Py68U32 offset, Py68U16 length,
+                             Py68U16 *slot_out);
+const Py68FunctionSymbols *py68_symbol_find_function(
+    const Py68SymbolAnalysis *analysis, const Py68AstNode *function_def);
 
 #endif

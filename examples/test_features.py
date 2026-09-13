@@ -48,4 +48,55 @@ for x in range(1, 10, 2):
     r_total = r_total + x
 print(r_total)
 
+print("=== 7. Augmented Assignment ===")
+c = 10
+c += 5
+print(c)
+c -= 3
+print(c)
+c *= 2
+print(c)
+c //= 4
+print(c)
+c %= 4
+print(c)
+
+print("=== 8. Function Definitions ===")
+
+
+def add(a, b):
+    return a + b
+
+
+print(add(3, 4))
+
+
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+
+fib_index = 0
+while fib_index < 10:
+    print(fibonacci(fib_index))
+    fib_index = fib_index + 1
+
+
+def sum_up_to(n):
+    total = 0
+    for i in range(n):
+        total += i
+    return total
+
+
+print(sum_up_to(6))
+
+print("=== 9. Lists with list_append ===")
+grown = [1, 2]
+list_append(grown, 3)
+list_append(grown, 4)
+print(grown)
+print(len(grown))
+
 print("=== Feature Test Complete ===")

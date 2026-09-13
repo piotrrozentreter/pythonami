@@ -119,14 +119,25 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
             goto cleanup;
         }
         boundaries[offset] = 1;
-        if ((opcode == OP_LOAD_CONST &&
+        if (((opcode == OP_LOAD_CONST || opcode == OP_MAKE_FUNCTION) &&
              py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
-            ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL ||
-              opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
-             py68_read_u16(code->bytecode, offset + 1) >= code->name_count)) {
+            ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL) &&
+             py68_read_u16(code->bytecode, offset + 1) >= code->name_count) ||
+            ((opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
+             py68_read_u16(code->bytecode, offset + 1) >= code->local_count)) {
             py68_verify_error(error, "bytecode table index is out of range", offset);
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;
+        }
+        if (opcode == OP_MAKE_FUNCTION) {
+            Py68U16 constant_index = py68_read_u16(code->bytecode, offset + 1);
+            if (code->constants[constant_index].kind != PY68_CONSTANT_CODE ||
+                code->constants[constant_index].integer >= code->nested_count) {
+                py68_verify_error(error, "function constant does not reference code",
+                                  offset);
+                status = PY68_STATUS_SOURCE_ERROR;
+                goto cleanup;
+            }
         }
         offset += info->width;
     }

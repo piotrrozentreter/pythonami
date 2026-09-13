@@ -5,23 +5,23 @@ LDFLAGS ?=
 
 HOST_BUILD := build/host
 HOST_PROGRAM := $(HOST_BUILD)/pythonami
-HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
-TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
+HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
+TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/native.c
 TEST_MEMORY_SOURCES := tests/unit/test_memory.c $(TEST_COMMON)
 TEST_TOKENIZER_SOURCES := tests/unit/test_tokenizer.c $(TEST_COMMON) src/tokenizer.c
 TEST_PARSER_SOURCES := tests/unit/test_parser.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
 TEST_STATEMENT_SOURCES := tests/unit/test_statements.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
 TEST_SYMBOL_SOURCES := tests/unit/test_symbols.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c
 TEST_CODE_SOURCES := tests/unit/test_code.c src/memory.c src/code.c src/opcode.c
-TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/native.c src/function.c
+TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c
 TEST_VERIFY_SOURCES := tests/unit/test_verify.c src/error.c src/memory.c src/code.c src/opcode.c src/verify.c
-TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/native.c src/function.c
+TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c
 TEST_OBJECT_SOURCES := tests/unit/test_objects.c $(TEST_COMMON)
 TEST_LIST_SOURCES := tests/unit/test_lists.c $(TEST_COMMON)
-TEST_FUNCTION_SOURCES := tests/unit/test_functions.c $(TEST_COMMON) src/function.c src/native.c src/code.c
+TEST_FUNCTION_SOURCES := tests/unit/test_functions.c $(TEST_COMMON) src/function.c src/code.c
 TEST_FRAME_SOURCES := tests/unit/test_frames.c $(TEST_COMMON) src/code.c
-TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c src/native.c
-TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON) src/native.c
+TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c
+TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON)
 TEST_BUILTIN_IO_SOURCES := tests/unit/test_builtin_io.c $(TEST_COMMON)
 
 .PHONY: all debug release test clean

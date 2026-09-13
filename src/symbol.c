@@ -442,3 +442,37 @@ int py68_symbol_is_unbound(Py68U16 slot, Py68U16 parameter_count)
 {
     return slot >= parameter_count;
 }
+
+int py68_symbol_lookup_local(const Py68Source *source,
+                             const Py68FunctionSymbols *function,
+                             Py68U32 offset, Py68U16 length,
+                             Py68U16 *slot_out)
+{
+    Py68U16 index;
+    if (function == NULL) return 0;
+    if (py68_find_symbol(source, function->parameters,
+                         function->parameter_count, offset, length,
+                         &index)) {
+        *slot_out = function->parameters[index].slot;
+        return 1;
+    }
+    if (py68_find_symbol(source, function->locals, function->local_count,
+                         offset, length, &index)) {
+        *slot_out = function->locals[index].slot;
+        return 1;
+    }
+    return 0;
+}
+
+const Py68FunctionSymbols *py68_symbol_find_function(
+    const Py68SymbolAnalysis *analysis, const Py68AstNode *function_def)
+{
+    Py68U16 index;
+    if (analysis == NULL) return NULL;
+    for (index = 0; index < analysis->function_count; ++index) {
+        if (analysis->functions[index].function == function_def) {
+            return &analysis->functions[index];
+        }
+    }
+    return NULL;
+}

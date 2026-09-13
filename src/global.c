@@ -1,6 +1,14 @@
 #include "py68k_global.h"
 
 #include <stddef.h>
+#include <string.h>
+
+static int py68_global_name_equal(const Py68GlobalEntry *entry,
+                                  const Py68U8 *name, Py68U16 name_length)
+{
+    return entry->name_length == name_length &&
+           memcmp(entry->name, name, name_length) == 0;
+}
 
 static Py68Status py68_global_grow(Py68Runtime *runtime)
 {
@@ -18,14 +26,15 @@ static Py68Status py68_global_grow(Py68Runtime *runtime)
     return PY68_STATUS_OK;
 }
 
-Py68Status py68_global_set_copy(Py68Runtime *runtime, Py68U16 name_index,
-                                Py68Value value)
+Py68Status py68_global_set_copy(Py68Runtime *runtime, const Py68U8 *name,
+                                Py68U16 name_length, Py68Value value)
 {
     Py68U16 index;
-    if (runtime == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    if (runtime == NULL || name == NULL) return PY68_STATUS_INTERNAL_ERROR;
     for (index = 0; index < runtime->global_count; ++index) {
         if (runtime->globals[index].occupied &&
-            runtime->globals[index].name_index == name_index) {
+            py68_global_name_equal(&runtime->globals[index], name,
+                                   name_length)) {
             Py68Value old = runtime->globals[index].value;
             py68_value_retain(value);
             runtime->globals[index].value = value;
@@ -36,7 +45,8 @@ Py68Status py68_global_set_copy(Py68Runtime *runtime, Py68U16 name_index,
     if (runtime->global_count == runtime->global_capacity &&
         py68_global_grow(runtime) != PY68_STATUS_OK)
         return PY68_STATUS_MEMORY_ERROR;
-    runtime->globals[runtime->global_count].name_index = name_index;
+    runtime->globals[runtime->global_count].name = name;
+    runtime->globals[runtime->global_count].name_length = name_length;
     runtime->globals[runtime->global_count].value = value;
     runtime->globals[runtime->global_count].occupied = 1;
     py68_value_retain(value);
@@ -44,14 +54,16 @@ Py68Status py68_global_set_copy(Py68Runtime *runtime, Py68U16 name_index,
     return PY68_STATUS_OK;
 }
 
-Py68Status py68_global_get_copy(Py68Runtime *runtime, Py68U16 name_index,
-                                Py68Value *result)
+Py68Status py68_global_get_copy(Py68Runtime *runtime, const Py68U8 *name,
+                                Py68U16 name_length, Py68Value *result)
 {
     Py68U16 index;
-    if (runtime == NULL || result == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    if (runtime == NULL || name == NULL || result == NULL)
+        return PY68_STATUS_INTERNAL_ERROR;
     for (index = 0; index < runtime->global_count; ++index) {
         if (runtime->globals[index].occupied &&
-            runtime->globals[index].name_index == name_index) {
+            py68_global_name_equal(&runtime->globals[index], name,
+                                   name_length)) {
             *result = runtime->globals[index].value;
             py68_value_retain(*result);
             return PY68_STATUS_OK;

@@ -10,7 +10,9 @@ typedef enum Py68ConstantKind {
     PY68_CONSTANT_NONE = 0,
     PY68_CONSTANT_BOOL,
     PY68_CONSTANT_INTEGER,
-    PY68_CONSTANT_STRING
+    PY68_CONSTANT_STRING,
+    /* `integer` holds an index into the owning Py68Code's `nested` array. */
+    PY68_CONSTANT_CODE
 } Py68ConstantKind;
 
 typedef struct Py68Constant {
@@ -35,10 +37,25 @@ typedef struct Py68Code {
     Py68U16 name_count;
     Py68U16 name_capacity;
     Py68U16 maximum_stack;
+    /* Function-body metadata: total addressable local slots (parameters
+       plus other locals) and how many of those are parameters. Zero for
+       module-level (top) code objects. */
+    Py68U16 local_count;
+    Py68U16 argument_count;
+    /* Bodies of functions defined directly in this code object. Owned;
+       destroyed recursively by py68_code_destroy. Nested defs are rejected
+       by symbol analysis, so in practice this is only populated on the
+       module's top-level code object. */
+    struct Py68Code *nested;
+    Py68U16 nested_count;
+    Py68U16 nested_capacity;
 } Py68Code;
 
 void py68_code_initialize(Py68Code *code);
 void py68_code_destroy(Py68Allocator *allocator, Py68Code *code);
+Py68Status py68_code_reserve_nested(Py68Allocator *allocator, Py68Code *code,
+                                    Py68Code **child_out,
+                                    Py68U16 *index_out);
 Py68Status py68_code_emit_u8(Py68Allocator *allocator, Py68Code *code,
                              Py68U8 value);
 Py68Status py68_code_emit_u16_be(Py68Allocator *allocator, Py68Code *code,

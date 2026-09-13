@@ -198,6 +198,32 @@ Py68Status py68_builtin_list_pop(Py68Runtime *runtime, Py68U16 argument_count,
     return PY68_STATUS_OK;
 }
 
+Py68Status py68_builtin_list_append(Py68Runtime *runtime,
+                                    Py68U16 argument_count,
+                                    Py68Value *arguments, Py68Value *result)
+{
+    Py68List *list;
+    Py68Location location;
+    Py68Status status;
+    location.offset = 0;
+    location.line = 0;
+    location.column = 0;
+    location.length = 0;
+    if (argument_count != 2 || arguments[0].type != PY68_VALUE_OBJECT ||
+        arguments[0].as.object == NULL ||
+        arguments[0].as.object->type != PY68_OBJECT_LIST) {
+        py68_error_set(&runtime->error, PY68_ERROR_TYPE,
+                       location, NULL,
+                       "list_append expects a list and a value");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    list = (Py68List *)arguments[0].as.object;
+    status = py68_list_append_copy(runtime, list, arguments[1]);
+    if (status != PY68_STATUS_OK) return status;
+    *result = py68_value_none();
+    return PY68_STATUS_OK;
+}
+
 Py68Status py68_builtin_print(Py68Runtime *runtime, Py68U16 argument_count,
                               Py68Value *arguments, Py68Value *result)
 {

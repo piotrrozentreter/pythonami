@@ -10,7 +10,11 @@ typedef enum Py68ValueType {
     PY68_VALUE_NONE = 0,
     PY68_VALUE_BOOL = 1,
     PY68_VALUE_INT = 2,
-    PY68_VALUE_OBJECT = 3
+    PY68_VALUE_OBJECT = 3,
+    /* VM-internal marker for a declared-but-not-yet-assigned local slot.
+       Never user-visible: OP_LOAD_LOCAL raises NameError instead of
+       exposing it. */
+    PY68_VALUE_UNBOUND = 4
 } Py68ValueType;
 
 typedef struct Py68Value {
@@ -23,6 +27,7 @@ typedef struct Py68Value {
 } Py68Value;
 
 Py68Value py68_value_none(void);
+Py68Value py68_value_unbound(void);
 Py68Value py68_value_bool(int truth);
 Py68Value py68_value_int(Py68I32 integer);
 Py68Value py68_value_from_object(Py68Object *object);
