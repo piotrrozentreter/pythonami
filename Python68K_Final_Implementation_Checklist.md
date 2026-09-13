@@ -132,8 +132,8 @@
 - [x] Script execution
 - [x] -c execution
 - [ ] argv support
-- [ ] File APIs
-- [ ] Environment APIs
+- [x] File APIs
+- [x] Environment APIs
 - [x] Exit-code mapping
 - [ ] Memory stats output
 

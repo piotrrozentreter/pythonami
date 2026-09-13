@@ -5,8 +5,8 @@ LDFLAGS ?=
 
 HOST_BUILD := build/host
 HOST_PROGRAM := $(HOST_BUILD)/pythonami
-HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c
-TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/native.c
+HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c
+TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/native.c
 TEST_MEMORY_SOURCES := tests/unit/test_memory.c $(TEST_COMMON)
 TEST_TOKENIZER_SOURCES := tests/unit/test_tokenizer.c $(TEST_COMMON) src/tokenizer.c
 TEST_PARSER_SOURCES := tests/unit/test_parser.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
@@ -23,7 +23,8 @@ TEST_FRAME_SOURCES := tests/unit/test_frames.c $(TEST_COMMON) src/code.c
 TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c
 TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON)
 TEST_BUILTIN_IO_SOURCES := tests/unit/test_builtin_io.c $(TEST_COMMON)
-
+TEST_FILE_IO_SOURCES := tests/unit/test_file_io.c $(TEST_COMMON)
+TEST_INPUT_SOURCES := tests/unit/test_input.c $(TEST_COMMON)
 LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
 
 .PHONY: all debug release test language-test clean
@@ -89,7 +90,13 @@ $(HOST_BUILD)/test_builtins: $(TEST_BUILTIN_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_builtin_io: $(TEST_BUILTIN_IO_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_BUILTIN_IO_SOURCES) -o $@
 
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_PROGRAM)
+$(HOST_BUILD)/test_file_io: $(TEST_FILE_IO_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_FILE_IO_SOURCES) -o $@
+
+$(HOST_BUILD)/test_input: $(TEST_INPUT_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_INPUT_SOURCES) -o $@
+
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_PROGRAM)
 	$(HOST_BUILD)/test_memory
 	$(HOST_BUILD)/test_tokenizer
 	$(HOST_BUILD)/test_parser
@@ -106,6 +113,8 @@ test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_
 	$(HOST_BUILD)/test_calls
 	$(HOST_BUILD)/test_builtins
 	$(HOST_BUILD)/test_builtin_io
+	$(HOST_BUILD)/test_file_io
+	$(HOST_BUILD)/test_input
 	$(HOST_PROGRAM) -V
 	$(HOST_PROGRAM) --help
 	$(MAKE) -f Makefile.host language-test
@@ -122,6 +131,10 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/lists/test_lists_advanced.py tests/fixtures/language/lists/test_lists_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_strings_advanced.py tests/fixtures/language/strings/test_strings_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_bugfix_suite.py tests/fixtures/language/test_bugfix_suite.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_file_io_suite.py tests/fixtures/language/test_file_io_suite.expected.txt
+	@printf 'Alice\n' | $(HOST_PROGRAM) tests/language/test_input.py > build/host/test_input_lang.out
+	@diff -u tests/fixtures/language/test_input.expected.txt build/host/test_input_lang.out
+	@echo "PASS: tests/language/test_input.py"
 
 clean:
 	rm -rf build python python-debug pythonami pythonami-debug

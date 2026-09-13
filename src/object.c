@@ -7,6 +7,7 @@
 #include "py68k_function.h"
 #include "py68k_native.h"
 #include "py68k_range.h"
+#include "py68k_file.h"
 
 #include <stddef.h>
 
@@ -64,6 +65,8 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
         }
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, range,
                   sizeof(Py68Range));
+    } else if (object->type == PY68_OBJECT_FILE) {
+        py68_file_destroy(runtime, (Py68File *)object);
     } else {
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
                   (Py68U32)sizeof(Py68Object));

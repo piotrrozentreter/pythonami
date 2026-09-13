@@ -20,6 +20,10 @@ A host bug in `OP_NOT` (truthiness evaluated after overwriting the value type, a
 
 Subsequent host fixes covered by `tests/language/test_bugfix_suite.py` and `examples/test_features.py` sections 19–21: for-`break` emits `OP_POP` to discard the range iterator before joining the exit path; subscript assignment parses `INDEX` targets and executes `OP_STORE_INDEX`; `None`/`bool` equality follows D-0011. Decisions D-0009 through D-0011 record the designs. `tests/unit/test_compiler.c` also executes a for-`break` total accumulation case through verify+VM.
 
+## 0.2.0 file and env/assign coverage
+
+Host `tests/unit/test_file_io.c` and `tests/language/test_file_io_suite.py` exercise `fopen`/`fwrite`/`fread`/`freadline`/`fclose`/`exists`/`rename`/`remove` and host `getenv`/`setenv`/`unsetenv`. Amiga release/debug builds compile the same builtins as `assign_get`/`assign_add`/`assign_remove` (D-0012); assign execution on emulator/hardware is owner-verified, not claimed from host results.
+
 ## Cross-target fixture comparison (host vs. Amiga emulator/hardware)
 
 The host build (Intel/Linux, this environment) can run and be verified directly. The Amiga Hunk build (`vbcc +aos68k`, produced by `Makefile.amiga`) cannot execute in this sandboxed environment — it requires an AmigaDOS runtime, a 680x0 emulator (e.g. WinUAE/FS-UAE), or real hardware, and must be tested by the project owner. Every increment therefore builds and tests **both** targets:
@@ -135,7 +139,17 @@ False
 True
 True
 True
+=== 22. File Read/Write ===
+True
+Python68K
+Python68K-IO
+False
+True
+False
+=== 23. Amiga Assigns ===
+True
+True
 === Feature Test Complete ===
 ```
 
-Host exit code for `examples/test_features.py` is `0`. CLI `-c` is also supported (`pythonami -c 'print(1+2)'`). If the Amiga run produces different output or a non-zero exit code, that is a real target-specific bug to report (not a host/logic bug, since the host build already exercises the identical bytecode/VM path).
+Host exit code for `examples/test_features.py` is `0`. CLI `-c` is also supported (`pythonami -c 'print(1+2)'`). If the Amiga run produces different output or a non-zero exit code, that is a real target-specific bug to report (not a host/logic bug, since the host build already exercises the identical bytecode/VM path). Section 23 uses Amiga-favor `assign_*` names (on host these alias to env vars so the shared fixture still diffs); on Amiga they exercise DOS `AssignPath` / `AssignLock`.

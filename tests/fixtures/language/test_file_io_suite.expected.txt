@@ -1,0 +1,22 @@
+=== write/read text ===
+True
+hello
+=== append ===
+helloWORLD
+=== readline fixture ===
+line1
+
+line2
+
+=== binary ===
+5
+A
+E
+=== rename/remove ===
+False
+True
+False
+=== env ===
+ok
+None
+=== File IO Suite Complete ===

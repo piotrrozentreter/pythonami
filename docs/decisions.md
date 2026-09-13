@@ -74,3 +74,10 @@
 - Decision: Handle `OP_EQUAL`/`OP_NOT_EQUAL` for `None` first (`None` equals only `None`). Accept `BOOL` alongside `INT` for equality and ordering by using the stored 0/1 integer payload (Python numeric policy for booleans).
 - Alternatives considered: Coerce bool to int at load time only, or reject bool/int mixed comparisons.
 - Consequences: `True == 1`, `False == 0`, and `None == None` match Python; unrelated types still TypeError on arithmetic/order paths that do not special-case them.
+
+## D-0012: Language Level 0.2 file and env/assign builtins
+
+- Context: Phase 6 requires AmigaDOS file and environment access. Language Level 0.1 has no attribute access or `with`, so Python-style file objects with methods are unavailable. Amiga “environment” for this project means DOS assigns, not `ENV:` GetVar.
+- Decision: Expose function builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` with modes `r`/`w`/`a`/`rb`/`wb`/`ab`. Binary and text both use string payloads (no `bytes` type). Host installs `getenv`/`setenv`/`unsetenv`; Amiga installs `assign_get`/`assign_add`/`assign_remove` on the same platform_var_* layer (`AssignPath`, `AssignLock(name,0)`, `Lock("name:")`+`NameFromLock`). Platform I/O stays in `file_host.c` / `file_amiga.c`; `PY68_OBJECT_FILE` closes on final release.
+- Alternatives considered: method-style `open()`, Amiga `GetVar`/`SetVar`, full CPython mode matrix (`+`, `x`).
+- Consequences: Scripts targeting Amiga should call `assign_*`. Host tests exercise file APIs and POSIX env. Emulator/hardware assign behavior remains owner-verified.

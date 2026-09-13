@@ -289,6 +289,59 @@ Py68Status py68_builtin_print(Py68Runtime *runtime, Py68U16 argument_count,
     return status;
 }
 
+Py68Status py68_builtin_input(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result)
+{
+    Py68U8 *data;
+    Py68U32 length;
+    Py68String *string;
+    Py68Status status;
+    Py68Location location;
+
+    location.offset = 0;
+    location.line = 0;
+    location.column = 0;
+    location.length = 0;
+
+    if (argument_count > 1) {
+        py68_error_set(&runtime->error, PY68_ERROR_TYPE, location, NULL,
+                       "input expects at most one prompt string");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (argument_count == 1) {
+        if (arguments[0].type != PY68_VALUE_OBJECT ||
+            arguments[0].as.object == NULL ||
+            arguments[0].as.object->type != PY68_OBJECT_STRING) {
+            py68_error_set(&runtime->error, PY68_ERROR_TYPE, location, NULL,
+                           "input prompt must be a string");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        {
+            Py68String *prompt = (Py68String *)arguments[0].as.object;
+            status = py68_platform_write_stdout(runtime, prompt->data,
+                                                prompt->length);
+            if (status != PY68_STATUS_OK) return status;
+            py68_platform_flush_stdout();
+        }
+    }
+    status = py68_platform_read_stdin_line(runtime, &data, &length);
+    if (status == PY68_STATUS_SOURCE_ERROR) {
+        py68_error_set(&runtime->error, PY68_ERROR_IO, location, NULL,
+                       "EOF when reading a line");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (status != PY68_STATUS_OK) {
+        py68_error_set(&runtime->error, PY68_ERROR_IO, location, NULL,
+                       "input failed");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    status = py68_string_new_copy(runtime, (const char *)data, length, &string);
+    py68_free(&runtime->allocator, PY68_MEM_TEMP, data, length + 1);
+    if (status != PY68_STATUS_OK) return status;
+    *result = py68_value_from_object(&string->base);
+    return PY68_STATUS_OK;
+}
+
 static void py68_builtin_error(Py68Runtime *runtime, Py68ErrorKind kind,
                                const char *message)
 {

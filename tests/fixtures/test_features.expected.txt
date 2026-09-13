@@ -103,4 +103,14 @@ False
 True
 True
 True
+=== 22. File Read/Write ===
+True
+Python68K
+Python68K-IO
+False
+True
+False
+=== 23. Amiga Assigns ===
+True
+True
 === Feature Test Complete ===

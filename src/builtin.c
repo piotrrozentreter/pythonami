@@ -101,8 +101,9 @@ static Py68U16 py68_static_strlen(const char *text)
 
 Py68Status py68_builtins_install(Py68Runtime *runtime)
 {
-    static const Py68BuiltinDefinition definitions[] = {
+    static const Py68BuiltinDefinition common[] = {
         { "print", 0, 65535, py68_builtin_print },
+        { "input", 0, 1, py68_builtin_input },
         { "len", 1, 1, py68_builtin_len },
         { "range", 1, 3, py68_builtin_range },
         { "list_pop", 1, 1, py68_builtin_list_pop },
@@ -113,22 +114,61 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "abs", 1, 1, py68_builtin_abs },
         { "min", 2, 2, py68_builtin_min },
         { "max", 2, 2, py68_builtin_max },
-        { "exit", 0, 1, py68_builtin_exit }
+        { "exit", 0, 1, py68_builtin_exit },
+        { "fopen", 2, 2, py68_builtin_fopen },
+        { "fclose", 1, 1, py68_builtin_fclose },
+        { "fread", 2, 2, py68_builtin_fread },
+        { "freadline", 1, 1, py68_builtin_freadline },
+        { "fwrite", 2, 2, py68_builtin_fwrite },
+        { "exists", 1, 1, py68_builtin_exists },
+        { "remove", 1, 1, py68_builtin_remove },
+        { "rename", 2, 2, py68_builtin_rename }
     };
+#if defined(PY68K_AMIGA)
+    static const Py68BuiltinDefinition platform_vars[] = {
+        { "assign_get", 1, 1, py68_builtin_assign_get },
+        { "assign_add", 2, 2, py68_builtin_assign_add },
+        { "assign_remove", 1, 1, py68_builtin_assign_remove }
+    };
+#else
+    /* Host keeps getenv_* and also assign_* aliases so Amiga-favor
+       examples/test_features.py runs under make language-test. */
+    static const Py68BuiltinDefinition platform_vars[] = {
+        { "getenv", 1, 1, py68_builtin_getenv },
+        { "setenv", 2, 2, py68_builtin_setenv },
+        { "unsetenv", 1, 1, py68_builtin_unsetenv },
+        { "assign_get", 1, 1, py68_builtin_assign_get },
+        { "assign_add", 2, 2, py68_builtin_assign_add },
+        { "assign_remove", 1, 1, py68_builtin_assign_remove }
+    };
+#endif
     Py68U16 index;
     Py68Status status;
     Py68NativeFunction *function;
 
-    for (index = 0; index < sizeof(definitions) / sizeof(definitions[0]);
-         ++index) {
-        status = py68_native_new(runtime, definitions[index].name,
-                                 definitions[index].minimum_arguments,
-                                 definitions[index].maximum_arguments,
-                                 definitions[index].callback, &function);
+    for (index = 0; index < sizeof(common) / sizeof(common[0]); ++index) {
+        status = py68_native_new(runtime, common[index].name,
+                                 common[index].minimum_arguments,
+                                 common[index].maximum_arguments,
+                                 common[index].callback, &function);
         if (status != PY68_STATUS_OK) return status;
         status = py68_builtin_set_copy(
-            runtime, (const Py68U8 *)definitions[index].name,
-            py68_static_strlen(definitions[index].name),
+            runtime, (const Py68U8 *)common[index].name,
+            py68_static_strlen(common[index].name),
+            py68_value_from_object(&function->base));
+        py68_object_release(runtime, &function->base);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    for (index = 0; index < sizeof(platform_vars) / sizeof(platform_vars[0]);
+         ++index) {
+        status = py68_native_new(runtime, platform_vars[index].name,
+                                 platform_vars[index].minimum_arguments,
+                                 platform_vars[index].maximum_arguments,
+                                 platform_vars[index].callback, &function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_builtin_set_copy(
+            runtime, (const Py68U8 *)platform_vars[index].name,
+            py68_static_strlen(platform_vars[index].name),
             py68_value_from_object(&function->base));
         py68_object_release(runtime, &function->base);
         if (status != PY68_STATUS_OK) return status;

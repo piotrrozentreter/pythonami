@@ -1,6 +1,6 @@
 # Python68K
 
-**Version 0.1.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
+**Version 0.2.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
 
 Python68K is a deliberately restricted, Python-compatible language and runtime for classic **Motorola 68000** Amiga systems (AmigaOS 2.x+), with a modern **Linux/host** build for development and testing.
 
@@ -10,7 +10,7 @@ Executable name: `pythonami`
 
 ---
 
-## Features (Language Level 0.1)
+## Features (Language Level 0.1 + 0.2.0 I/O)
 
 ### Values and operators
 - Scalars: integers (signed 32-bit, checked overflow), `True` / `False`, `None`
@@ -34,8 +34,32 @@ Executable name: `pythonami`
 - Local shadowing of globals; unbound local reads raise errors
 - Augmented assignment: `+= -= *= //= %=`
 
-### Builtins
-`print`, `len`, `range`, `list_append`, `list_pop`, `int`, `str`, `bool`, `abs`, `min`, `max`, `exit`
+### Builtins (core)
+`print`, `input`, `len`, `range`, `list_append`, `list_pop`, `int`, `str`, `bool`, `abs`, `min`, `max`, `exit`
+
+`input([prompt])` writes an optional prompt (no newline), flushes stdout, reads one line from the console, and returns it without the trailing newline.
+
+### File I/O (0.2.0)
+Function builtins (no method-style file objects — no attribute access yet):
+
+| Builtin | Notes |
+|---------|--------|
+| `fopen(path, mode)` | modes: `r` `w` `a` `rb` `wb` `ab` |
+| `fclose(handle)` | |
+| `fread(handle, count)` | returns string (raw bytes in binary mode) |
+| `freadline(handle)` | one line as string |
+| `fwrite(handle, string)` | returns byte count |
+| `exists(path)` / `remove(path)` / `rename(old, new)` | |
+
+Amiga uses DOS `Open`/`Read`/`Write`/`Seek`/`Close`/`Lock`/`DeleteFile`/`Rename`. Host uses stdio.
+
+### Environment / assigns (0.2.0)
+
+| Host | Amiga (target) |
+|------|----------------|
+| `getenv(name)` | `assign_get(name)` |
+| `setenv(name, value)` | `assign_add(name, path)` via `AssignPath` |
+| `unsetenv(name)` | `assign_remove(name)` via `AssignLock(name, 0)` |
 
 ### Tooling
 - CLI: `pythonami script.py`, `pythonami -c "..."`, `-V` / `--help`
@@ -43,8 +67,8 @@ Executable name: `pythonami`
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback
 
-### Not in 0.1.0
-Classes, imports, exceptions as objects, floats, Unicode, dicts, comprehensions, closures, nested `def`, AmigaDOS file/environment APIs, and frozen cross-target differential sign-off on emulator/hardware.
+### Not in 0.2.0
+Classes, imports, exceptions as objects, floats, Unicode, dicts, comprehensions, closures, nested `def`, method-style `open()`, `with`, seek, Amiga `ENV:` GetVar/SetVar, argv list, frozen emulator/hardware differential sign-off.
 
 ---
 
@@ -119,7 +143,7 @@ Makefile.amiga vbcc Amiga build
 
 | Document | Contents |
 |----------|----------|
-| `docs/language-reference.md` | What is executable in 0.1 |
+| `docs/language-reference.md` | What is executable |
 | `docs/host-build.md` | Host GCC build |
 | `docs/amiga-build.md` | vbcc / AmigaOS build and Workbench notes |
 | `docs/testing.md` | Test coverage narrative |
