@@ -49,6 +49,11 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
                   sizeof(Py68List));
     } else if (object->type == PY68_OBJECT_FUNCTION) {
         Py68Function *function = (Py68Function *)object;
+        if ((function->base.flags & 1) != 0 && function->code != NULL) {
+            py68_code_destroy(&runtime->allocator, function->code);
+            py68_free(&runtime->allocator, PY68_MEM_CODE,
+                      function->code, sizeof(Py68Code));
+        }
         py68_free(&runtime->allocator, PY68_MEM_FUNCTION, function,
                   sizeof(Py68Function));
     } else if (object->type == PY68_OBJECT_NATIVE_FUNCTION) {

@@ -22,6 +22,19 @@ Py68Status py68_function_new(Py68Runtime *runtime, Py68Code *code,
     return PY68_STATUS_OK;
 }
 
+Py68Status py68_function_new_owned(struct Py68Runtime *runtime,
+                                   Py68Code *code,
+                                   Py68U16 argument_count,
+                                   Py68U16 local_count,
+                                   Py68Function **result)
+{
+    Py68Status status = py68_function_new(runtime, code, argument_count,
+                                          local_count, result);
+    if (status == PY68_STATUS_OK)
+        (*result)->base.flags |= 1;
+    return status;
+}
+
 Py68Status py68_function_check_arguments(Py68Function *function,
                                          Py68U16 argument_count)
 {

@@ -13,6 +13,7 @@ static int add_constant(Py68Allocator *allocator, Py68Code *code,
     constant.integer = integer;
     constant.offset = 0;
     constant.length = 0;
+    constant.code = NULL;
     return py68_code_add_constant(allocator, code, constant, &index) ==
            PY68_STATUS_OK;
 }

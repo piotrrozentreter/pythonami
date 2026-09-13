@@ -117,6 +117,71 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
                                           Py68AstNode *node, Py68Code *code,
                                           Py68Error *error);
 
+static Py68Status py68_collect_function_locals(
+    Py68Allocator *allocator, Py68Code *code, Py68AstList *statements)
+{
+    Py68U16 index;
+    Py68U16 slot;
+    Py68Status status;
+    Py68AstNode *statement;
+    for (index = 0; index < statements->count; ++index) {
+        statement = statements->items[index];
+        switch ((Py68AstKind)statement->kind) {
+        case PY68_AST_ASSIGN:
+            status = py68_code_add_local(
+                allocator, code, statement->as.assign.name_offset,
+                statement->as.assign.name_length, &slot);
+            if (status != PY68_STATUS_OK) return status;
+            break;
+        case PY68_AST_FOR:
+            status = py68_code_add_local(
+                allocator, code, statement->as.for_statement.name_offset,
+                statement->as.for_statement.name_length, &slot);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.for_statement.body);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.for_statement.else_body);
+            if (status != PY68_STATUS_OK) return status;
+            break;
+        case PY68_AST_IF:
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.if_statement.body);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.if_statement.else_body);
+            if (status != PY68_STATUS_OK) return status;
+            break;
+        case PY68_AST_WHILE:
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.while_statement.body);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_collect_function_locals(
+                allocator, code, &statement->as.while_statement.else_body);
+            if (status != PY68_STATUS_OK) return status;
+            break;
+        case PY68_AST_AUGMENTED_ASSIGN:
+            if (statement->as.augmented_assign.target != NULL) {
+                status = py68_code_add_local(
+                    allocator, code,
+                    statement->as.augmented_assign.target->as.name.offset,
+                    statement->as.augmented_assign.target->as.name.length,
+                    &slot);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_compile_function_definition(
+    Py68Allocator *allocator, const Py68Source *source,
+    Py68AstNode *statement, Py68Code *code, Py68Error *error);
+
 static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                           const Py68Source *source,
                                           Py68AstList *statements,
@@ -140,8 +205,17 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                         statement->as.assign.name_length,
                                         &name_index);
             if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL,
-                                      name_index);
+            {
+                Py68U16 local_slot;
+                if (py68_code_find_local(code, statement->as.assign.name_offset,
+                                         statement->as.assign.name_length,
+                                         &local_slot))
+                    status = py68_emit_u16_op(allocator, code, OP_STORE_LOCAL,
+                                              local_slot);
+                else
+                    status = py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL,
+                                              name_index);
+            }
             break;
         case PY68_AST_EXPRESSION_STATEMENT:
             status = py68_compile_expression(allocator, source,
@@ -149,6 +223,59 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                              code, error);
             if (status == PY68_STATUS_OK) status = py68_emit_op(
                 allocator, code, OP_POP);
+            break;
+        case PY68_AST_AUGMENTED_ASSIGN: {
+            Py68U16 target_index;
+            Py68U16 local_slot;
+            status = py68_compile_expression(
+                allocator, source, statement->as.augmented_assign.target,
+                code, error);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(
+                allocator, source, statement->as.augmented_assign.value,
+                code, error);
+            if (status != PY68_STATUS_OK) return status;
+            switch ((Py68TokenKind)statement->as.augmented_assign.operator_kind) {
+            case PY68_TOKEN_PLUS_ASSIGN: status = py68_emit_op(allocator, code, OP_ADD); break;
+            case PY68_TOKEN_MINUS_ASSIGN: status = py68_emit_op(allocator, code, OP_SUBTRACT); break;
+            case PY68_TOKEN_STAR_ASSIGN: status = py68_emit_op(allocator, code, OP_MULTIPLY); break;
+            case PY68_TOKEN_FLOOR_DIVIDE_ASSIGN: status = py68_emit_op(allocator, code, OP_FLOOR_DIVIDE); break;
+            case PY68_TOKEN_PERCENT_ASSIGN: status = py68_emit_op(allocator, code, OP_MODULO); break;
+            default: status = PY68_STATUS_SOURCE_ERROR; break;
+            }
+            if (status != PY68_STATUS_OK) return status;
+            target_index = 0;
+            if (py68_code_find_local(
+                    code, statement->as.augmented_assign.target->as.name.offset,
+                    statement->as.augmented_assign.target->as.name.length,
+                    &local_slot)) {
+                status = py68_emit_u16_op(allocator, code, OP_STORE_LOCAL,
+                                          local_slot);
+            } else {
+                status = py68_code_add_name(
+                    allocator, code,
+                    statement->as.augmented_assign.target->as.name.offset,
+                    statement->as.augmented_assign.target->as.name.length,
+                    &target_index);
+                if (status == PY68_STATUS_OK)
+                    status = py68_emit_u16_op(allocator, code,
+                                              OP_STORE_GLOBAL, target_index);
+            }
+            break;
+        }
+        case PY68_AST_RETURN:
+            if (statement->as.return_statement.value == NULL) {
+                status = py68_emit_op(allocator, code, OP_RETURN_NONE);
+            } else {
+                status = py68_compile_expression(
+                    allocator, source, statement->as.return_statement.value,
+                    code, error);
+                if (status == PY68_STATUS_OK)
+                    status = py68_emit_op(allocator, code, OP_RETURN_VALUE);
+            }
+            break;
+        case PY68_AST_PASS:
+            status = PY68_STATUS_OK;
             break;
         case PY68_AST_IF: {
             Py68U32 false_operand;
@@ -259,8 +386,18 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                         statement->as.for_statement.name_length,
                                         &name_index);
             if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL,
-                                      name_index);
+            {
+                Py68U16 local_slot;
+                if (py68_code_find_local(code,
+                                         statement->as.for_statement.name_offset,
+                                         statement->as.for_statement.name_length,
+                                         &local_slot))
+                    status = py68_emit_u16_op(allocator, code, OP_STORE_LOCAL,
+                                              local_slot);
+                else
+                    status = py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL,
+                                              name_index);
+            }
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.for_statement.body,
@@ -312,9 +449,9 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             break;
         }
         case PY68_AST_FUNCTION_DEF:
-            py68_compile_error(error, source, statement->location,
-                               "function bytecode generation is not implemented");
-            return PY68_STATUS_SOURCE_ERROR;
+            status = py68_compile_function_definition(
+                allocator, source, statement, code, error);
+            break;
         default:
             status = PY68_STATUS_OK;
             break;
@@ -342,6 +479,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         constant.integer = node->as.integer_literal.value;
         constant.offset = 0;
         constant.length = 0;
+        constant.code = NULL;
         status = py68_code_add_constant(allocator, code, constant, &index);
         if (status != PY68_STATUS_OK) return status;
         return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
@@ -353,6 +491,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         constant.integer = 0;
         constant.offset = node->as.string_literal.offset;
         constant.length = node->as.string_literal.length;
+        constant.code = NULL;
         status = py68_code_add_constant(allocator, code, constant, &index);
         if (status != PY68_STATUS_OK) return status;
         return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
@@ -363,10 +502,17 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
     case PY68_AST_NONE:
         return py68_emit_op(allocator, code, OP_LOAD_NONE);
     case PY68_AST_NAME:
+        {
+        Py68U16 local_slot;
+        if (py68_code_find_local(code, node->as.name.offset,
+                                 node->as.name.length, &local_slot))
+            return py68_emit_u16_op(allocator, code, OP_LOAD_LOCAL,
+                                    local_slot);
         status = py68_code_add_name(allocator, code, node->as.name.offset,
                                     node->as.name.length, &index);
         if (status != PY68_STATUS_OK) return status;
         return py68_emit_u16_op(allocator, code, OP_LOAD_GLOBAL, index);
+        }
     case PY68_AST_UNARY:
         status = py68_compile_expression(allocator, source,
                                           node->as.unary.operand, code, error);
@@ -380,6 +526,21 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         status = py68_compile_expression(allocator, source,
                                          node->as.binary.left, code, error);
         if (status != PY68_STATUS_OK) return status;
+        if (node->as.binary.operator_kind == PY68_TOKEN_AND ||
+            node->as.binary.operator_kind == PY68_TOKEN_OR) {
+            Py68U32 short_circuit_operand;
+            Py68U8 short_circuit_opcode =
+                node->as.binary.operator_kind == PY68_TOKEN_AND ?
+                OP_JUMP_IF_FALSE_OR_POP : OP_JUMP_IF_TRUE_OR_POP;
+            status = py68_emit_jump(allocator, code, short_circuit_opcode,
+                                    &short_circuit_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source,
+                                             node->as.binary.right, code, error);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_patch_jump(code, short_circuit_operand,
+                                   code->bytecode_length);
+        }
         status = py68_compile_expression(allocator, source,
                                          node->as.binary.right, code, error);
         if (status != PY68_STATUS_OK) return status;
@@ -454,6 +615,72 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
     }
 }
 
+static Py68Status py68_compile_function_definition(
+    Py68Allocator *allocator, const Py68Source *source,
+    Py68AstNode *statement, Py68Code *code, Py68Error *error)
+{
+    Py68Code *nested;
+    Py68U16 constant_index;
+    Py68U16 name_index;
+    Py68Status status;
+
+    nested = (Py68Code *)py68_alloc(allocator, PY68_MEM_CODE,
+                                    sizeof(Py68Code));
+    if (nested == NULL) return PY68_STATUS_MEMORY_ERROR;
+    py68_code_initialize(nested);
+    nested->source_data = source->data;
+    nested->source_length = source->length;
+    nested->source_filename = source->filename;
+    nested->function_name_offset = statement->as.function_def.name_offset;
+    nested->function_name_length = statement->as.function_def.name_length;
+    for (constant_index = 0;
+         constant_index < statement->as.function_def.parameters.count;
+         ++constant_index) {
+        Py68AstNode *parameter = statement->as.function_def.parameters.items[
+            constant_index];
+        status = py68_code_add_local(allocator, nested,
+                                     parameter->as.name.offset,
+                                     parameter->as.name.length, &name_index);
+        if (status != PY68_STATUS_OK) goto function_failure;
+        if (name_index != constant_index) {
+            py68_compile_error(error, source, parameter->location,
+                               "duplicate parameter name");
+            status = PY68_STATUS_SOURCE_ERROR;
+            goto function_failure;
+        }
+    }
+    nested->argument_count = statement->as.function_def.parameters.count;
+    status = py68_collect_function_locals(
+        allocator, nested, &statement->as.function_def.body);
+    if (status != PY68_STATUS_OK) goto function_failure;
+    status = py68_compile_statements(
+        allocator, source, &statement->as.function_def.body,
+        nested, error, NULL);
+    if (status == PY68_STATUS_OK)
+        status = py68_emit_op(allocator, nested, OP_RETURN_NONE);
+    if (status != PY68_STATUS_OK) {
+function_failure:
+        py68_code_destroy(allocator, nested);
+        py68_free(allocator, PY68_MEM_CODE, nested, sizeof(Py68Code));
+        return status;
+    }
+    status = py68_code_add_code_move(allocator, code, nested, &constant_index);
+    if (status != PY68_STATUS_OK) {
+        py68_code_destroy(allocator, nested);
+        py68_free(allocator, PY68_MEM_CODE, nested, sizeof(Py68Code));
+        return status;
+    }
+    status = py68_emit_u16_op(allocator, code, OP_MAKE_FUNCTION,
+                              constant_index);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_code_add_name(allocator, code,
+                                statement->as.function_def.name_offset,
+                                statement->as.function_def.name_length,
+                                &name_index);
+    if (status != PY68_STATUS_OK) return status;
+    return py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL, name_index);
+}
+
 Py68Status py68_compile_module(Py68Allocator *allocator,
                                const Py68Source *source,
                                Py68AstNode *module,
@@ -464,6 +691,7 @@ Py68Status py68_compile_module(Py68Allocator *allocator,
     py68_code_initialize(code);
     code->source_data = source->data;
     code->source_length = source->length;
+    code->source_filename = source->filename;
     py68_error_clear(error);
     status = py68_compile_statements(allocator, source,
                                      &module->as.module.statements,

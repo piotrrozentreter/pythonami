@@ -85,6 +85,7 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
     const Py68OpcodeInfo *info;
     Py68I32 depth;
     Py68I32 effect;
+    Py68I32 fallthrough_depth;
     Py68I32 maximum = 0;
     Py68Status status = PY68_STATUS_OK;
 
@@ -121,9 +122,13 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         boundaries[offset] = 1;
         if ((opcode == OP_LOAD_CONST &&
              py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
+              (opcode == OP_MAKE_FUNCTION &&
+               py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
             ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL ||
-              opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
-             py68_read_u16(code->bytecode, offset + 1) >= code->name_count)) {
+                            opcode == OP_STORE_GLOBAL) &&
+                         py68_read_u16(code->bytecode, offset + 1) >= code->name_count) ||
+                        ((opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
+                         py68_read_u16(code->bytecode, offset + 1) >= code->local_count)) {
             py68_verify_error(error, "bytecode table index is out of range", offset);
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;
@@ -159,6 +164,12 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
             opcode == OP_JUMP_IF_TRUE || opcode == OP_JUMP_IF_FALSE_OR_POP ||
             opcode == OP_JUMP_IF_TRUE_OR_POP || opcode == OP_RANGE_NEXT) {
             Py68I32 target_depth = (opcode == OP_RANGE_NEXT) ? (depth - 1) : (depth + effect);
+            if ((opcode == OP_JUMP_IF_FALSE_OR_POP ||
+                 opcode == OP_JUMP_IF_TRUE_OR_POP) && depth < 1) {
+                py68_verify_error(error, "value stack underflow", current);
+                status = PY68_STATUS_SOURCE_ERROR;
+                goto cleanup;
+            }
             target = (Py68U32)((Py68I32)(current + info->width) +
                               py68_read_i16(code->bytecode, current + 1));
             status = py68_successor(code, boundaries, depths, worklist,
@@ -173,8 +184,13 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;
         }
+        fallthrough_depth = depth + effect;
+        if (opcode == OP_JUMP_IF_FALSE_OR_POP ||
+            opcode == OP_JUMP_IF_TRUE_OR_POP) {
+            fallthrough_depth = depth - 1;
+        }
         status = py68_successor(code, boundaries, depths, worklist,
-                                &work_count, current, depth + effect,
+                                &work_count, current, fallthrough_depth,
                                 next, error);
         if (status != PY68_STATUS_OK) goto cleanup;
     }

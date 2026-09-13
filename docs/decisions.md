@@ -34,3 +34,10 @@
 - Decision: Keep `-use-framepointer` and `-no-delayed-popping` in both debug and release builds to preserve a stable stack frame and avoid release-only Guru Meditation behavior.
 - Alternatives considered: Keep the release build at `-O=2` alone, or add a custom assembly startup wrapper.
 - Consequences: The release artifact follows the same stable ABI assumptions as the debug build; any remaining emulator or hardware crash will be treated as a true runtime issue, not a compiler flag mismatch.
+
+## D-0006: Function local-slot milestone
+
+- Context: Function bytecode required owned nested code objects before `MAKE_FUNCTION` could safely construct callable values. The next step was parameter and local-slot execution.
+- Decision: Compile parameters and assignment targets into deterministic local slots, validate local operands against code metadata, and execute them through the active VM frame. Keep the existing borrowed function constructor for low-level compatibility tests.
+- Alternatives considered: Continue rejecting parameterized functions, or encode locals as globals and risk cross-function name collisions.
+- Consequences: Positional parameter passing and ordinary local assignment now execute through explicit frame storage. Unbound-local diagnostics and full closure semantics remain future work.

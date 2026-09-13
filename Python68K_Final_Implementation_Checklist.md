@@ -35,7 +35,7 @@
 - [x] Function parsing implemented
 - [x] Loop parsing implemented
 - [x] Slice parsing implemented
-- [ ] Grammar compliance tests passing
+- [x] Grammar compliance tests passing
 
 ## Phase 3 - Symbol Analysis
 - [x] Function prepass implemented
@@ -49,13 +49,13 @@
 ## Phase 4 - Bytecode Compiler
 - [x] Constant pool implementation
 - [x] Name table implementation
-- [ ] String interning
-- [ ] FNV-1a hashing
+- [x] String interning
+- [x] FNV-1a hashing
 - [x] Opcode metadata generation
 - [x] Branch patching
 - [ ] Function code generation
 - [x] Control-flow code generation
-- [ ] Short-circuit logic generation
+- [x] Short-circuit logic generation
 
 ## Phase 5 - Bytecode Verification
 - [x] Instruction boundary validation

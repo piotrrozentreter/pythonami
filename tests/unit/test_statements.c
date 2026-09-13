@@ -103,6 +103,40 @@ int main(void)
                         &module, &error),
           "break outside loop is rejected");
     py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "continue\n", &arena,
+                                  &module, &error),
+                    "continue outside loop is rejected");
+    py68_ast_arena_destroy(&arena);
+
+    {
+        const char *loop_else_program =
+            "while ready:\n"
+            "    pass\n"
+            "else:\n"
+            "    ready = 0\n"
+            "for item in items:\n"
+            "    pass\n"
+            "else:\n"
+            "    done = 1\n";
+        passed &= check(parse_module(&allocator, loop_else_program, &arena,
+                                     &module, &error),
+                        "while and for else clauses parse");
+        if (module != NULL) {
+            passed &= check(module->as.module.statements.count == 2,
+                            "loop else program has two statements");
+            passed &= check(module->as.module.statements.items[0]->kind ==
+                            PY68_AST_WHILE &&
+                            module->as.module.statements.items[0]->as.
+                            while_statement.else_body.count == 1,
+                            "while else clause is attached to while");
+            passed &= check(module->as.module.statements.items[1]->kind ==
+                            PY68_AST_FOR &&
+                            module->as.module.statements.items[1]->as.
+                            for_statement.else_body.count == 1,
+                            "for else clause is attached to for");
+            py68_ast_arena_destroy(&arena);
+        }
+    }
     passed &= check(allocator.stats.current_bytes == 0,
                     "statement parser releases all allocations");
     if (passed) {

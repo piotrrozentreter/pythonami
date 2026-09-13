@@ -24,6 +24,7 @@ int main(void)
     constant.integer = 1;
     constant.offset = 0;
     constant.length = 0;
+    constant.code = NULL;
     passed &= py68_code_add_constant(&allocator, &code, constant, &index) ==
               PY68_STATUS_OK;
     passed &= emit(&allocator, &code, OP_LOAD_CONST);

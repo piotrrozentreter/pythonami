@@ -57,6 +57,7 @@ int main(void)
         constant.flags = 0;
         constant.offset = 0;
         constant.length = 0;
+        constant.code = NULL;
         constant.integer = 2;
         passed &= py68_code_add_constant(&runtime.allocator, &code,
                                           constant, &constant_index) == PY68_STATUS_OK;
@@ -90,6 +91,7 @@ int main(void)
         constant.integer = 9;
         constant.offset = 0;
         constant.length = 0;
+        constant.code = NULL;
         passed &= py68_code_add_constant(&runtime.allocator, &function_code,
                                          constant, &constant_index) ==
                   PY68_STATUS_OK;
