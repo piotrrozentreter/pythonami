@@ -182,6 +182,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
     Py68Status status;
     for (index = 0; index < statements->count; ++index) {
         statement = statements->items[index];
+        code->emit_line = statement->location.line;
         switch ((Py68AstKind)statement->kind) {
         case PY68_AST_ASSIGN:
             status = py68_compile_expression(allocator, source,
@@ -422,6 +423,8 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
             nested_code->source_data = source->data;
             nested_code->source_length = source->length;
+            nested_code->name_offset = statement->as.function_def.name_offset;
+            nested_code->name_length = statement->as.function_def.name_length;
             nested_code->argument_count = nested_symbols->parameter_count;
             nested_code->local_count = (Py68U16)(
                 nested_symbols->parameter_count + nested_symbols->local_count);
@@ -472,6 +475,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
     Py68U16 element_count;
     Py68Status status;
     if (node == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    code->emit_line = node->location.line;
     switch ((Py68AstKind)node->kind) {
     case PY68_AST_INTEGER: {
         Py68Constant constant;
@@ -514,7 +518,29 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         if (node->as.unary.operator_kind == PY68_TOKEN_PLUS)
             return py68_emit_op(allocator, code, OP_POSITIVE);
         return py68_emit_op(allocator, code, OP_NOT);
-    case PY68_AST_BINARY:
+    case PY68_AST_BINARY: {
+        Py68U32 short_circuit_operand;
+        Py68TokenKind operator_kind =
+            (Py68TokenKind)node->as.binary.operator_kind;
+        /* Short-circuit: leave left on the stack when it already decides. */
+        if (operator_kind == PY68_TOKEN_AND || operator_kind == PY68_TOKEN_OR) {
+            status = py68_compile_expression(allocator, source,
+                                             node->as.binary.left, code, error,
+                                             analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_jump(
+                allocator, code,
+                operator_kind == PY68_TOKEN_AND ? OP_JUMP_IF_FALSE_OR_POP
+                                                : OP_JUMP_IF_TRUE_OR_POP,
+                &short_circuit_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source,
+                                             node->as.binary.right, code,
+                                             error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_patch_jump(code, short_circuit_operand,
+                                   code->bytecode_length);
+        }
         status = py68_compile_expression(allocator, source,
                                          node->as.binary.left, code, error,
                                          analysis, function);
@@ -523,7 +549,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
                                          node->as.binary.right, code, error,
                                          analysis, function);
         if (status != PY68_STATUS_OK) return status;
-        switch ((Py68TokenKind)node->as.binary.operator_kind) {
+        switch (operator_kind) {
         case PY68_TOKEN_PLUS: return py68_emit_op(allocator, code, OP_ADD);
         case PY68_TOKEN_MINUS: return py68_emit_op(allocator, code, OP_SUBTRACT);
         case PY68_TOKEN_STAR: return py68_emit_op(allocator, code, OP_MULTIPLY);
@@ -537,6 +563,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         case PY68_TOKEN_GREATER_EQUAL: return py68_emit_op(allocator, code, OP_GREATER_EQUAL);
         default: return PY68_STATUS_SOURCE_ERROR;
         }
+    }
     case PY68_AST_LIST:
         element_count = node->as.list_literal.elements.count;
         for (index = 0; index < element_count; ++index) {

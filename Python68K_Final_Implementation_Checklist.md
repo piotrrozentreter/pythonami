@@ -55,7 +55,7 @@
 - [x] Branch patching
 - [x] Function code generation
 - [x] Control-flow code generation
-- [ ] Short-circuit logic generation
+- [x] Short-circuit logic generation
 
 ## Phase 5 - Bytecode Verification
 - [x] Instruction boundary validation
@@ -83,8 +83,8 @@
 - [x] Builtin table implemented
 - [x] Opcode dispatch loop implemented
 - [x] Error propagation implemented
-- [ ] Full VM unwind implemented
-- [ ] Traceback support implemented
+- [x] Full VM unwind implemented
+- [x] Traceback support implemented
 
 ## Phase 8 - Arithmetic Semantics
 - [x] Checked add
@@ -96,9 +96,9 @@
 - [ ] Overflow tests passing
 
 ## Phase 9 - Strings, Lists, Range
-- [ ] String concatenation
-- [ ] String slicing
-- [ ] String indexing
+- [x] String concatenation
+- [x] String slicing
+- [x] String indexing
 - [x] List append
 - [x] List pop
 - [x] List indexing
@@ -118,23 +118,23 @@
 - [x] print
 - [x] len
 - [x] range
-- [ ] int
-- [ ] str
-- [ ] bool
-- [ ] abs
-- [ ] min
-- [ ] max
+- [x] int
+- [x] str
+- [x] bool
+- [x] abs
+- [x] min
+- [x] max
 - [x] list_append
 - [x] list_pop
-- [ ] exit
+- [x] exit
 
 ## Phase 12 - AmigaDOS Integration
 - [x] Script execution
-- [ ] -c execution
+- [x] -c execution
 - [ ] argv support
 - [ ] File APIs
 - [ ] Environment APIs
-- [ ] Exit-code mapping
+- [x] Exit-code mapping
 - [ ] Memory stats output
 
 ## Quality Gates
@@ -152,13 +152,13 @@
 
 ## MVP Acceptance
 - [x] python script.py works
-- [ ] python -c works
+- [x] python -c works
 - [x] Bytecode VM executes code
 - [x] Functions work
 - [x] Recursion works
-- [ ] Strings work (literals only; no concatenation/indexing/slicing yet)
+- [x] Strings work
 - [x] Lists work
-- [ ] Tracebacks work
+- [x] Tracebacks work
 - [ ] Unsupported syntax rejected cleanly
 - [ ] No 68020 instructions present
 - [ ] No FPU required

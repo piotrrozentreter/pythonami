@@ -104,7 +104,14 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "len", 1, 1, py68_builtin_len },
         { "range", 1, 3, py68_builtin_range },
         { "list_pop", 1, 1, py68_builtin_list_pop },
-        { "list_append", 2, 2, py68_builtin_list_append }
+        { "list_append", 2, 2, py68_builtin_list_append },
+        { "int", 1, 1, py68_builtin_int },
+        { "str", 1, 1, py68_builtin_str },
+        { "bool", 1, 1, py68_builtin_bool },
+        { "abs", 1, 1, py68_builtin_abs },
+        { "min", 2, 2, py68_builtin_min },
+        { "max", 2, 2, py68_builtin_max },
+        { "exit", 0, 1, py68_builtin_exit }
     };
     Py68U16 index;
     Py68Status status;

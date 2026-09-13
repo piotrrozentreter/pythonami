@@ -160,3 +160,58 @@ Py68Status py68_list_set_move(Py68Runtime *runtime, Py68List *list,
     }
     return status;
 }
+
+Py68Status py68_list_concat(Py68Runtime *runtime, Py68List *left,
+                            Py68List *right, Py68List **result)
+{
+    Py68List *list;
+    Py68U32 index;
+    Py68Status status = py68_list_new(runtime, &list);
+    if (status != PY68_STATUS_OK) return status;
+    for (index = 0; index < left->count; ++index) {
+        status = py68_list_append_copy(runtime, list, left->items[index]);
+        if (status != PY68_STATUS_OK) {
+            py68_object_release(runtime, &list->base);
+            return status;
+        }
+    }
+    for (index = 0; index < right->count; ++index) {
+        status = py68_list_append_copy(runtime, list, right->items[index]);
+        if (status != PY68_STATUS_OK) {
+            py68_object_release(runtime, &list->base);
+            return status;
+        }
+    }
+    *result = list;
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_list_slice(Py68Runtime *runtime, Py68List *list,
+                           Py68I32 start, Py68I32 end, int start_omitted,
+                           int end_omitted, Py68List **result)
+{
+    Py68List *sliced;
+    Py68I32 length = (Py68I32)list->count;
+    Py68I32 slice_start = start_omitted ? 0 : start;
+    Py68I32 slice_end = end_omitted ? length : end;
+    Py68I32 index;
+    Py68Status status;
+    if (slice_start < 0) slice_start += length;
+    if (slice_end < 0) slice_end += length;
+    if (slice_start < 0) slice_start = 0;
+    if (slice_end < 0) slice_end = 0;
+    if (slice_start > length) slice_start = length;
+    if (slice_end > length) slice_end = length;
+    if (slice_end < slice_start) slice_end = slice_start;
+    status = py68_list_new(runtime, &sliced);
+    if (status != PY68_STATUS_OK) return status;
+    for (index = slice_start; index < slice_end; ++index) {
+        status = py68_list_append_copy(runtime, sliced, list->items[index]);
+        if (status != PY68_STATUS_OK) {
+            py68_object_release(runtime, &sliced->base);
+            return status;
+        }
+    }
+    *result = sliced;
+    return PY68_STATUS_OK;
+}

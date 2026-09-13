@@ -169,7 +169,16 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         if (opcode == OP_JUMP || opcode == OP_JUMP_IF_FALSE ||
             opcode == OP_JUMP_IF_TRUE || opcode == OP_JUMP_IF_FALSE_OR_POP ||
             opcode == OP_JUMP_IF_TRUE_OR_POP || opcode == OP_RANGE_NEXT) {
-            Py68I32 target_depth = (opcode == OP_RANGE_NEXT) ? (depth - 1) : (depth + effect);
+            Py68I32 target_depth;
+            if (opcode == OP_RANGE_NEXT) {
+                target_depth = depth - 1;
+            } else if (opcode == OP_JUMP_IF_FALSE_OR_POP ||
+                       opcode == OP_JUMP_IF_TRUE_OR_POP) {
+                /* Jump keeps TOS; fall-through (effect -1) pops it. */
+                target_depth = depth;
+            } else {
+                target_depth = depth + effect;
+            }
             target = (Py68U32)((Py68I32)(current + info->width) +
                               py68_read_i16(code->bytecode, current + 1));
             status = py68_successor(code, boundaries, depths, worklist,

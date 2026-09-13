@@ -26,9 +26,16 @@ typedef struct Py68Constant {
 typedef struct Py68Code {
     const Py68U8 *source_data;
     Py68U32 source_length;
+    /* Display name for tracebacks: offset/length into source_data.
+       name_length == 0 means the module top-level ("<module>"). */
+    Py68U32 name_offset;
+    Py68U16 name_length;
     Py68U8 *bytecode;
     Py68U32 bytecode_length;
     Py68U32 bytecode_capacity;
+    /* Parallel to bytecode: source line for each emitted byte. */
+    Py68U16 *line_map;
+    Py68U16 emit_line;
     Py68Constant *constants;
     Py68U16 constant_count;
     Py68U16 constant_capacity;

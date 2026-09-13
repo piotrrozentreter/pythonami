@@ -47,4 +47,9 @@
 - Context: Python raises `UnboundLocalError` when a function reads a local variable before any assignment reaches it on the executed path (e.g. `if False: x = 1` then `return x`). The frame previously initialized every local slot to `None`, silently masking this class of bug and diverging from Python's documented semantics.
 - Decision: Add `PY68_VALUE_UNBOUND` as a distinct `Py68ValueType` and initialize every non-parameter local slot to it when a frame is set up. `OP_LOAD_LOCAL` checks for this sentinel and raises a runtime error instead of returning it as a usable value; `OP_STORE_LOCAL` overwrites it normally.
 - Alternatives considered: Track "assigned" state via a separate bitmask per frame; perform a static "definitely assigned" data-flow analysis at compile time.
-- Consequences: Reading an unbound local is now a runtime error with a clear diagnostic, matching Python's runtime (not compile-time) detection of this condition. The sentinel must never be observable by user code as a first-class value (it is not `None`, not printable, and cannot be stored back into another variable).
+## D-0008: Short-circuit and/or via JUMP_*_OR_POP
+
+- Context: Python `and`/`or` must not evaluate the right-hand operand when the left-hand value already decides the result, and must return the deciding operand rather than a coerced boolean.
+- Decision: Compile `and`/`or` with `OP_JUMP_IF_FALSE_OR_POP` / `OP_JUMP_IF_TRUE_OR_POP`. Verifier treats the jump path as keeping TOS and the fall-through path as popping TOS (stack effect -1).
+- Alternatives considered: Always evaluate both sides into booleans with `OP_AND`/`OP_OR` opcodes.
+- Consequences: Matches Python value-preserving short-circuit semantics; empty strings/lists are falsy via updated truthiness rules.

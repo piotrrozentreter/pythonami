@@ -19,7 +19,8 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     static const Py68OpcodeInfo binary = INFO(1, -1, "BINARY");
     static const Py68OpcodeInfo jump = INFO(3, 0, "JUMP");
     static const Py68OpcodeInfo jump_pop = INFO(3, -1, "JUMP_POP");
-    static const Py68OpcodeInfo jump_or_pop = INFO(3, 0, "JUMP_OR_POP");
+    /* Fall-through pops TOS; the jump path keeps TOS (verifier special-cases). */
+    static const Py68OpcodeInfo jump_or_pop = INFO(3, -1, "JUMP_OR_POP");
     static const Py68OpcodeInfo build_list = INFO(3, 0, "BUILD_LIST");
     static const Py68OpcodeInfo load_index = INFO(1, -1, "LOAD_INDEX");
     static const Py68OpcodeInfo store_index = INFO(1, -3, "STORE_INDEX");

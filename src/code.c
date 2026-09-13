@@ -17,6 +17,8 @@ void py68_code_destroy(Py68Allocator *allocator, Py68Code *code)
               (Py68U32)code->nested_capacity * sizeof(Py68Code));
     py68_free(allocator, PY68_MEM_CODE, code->bytecode,
               code->bytecode_capacity);
+    py68_free(allocator, PY68_MEM_CODE, code->line_map,
+              code->bytecode_capacity * sizeof(Py68U16));
     py68_free(allocator, PY68_MEM_CONSTANT, code->constants,
               (Py68U32)code->constant_capacity * sizeof(Py68Constant));
     py68_free(allocator, PY68_MEM_CODE, code->name_offsets,
@@ -56,11 +58,28 @@ static Py68Status py68_grow_bytes(Py68Allocator *allocator, Py68Code *code)
     Py68U32 capacity = code->bytecode_capacity == 0 ? 64 :
                        code->bytecode_capacity * 2;
     Py68U8 *replacement;
+    Py68U16 *line_replacement;
     if (capacity < code->bytecode_capacity) return PY68_STATUS_MEMORY_ERROR;
-    replacement = (Py68U8 *)py68_realloc(allocator, PY68_MEM_CODE,
-        code->bytecode, code->bytecode_capacity, capacity);
+    replacement = (Py68U8 *)py68_alloc(allocator, PY68_MEM_CODE, capacity);
     if (replacement == NULL) return PY68_STATUS_MEMORY_ERROR;
+    line_replacement = (Py68U16 *)py68_alloc(
+        allocator, PY68_MEM_CODE, capacity * sizeof(Py68U16));
+    if (line_replacement == NULL) {
+        py68_free(allocator, PY68_MEM_CODE, replacement, capacity);
+        return PY68_STATUS_MEMORY_ERROR;
+    }
+    if (code->bytecode_length != 0) {
+        memcpy(replacement, code->bytecode, code->bytecode_length);
+        if (code->line_map != NULL)
+            memcpy(line_replacement, code->line_map,
+                   code->bytecode_length * sizeof(Py68U16));
+    }
+    py68_free(allocator, PY68_MEM_CODE, code->bytecode,
+              code->bytecode_capacity);
+    py68_free(allocator, PY68_MEM_CODE, code->line_map,
+              code->bytecode_capacity * sizeof(Py68U16));
     code->bytecode = replacement;
+    code->line_map = line_replacement;
     code->bytecode_capacity = capacity;
     return PY68_STATUS_OK;
 }
@@ -73,6 +92,8 @@ Py68Status py68_code_emit_u8(Py68Allocator *allocator, Py68Code *code,
         status = py68_grow_bytes(allocator, code);
         if (status != PY68_STATUS_OK) return status;
     }
+    if (code->line_map != NULL)
+        code->line_map[code->bytecode_length] = code->emit_line;
     code->bytecode[code->bytecode_length++] = value;
     return PY68_STATUS_OK;
 }

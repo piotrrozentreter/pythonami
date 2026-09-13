@@ -44,6 +44,8 @@ struct Py68Runtime {
     Py68Object *live_objects;
     Py68I32 requested_exit_code;
     Py68U16 trace_enabled;
+    char traceback[512];
+    Py68U16 traceback_length;
 };
 
 void py68_runtime_initialize_struct(Py68Runtime *runtime);

@@ -16,5 +16,15 @@ Py68Status py68_string_new_copy(struct Py68Runtime *runtime,
                                 const char *data, Py68U32 length,
                                 Py68String **result);
 Py68U32 py68_string_hash_bytes(const char *data, Py68U32 length);
+Py68Status py68_string_concat(struct Py68Runtime *runtime,
+                              Py68String *left, Py68String *right,
+                              Py68String **result);
+Py68Status py68_string_get_char(struct Py68Runtime *runtime,
+                                Py68String *string, Py68I32 index,
+                                Py68String **result);
+Py68Status py68_string_slice(struct Py68Runtime *runtime,
+                             Py68String *string, Py68I32 start, Py68I32 end,
+                             int start_omitted, int end_omitted,
+                             Py68String **result);
 
 #endif

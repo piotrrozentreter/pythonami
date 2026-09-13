@@ -23,5 +23,10 @@ Py68Status py68_list_set_copy(struct Py68Runtime *runtime, Py68List *list,
                               Py68I32 index, Py68Value value);
 Py68Status py68_list_set_move(struct Py68Runtime *runtime, Py68List *list,
                               Py68I32 index, Py68Value *value);
+Py68Status py68_list_concat(struct Py68Runtime *runtime, Py68List *left,
+                            Py68List *right, Py68List **result);
+Py68Status py68_list_slice(struct Py68Runtime *runtime, Py68List *list,
+                           Py68I32 start, Py68I32 end, int start_omitted,
+                           int end_omitted, Py68List **result);
 
 #endif

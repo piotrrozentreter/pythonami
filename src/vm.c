@@ -12,11 +12,95 @@
 #include <stddef.h>
 
 static void py68_vm_error(Py68Runtime *runtime, Py68ErrorKind kind,
+                          const char *message);
+static void py68_vm_clear_stack(Py68Runtime *runtime);
+
+static void py68_vm_error(Py68Runtime *runtime, Py68ErrorKind kind,
                           const char *message)
 {
     Py68Location location;
     location.offset = 0; location.line = 0; location.column = 0; location.length = 0;
     py68_error_set(&runtime->error, kind, location, NULL, message);
+}
+
+static void py68_vm_append_traceback_text(Py68Runtime *runtime,
+                                          const char *text)
+{
+    Py68U32 index;
+    for (index = 0; text[index] != '\0' &&
+         runtime->traceback_length < sizeof(runtime->traceback) - 1; ++index)
+        runtime->traceback[runtime->traceback_length++] = text[index];
+}
+
+static void py68_vm_append_traceback_u32(Py68Runtime *runtime, Py68U32 value)
+{
+    char digits[10];
+    Py68U32 count = 0;
+    do {
+        digits[count++] = (char)('0' + (value % 10));
+        value /= 10;
+    } while (value != 0 && count < sizeof(digits));
+    while (count != 0 &&
+           runtime->traceback_length < sizeof(runtime->traceback) - 1)
+        runtime->traceback[runtime->traceback_length++] = digits[--count];
+}
+
+static void py68_vm_append_frame_line(Py68Runtime *runtime, Py68Code *code,
+                                      Py68U32 ip)
+{
+    Py68U16 line = 0;
+    Py68U16 name_index;
+    py68_vm_append_traceback_text(runtime, "  at ");
+    if (code != NULL && code->name_length != 0 && code->source_data != NULL) {
+        for (name_index = 0; name_index < code->name_length &&
+             runtime->traceback_length < sizeof(runtime->traceback) - 1;
+             ++name_index)
+            runtime->traceback[runtime->traceback_length++] =
+                (char)code->source_data[code->name_offset + name_index];
+    } else {
+        py68_vm_append_traceback_text(runtime, "<module>");
+    }
+    py68_vm_append_traceback_text(runtime, " (");
+    if (code != NULL && code->line_map != NULL &&
+        ip < code->bytecode_length)
+        line = code->line_map[ip];
+    if (line != 0) {
+        py68_vm_append_traceback_text(runtime, "line ");
+        py68_vm_append_traceback_u32(runtime, line);
+    } else {
+        py68_vm_append_traceback_text(runtime, "line ?");
+    }
+    py68_vm_append_traceback_text(runtime, ")\n");
+}
+
+static void py68_vm_capture_traceback(Py68Runtime *runtime,
+                                      Py68Code *current_code, Py68U32 ip)
+{
+    Py68U16 frame_index;
+    runtime->traceback_length = 0;
+    if (current_code != NULL)
+        py68_vm_append_frame_line(runtime, current_code, ip);
+    if (runtime->frame_count == 0) return;
+    for (frame_index = runtime->frame_count; frame_index > 0; --frame_index) {
+        Py68Frame *frame = &runtime->frames[frame_index - 1];
+        if (frame->return_code == NULL) continue;
+        py68_vm_append_frame_line(runtime, frame->return_code,
+                                  frame->return_ip == 0 ? 0
+                                                        : frame->return_ip - 1);
+    }
+    if (runtime->error.location.line == 0 && current_code != NULL &&
+        current_code->line_map != NULL && ip < current_code->bytecode_length) {
+        runtime->error.location.line = current_code->line_map[ip];
+    }
+}
+
+static void py68_vm_fail(Py68Runtime *runtime, Py68Code *current_code,
+                         Py68U32 ip)
+{
+    if (runtime->error.kind != PY68_ERROR_NONE)
+        py68_vm_capture_traceback(runtime, current_code, ip);
+    py68_vm_clear_stack(runtime);
+    py68_frame_unwind(runtime);
 }
 
 static Py68Status py68_vm_grow(Py68Runtime *runtime)
@@ -66,7 +150,21 @@ static int py68_vm_truth(Py68Value value)
     if (value.type == PY68_VM_NONE) return 0;
     if (value.type == PY68_VM_BOOL || value.type == PY68_VM_INT)
         return value.as.integer != 0;
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL) {
+        if (value.as.object->type == PY68_OBJECT_STRING)
+            return ((Py68String *)value.as.object)->length != 0;
+        if (value.as.object->type == PY68_OBJECT_LIST)
+            return ((Py68List *)value.as.object)->count != 0;
+    }
     return 1;
+}
+
+static void py68_vm_clear_stack(Py68Runtime *runtime)
+{
+    while (runtime->value_stack_count != 0) {
+        Py68Value value = runtime->value_stack[--runtime->value_stack_count];
+        py68_value_release(runtime, value);
+    }
 }
 
 static int py68_vm_add(Py68I32 left, Py68I32 right, Py68I32 *result)
@@ -106,8 +204,38 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
     Py68Value left, right, result;
     Py68I32 quotient, remainder, integer;
     if (py68_vm_pop(runtime, &right) != PY68_STATUS_OK ||
-        py68_vm_pop(runtime, &left) != PY68_STATUS_OK ||
-        left.type != PY68_VM_INT || right.type != PY68_VM_INT) {
+        py68_vm_pop(runtime, &left) != PY68_STATUS_OK) {
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (opcode == OP_ADD && left.type == PY68_VALUE_OBJECT &&
+        right.type == PY68_VALUE_OBJECT && left.as.object != NULL &&
+        right.as.object != NULL) {
+        if (left.as.object->type == PY68_OBJECT_STRING &&
+            right.as.object->type == PY68_OBJECT_STRING) {
+            Py68String *string;
+            Py68Status status = py68_string_concat(
+                runtime, (Py68String *)left.as.object,
+                (Py68String *)right.as.object, &string);
+            py68_value_release(runtime, left);
+            py68_value_release(runtime, right);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_vm_push(runtime, py68_value_from_object(&string->base));
+        }
+        if (left.as.object->type == PY68_OBJECT_LIST &&
+            right.as.object->type == PY68_OBJECT_LIST) {
+            Py68List *list;
+            Py68Status status = py68_list_concat(
+                runtime, (Py68List *)left.as.object,
+                (Py68List *)right.as.object, &list);
+            py68_value_release(runtime, left);
+            py68_value_release(runtime, right);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_vm_push(runtime, py68_value_from_object(&list->base));
+        }
+    }
+    if (left.type != PY68_VM_INT || right.type != PY68_VM_INT) {
+        py68_value_release(runtime, left);
+        py68_value_release(runtime, right);
         py68_vm_error(runtime, PY68_ERROR_TYPE, "integer operands required");
         return PY68_STATUS_RUNTIME_ERROR;
     }
@@ -489,6 +617,22 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 } else {
                     status = py68_vm_push(runtime, item_val);
                 }
+            } else if (container_val.type == PY68_VALUE_OBJECT &&
+                       container_val.as.object != NULL &&
+                       container_val.as.object->type == PY68_OBJECT_STRING) {
+                Py68String *character;
+                status = py68_string_get_char(
+                    runtime, (Py68String *)container_val.as.object,
+                    index_val.as.integer, &character);
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_INDEX,
+                                  "string index out of range");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                } else {
+                    status = py68_vm_push(
+                        runtime, py68_value_from_object(&character->base));
+                }
             } else {
                 py68_vm_error(runtime, PY68_ERROR_TYPE, "container does not support indexing");
                 status = PY68_STATUS_RUNTIME_ERROR;
@@ -496,6 +640,71 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             }
             py68_value_release(runtime, index_val);
             py68_value_release(runtime, container_val);
+            ip += 1;
+            break;
+        }
+        case OP_LOAD_SLICE: {
+            Py68Value end_val, start_val, container_val;
+            int start_omitted;
+            int end_omitted;
+            status = py68_vm_pop(runtime, &end_val);
+            if (status == PY68_STATUS_OK)
+                status = py68_vm_pop(runtime, &start_val);
+            if (status == PY68_STATUS_OK)
+                status = py68_vm_pop(runtime, &container_val);
+            if (status != PY68_STATUS_OK) break;
+            start_omitted = start_val.type == PY68_VALUE_NONE;
+            end_omitted = end_val.type == PY68_VALUE_NONE;
+            if ((!start_omitted && start_val.type != PY68_VALUE_INT) ||
+                (!end_omitted && end_val.type != PY68_VALUE_INT)) {
+                py68_value_release(runtime, end_val);
+                py68_value_release(runtime, start_val);
+                py68_value_release(runtime, container_val);
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "slice bounds must be integers or None");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            if (container_val.type == PY68_VALUE_OBJECT &&
+                container_val.as.object != NULL &&
+                container_val.as.object->type == PY68_OBJECT_STRING) {
+                Py68String *sliced;
+                status = py68_string_slice(
+                    runtime, (Py68String *)container_val.as.object,
+                    start_omitted ? 0 : start_val.as.integer,
+                    end_omitted ? 0 : end_val.as.integer, start_omitted,
+                    end_omitted, &sliced);
+                if (status == PY68_STATUS_OK)
+                    status = py68_vm_push(
+                        runtime, py68_value_from_object(&sliced->base));
+            } else if (container_val.type == PY68_VALUE_OBJECT &&
+                       container_val.as.object != NULL &&
+                       container_val.as.object->type == PY68_OBJECT_LIST) {
+                Py68List *sliced;
+                status = py68_list_slice(
+                    runtime, (Py68List *)container_val.as.object,
+                    start_omitted ? 0 : start_val.as.integer,
+                    end_omitted ? 0 : end_val.as.integer, start_omitted,
+                    end_omitted, &sliced);
+                if (status == PY68_STATUS_OK)
+                    status = py68_vm_push(
+                        runtime, py68_value_from_object(&sliced->base));
+            } else {
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "container does not support slicing");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+            }
+            py68_value_release(runtime, end_val);
+            py68_value_release(runtime, start_val);
+            py68_value_release(runtime, container_val);
+            if (status != PY68_STATUS_OK &&
+                status != PY68_STATUS_RUNTIME_ERROR) {
+                py68_vm_error(runtime, PY68_ERROR_MEMORY, "slice failed");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+            }
             ip += 1;
             break;
         }
@@ -545,6 +754,26 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                     (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                                        current_code->bytecode[ip + 2]));
             } else ip += 3;
+            if (status == PY68_STATUS_OK) py68_value_release(runtime, value);
+            break;
+        case OP_JUMP_IF_FALSE_OR_POP: case OP_JUMP_IF_TRUE_OR_POP:
+            if (runtime->value_stack_count == 0) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE, "value stack underflow");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                break;
+            }
+            value = runtime->value_stack[runtime->value_stack_count - 1];
+            if ((opcode == OP_JUMP_IF_FALSE_OR_POP && !py68_vm_truth(value)) ||
+                (opcode == OP_JUMP_IF_TRUE_OR_POP && py68_vm_truth(value))) {
+                ip = (Py68U32)((Py68I32)(ip + 3) +
+                    (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                                       current_code->bytecode[ip + 2]));
+            } else {
+                --runtime->value_stack_count;
+                py68_value_release(runtime, value);
+                ip += 3;
+            }
+            status = PY68_STATUS_OK;
             break;
         case OP_CALL: {
             Py68U8 argument_count = current_code->bytecode[ip + 1];
@@ -610,8 +839,6 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
                 status = py68_vm_push(runtime, result);
             }
             if (status != PY68_STATUS_OK) {
-                runtime->value_stack_count = 0;
-                py68_frame_unwind(runtime);
                 ip = current_code->bytecode_length;
                 break;
             }
@@ -647,11 +874,17 @@ Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code)
             status = PY68_STATUS_RUNTIME_ERROR; ip = current_code->bytecode_length; break;
         }
         if (status != PY68_STATUS_OK) {
-            runtime->value_stack_count = 0; py68_frame_unwind(runtime);
+            if (status != PY68_STATUS_EXIT)
+                py68_vm_fail(runtime, current_code, ip);
+            else {
+                py68_vm_clear_stack(runtime);
+                py68_frame_unwind(runtime);
+            }
             return status;
         }
     }
-    runtime->value_stack_count = 0; py68_frame_unwind(runtime);
+    py68_vm_clear_stack(runtime);
+    py68_frame_unwind(runtime);
     py68_vm_error(runtime, PY68_ERROR_BYTECODE, "VM fell off bytecode");
     return PY68_STATUS_RUNTIME_ERROR;
 }

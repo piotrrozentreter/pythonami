@@ -62,7 +62,25 @@ a is greater than 5
 === 9. Lists with list_append ===
 [1, 2, 3, 4]
 4
+=== 10. Short-circuit and/or ===
+2
+5
+0
+4
+=== 11. Strings ===
+abcd
+e
+ell
+5
+=== 12. Remaining Builtins ===
+42
+7
+False
+True
+3
+2
+9
 === Feature Test Complete ===
 ```
 
-Host exit code for `examples/test_features.py` is `0`. If the Amiga run produces different output or a non-zero exit code, that is a real target-specific bug to report (not a host/logic bug, since the host build already exercises the identical bytecode/VM path).
+Host exit code for `examples/test_features.py` is `0`. CLI `-c` is also supported (`pythonami -c 'print(1+2)'`). If the Amiga run produces different output or a non-zero exit code, that is a real target-specific bug to report (not a host/logic bug, since the host build already exercises the identical bytecode/VM path).

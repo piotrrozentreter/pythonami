@@ -99,4 +99,26 @@ list_append(grown, 4)
 print(grown)
 print(len(grown))
 
+print("=== 10. Short-circuit and/or ===")
+print(1 and 2)
+print(0 or 5)
+print(0 and 9)
+print(4 or 0)
+
+print("=== 11. Strings ===")
+print("ab" + "cd")
+text = "hello"
+print(text[1])
+print(text[1:4])
+print(len(text))
+
+print("=== 12. Remaining Builtins ===")
+print(int("42"))
+print(str(7))
+print(bool(""))
+print(bool(1))
+print(abs(-3))
+print(min(2, 9))
+print(max(2, 9))
+
 print("=== Feature Test Complete ===")
