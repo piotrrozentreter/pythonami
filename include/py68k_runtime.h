@@ -23,6 +23,8 @@ typedef struct Py68Frame {
     Py68Code *code;
     Py68Code *return_code;
     Py68Value *locals;
+    /* Borrowed defining module for LOAD_GLOBAL; NULL uses runtime->globals. */
+    struct Py68Module *globals_owner;
     Py68U16 local_count;
     Py68U16 argument_count;
     Py68U32 return_ip;
@@ -67,6 +69,9 @@ struct Py68Runtime {
     struct Py68List *sys_argv;
     struct Py68Object *sys_module;
     struct Py68NativeFunction *active_native;
+    /* Set while executing an imported module body so MAKE_FUNCTION can bind
+       LOAD_GLOBAL to that module's globals. */
+    struct Py68Module *executing_module;
 };
 
 void py68_runtime_initialize_struct(Py68Runtime *runtime);

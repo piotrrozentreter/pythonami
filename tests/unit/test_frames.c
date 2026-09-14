@@ -20,8 +20,8 @@ int main(void)
     passed &= py68_string_new_copy(&runtime, "arg", 3, &string) == PY68_STATUS_OK;
     arguments[0] = py68_value_from_object(&string->base);
     arguments[1] = py68_value_int(42);
-    passed &= py68_frame_push(&runtime, &code, NULL, 3, 2, arguments, 19) ==
-              PY68_STATUS_OK;
+    passed &= py68_frame_push(&runtime, &code, NULL, 3, 2, arguments, 19,
+                              NULL) == PY68_STATUS_OK;
     passed &= runtime.frame_count == 1;
     passed &= py68_frame_get_local(&runtime, 1, &local) == PY68_STATUS_OK;
     passed &= local.type == PY68_VALUE_INT && local.as.integer == 42;
@@ -33,13 +33,13 @@ int main(void)
     py68_object_release(&runtime, &string->base);
     passed &= runtime.frame_count == 0 && runtime.live_objects == NULL;
     runtime.recursion_limit = 3;
-    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0) ==
+    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0, NULL) ==
               PY68_STATUS_OK;
-    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0) ==
+    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0, NULL) ==
               PY68_STATUS_OK;
-    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0) ==
+    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0, NULL) ==
               PY68_STATUS_OK;
-    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0) ==
+    passed &= py68_frame_push(&runtime, &code, NULL, 0, 0, NULL, 0, NULL) ==
               PY68_STATUS_RUNTIME_ERROR;
     passed &= runtime.error.kind == PY68_ERROR_RECURSION;
     py68_frame_unwind(&runtime);

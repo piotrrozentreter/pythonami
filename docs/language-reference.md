@@ -39,6 +39,8 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 - `from name import a, b`, `from name import a as b`
 - Search: directory of the importing source, then entries in `sys.path` (starts with `.`)
 - A successfully loaded module is cached and its top-level code runs once per runtime.
+- Module bytecode (including function bodies) is retained so imported defs stay callable.
+- Functions defined in a module resolve globals against that module (including after nested imports).
 - A module that is currently loading is rejected with `ImportError: import cycle detected`.
 - Failed imports are removed from the cache; their partial globals are not published.
 - No relative imports, no `from x import *`, no multi-level packages

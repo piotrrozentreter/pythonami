@@ -52,6 +52,7 @@ Py68Status py68_module_new(Py68Runtime *runtime, const char *name,
     }
     module->owned_source = NULL;
     module->owned_source_length = 0;
+    py68_code_initialize(&module->owned_code);
     module->globals = NULL;
     module->global_count = 0;
     module->global_capacity = 0;
@@ -115,6 +116,8 @@ void py68_module_clear(Py68Runtime *runtime, Py68Module *module)
         py68_value_release(runtime, module->globals[index].value);
     py68_free(&runtime->allocator, PY68_MEM_MODULE, module->globals,
               (Py68U32)module->global_capacity * sizeof(Py68GlobalEntry));
+    /* Drop function objects before freeing the bytecode they point into. */
+    py68_code_destroy(&runtime->allocator, &module->owned_code);
     py68_free(&runtime->allocator, PY68_MEM_SOURCE, module->owned_source,
               module->owned_source_length + 1);
     module->owned_source = NULL;

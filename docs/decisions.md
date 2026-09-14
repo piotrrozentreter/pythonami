@@ -182,6 +182,21 @@
 	are rejected intentionally; packages, dotted names, and relative imports
 	remain outside this increment.
 
+## D-0028: Imported function code and module globals
+
+- Context: A Python `random` library needs `import random` and callable defs that
+	read module-level PRNG state. After import, destroying the module code object
+	left function objects with dangling bytecode; nested `import` cleared
+	`executing_module`, so defs after an import bound the wrong globals.
+- Decision: Retain each module's `Py68Code` on the module (`owned_code`) for the
+	module lifetime. `MAKE_FUNCTION` records the defining module; `LOAD_GLOBAL`
+	in that function uses the module's globals. Nested imports save/restore
+	`executing_module`.
+- Alternatives considered: C-only PRNG builtins; require `from module import *`
+	style flattening; retain code in each function object.
+- Consequences: Imported user functions remain callable and see their defining
+	module globals. Module teardown releases globals before destroying `owned_code`.
+
 ## D-0020: `set` and `dict` are names, not keywords
 
 - Context: The 0.1 tokenizer classified `set` and `dict` as unsupported keywords, unlike Python where they are builtins.

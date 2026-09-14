@@ -27,7 +27,8 @@ int main(void)
 
     passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
     py68_code_initialize(&code);
-    passed &= py68_function_new(&runtime, &code, 2, 2, &function) == PY68_STATUS_OK;
+    passed &= py68_function_new(&runtime, &code, 2, 2, NULL, &function) ==
+              PY68_STATUS_OK;
     passed &= py68_function_check_arguments(function, 2) == PY68_STATUS_OK;
     passed &= py68_function_check_arguments(function, 1) == PY68_STATUS_RUNTIME_ERROR;
     passed &= py68_native_new(&runtime, "count", 1, 2, callback, &native) ==

@@ -490,7 +490,8 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
         runtime->frame_count = 0;
     entry_frames = runtime->frame_count;
     entry_stack = runtime->value_stack_count;
-    status = py68_frame_push(runtime, current_code, NULL, 0, 0, NULL, 0);
+    status = py68_frame_push(runtime, current_code, NULL, 0, 0, NULL, 0,
+                             NULL);
     if (status != PY68_STATUS_OK) return status;
     while (ip < current_code->bytecode_length) {
         opcode = current_code->bytecode[ip];
@@ -561,12 +562,20 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
         case OP_LOAD_GLOBAL: {
             const Py68U8 *name_bytes;
             Py68U16 name_length;
+            Py68Module *globals_owner = NULL;
             index = (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                               current_code->bytecode[ip + 2]);
             name_bytes = py68_code_name_bytes(current_code, index);
             name_length = current_code->name_lengths[index];
-            status = py68_global_get_copy(runtime, name_bytes, name_length,
-                                          &value);
+            if (runtime->frame_count != 0)
+                globals_owner =
+                    runtime->frames[runtime->frame_count - 1].globals_owner;
+            if (globals_owner != NULL)
+                status = py68_module_get(runtime, globals_owner, name_bytes,
+                                         name_length, &value);
+            else
+                status = py68_global_get_copy(runtime, name_bytes, name_length,
+                                              &value);
             if (status != PY68_STATUS_OK)
                 status = py68_builtin_get_copy(runtime, name_bytes,
                                                name_length, &value);
@@ -632,6 +641,7 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             status = py68_function_new(runtime, nested_code,
                                        nested_code->argument_count,
                                        nested_code->local_count,
+                                       runtime->executing_module,
                                        &made_function);
             if (status == PY68_STATUS_OK) {
                 status = py68_vm_push(runtime,
@@ -1151,7 +1161,8 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 if (status == PY68_STATUS_OK)
                     status = py68_frame_push(runtime, callee_code,
                                              current_code, local_count,
-                                             argument_count, arguments, ip + 2);
+                                             argument_count, arguments, ip + 2,
+                                             function->globals_owner);
                 if (status == PY68_STATUS_OK) {
                     runtime->value_stack_count = (Py68U16)(
                         runtime->value_stack_count - argument_count - 1);

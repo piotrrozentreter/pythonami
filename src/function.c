@@ -7,6 +7,7 @@
 
 Py68Status py68_function_new(Py68Runtime *runtime, Py68Code *code,
                              Py68U16 argument_count, Py68U16 local_count,
+                             struct Py68Module *globals_owner,
                              Py68Function **result)
 {
     Py68Function *function = (Py68Function *)py68_alloc(
@@ -18,6 +19,7 @@ Py68Status py68_function_new(Py68Runtime *runtime, Py68Code *code,
     function->base.next_object = runtime->live_objects;
     runtime->live_objects = &function->base;
     function->code = code;
+    function->globals_owner = globals_owner;
     function->argument_count = argument_count;
     function->local_count = local_count;
     *result = function;
