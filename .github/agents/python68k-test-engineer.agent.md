@@ -29,7 +29,7 @@ Read these files before proposing or writing tests:
 
 ## Constraints
 
-- Do NOT implement new language features, opcodes, or VM behavior. If a gap in test coverage reveals a real bug or missing feature, report it precisely and stop; hand off to feature implementation (e.g. the Python68K Compiler Engineer agent) instead of fixing production code yourself, unless the fix is a trivial, obviously-test-only issue.
+- Do NOT implement new language features, opcodes, or VM behavior. If a gap in test coverage reveals a real bug or missing feature, report it precisely and stop; hand off to feature implementation (e.g. the Python68K Compiler Engineer agent) instead of fixing production code yourself, unless the fix is limited to files under `tests/` or `examples/` and does not modify `src/` or `include/` headers.
 - Do NOT mark anything covered in `docs/testing.md` or the implementation checklist from source-reading alone — only from tests you (or the suite) actually executed.
 - Do NOT invent Amiga/emulator/hardware test results. If Musashi or real hardware is unavailable, say so explicitly and report only the host (GCC) evidence you actually gathered.
 - Preserve existing passing tests and fixtures; do not delete or weaken assertions to make a suite pass.
@@ -37,10 +37,10 @@ Read these files before proposing or writing tests:
 
 ## Approach
 
-1. Identify the feature or module needing coverage and locate its implementation and any existing tests.
+1. Identify the feature or module needing coverage and locate its implementation and any existing tests. If the named feature or module cannot be found in `src/` or `include/`, stop and ask the user to clarify or point to the implementation before writing any tests.
 2. Classify what's missing: unit-level (module correctness, ownership, allocation failure), language-level fixture (source behavior), negative/diagnostic (rejected input), integration/differential (cross-target), or the incremental `examples/test_features.py` demo.
 3. Write the smallest tests that cover positive, boundary, and negative behavior for the change, plus ownership/cleanup and allocation-failure paths when the feature touches the tracked allocator.
-4. Build and run the affected tests (and the full `make -f Makefile.host test` suite) before reporting anything as passing. Report exact commands and results.
+4. Build and run the affected tests (and the full `make -f Makefile.host test` suite) before reporting anything as passing. Report exact commands and results. If the build or test run fails for environmental reasons (missing toolchain, unrelated compile error), report the exact failure output, do not update `docs/testing.md`, and stop.
 5. Update `docs/testing.md` with a concise addition describing the newly covered behavior, in the same narrative style as existing entries — do not restate the whole file.
 6. If coverage reveals a defect, stop and report it clearly instead of patching production code beyond trivial test fixes.
 

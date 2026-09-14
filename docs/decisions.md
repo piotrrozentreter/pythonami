@@ -1,5 +1,28 @@
 # Decisions
 
+## D-0022: Opt-in top-level debug statistics
+
+- Context: The CLI needs deterministic execution statistics without changing normal script output or exit status.
+- Decision: `--debug` is accepted before `-c` or a script path and emits a delimited report through the platform stderr abstraction after VM execution and before source/code cleanup. Source file count, source bytes/lines, tokens, and bytecode metrics describe only the top-level source unit in this increment.
+- Alternatives considered: Always-on diagnostics, reporting after cleanup, or aggregating imported modules before the import metrics contract is defined.
+- Consequences: Report writes are best-effort and cannot replace the original status. `-V` and `--help` remain report-free, including when preceded by `--debug`; imported-module aggregation remains future work.
+
+## D-0021: Linux-first host compiler with local Windows fallback
+
+- Context: Linux is the primary development environment, while this workspace
+	also needs a local compiler for host tests on Windows.
+- Decision: Keep `gcc` as the default host compiler and support Clang through
+	the `HOST_CC` make variable. The Windows workspace uses LLVM-MinGW Clang
+	22.1.8 installed locally through WinGet. Visual Studio 2026 is installed,
+	but `cl.exe` is not the configured compiler and must be evaluated from a
+	Developer PowerShell if support is added later.
+- Alternatives considered: Make the repository depend on Visual Studio, add
+	a committed compiler binary, or change the Linux default to Clang.
+- Consequences: Linux builds remain unchanged with `make test`; Windows host
+	tests can use `HOST_CC=<path-to-clang.exe>`. The compiler installation is a
+	machine prerequisite, not a repository dependency, and Amiga builds remain
+	controlled by `Makefile.amiga`.
+
 ## D-0001: Host 32-bit language integer typedef
 
 - Context: The brief requires `signed long` for `Py68I32`, while modern 64-bit hosts commonly define `long` as 64 bits.
@@ -130,6 +153,20 @@
 - Decision: `import` / `from` / `as` compile to `OP_IMPORT_NAME` / `OP_IMPORT_FROM`. The loader reads `name.py` from the importing source directory, then `sys.path` entries. Compiled modules are `PY68_OBJECT_MODULE` objects cached by resolved path. Relative imports and `import *` stay unsupported. `sys` is a builtin module (`path`, `modules`, `argv`).
 - Alternatives considered: Full package/`__init__.py` trees; CPython `.pyc`.
 - Consequences: Multi-file programs work for sibling `.py` files; no CPython bytecode compatibility.
+
+## D-0023: Transactional single-level import cache
+
+- Context: Imported modules must execute once, failed imports must not leave
+	stale globals, and recursive imports must not recurse indefinitely.
+- Decision: Insert a module in the cache with a private loading flag before
+	executing it. A lookup of a loading module reports `ImportError: import cycle
+	detected`; successful execution clears the flag, while any failure removes
+	the cache entry and releases the partial module.
+- Alternatives considered: Execute imports without caching, expose partially
+	initialized modules to cycles, or add package-style import state.
+- Consequences: Cache identity and one-time execution are deterministic. Cycles
+	are rejected intentionally; packages, dotted names, and relative imports
+	remain outside this increment.
 
 ## D-0020: `set` and `dict` are names, not keywords
 

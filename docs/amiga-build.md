@@ -20,6 +20,31 @@ make amiga VBCC=/home/piotr/local/vbcc NDK=/run/media/piotr/BACKUP/Rozen/Program
 
 `Makefile.amiga` uses vbcc through `vc`, targets `+aos68k`, and passes `-cpu=68000 -fpu=0`. Release and debug both keep `-use-framepointer -no-delayed-popping` to avoid 68000 stack-layout failures. The Amiga build uses the vbcc-native target tree for the C runtime, `startup.o`, and `vc.lib`. NDK 3.2 `Include_H` supplies Amiga system headers; its `lib/amiga.lib` is not mixed into the vbcc link. Emulator and real-hardware execution remain owner-verified.
 
+## CLI stdout/stderr redirection fixture
+
+The host equivalent is run with `make -f Makefile.host stdio-redirection-test`. To verify the Amiga handles in an AmigaDOS emulator or on hardware, run the commands below from the directory containing `pythonami` (or replace the executable with `pythonami-debug` for a debug build). `$RC` is the AmigaDOS return code; remove the temporary files after checking them.
+
+```text
+pythonami -c "print(42)" >T:py68k-stdout 2>T:py68k-stderr
+echo $RC
+```
+
+Expected: `$RC` is `0`, `T:py68k-stdout` contains `42` followed by a newline, and `T:py68k-stderr` is empty.
+
+```text
+pythonami -c "print(1 // 0)" >T:py68k-stdout 2>T:py68k-stderr
+echo $RC
+```
+
+Expected: `$RC` is `11`, `T:py68k-stdout` is empty, and `T:py68k-stderr` contains the `ZeroDivisionError:` diagnostic.
+
+```text
+pythonami --debug -c "print(42)" >T:py68k-stdout 2>T:py68k-stderr
+echo $RC
+```
+
+Expected: `$RC` is `0`, `T:py68k-stdout` contains only `42` followed by a newline, and `T:py68k-stderr` contains the debug-statistics header and footer but no line containing the script output `42`. These commands require an AmigaDOS emulator or Amiga hardware and are not automatically run by the host or Amiga make targets.
+
 AmigaDOS console output uses `Output()` for standard output and `ErrorOutput()` for standard error, then writes raw length-delimited data with `Write()`. This preserves CLI redirection and avoids hosted `stdio` assumptions. `platform/amiga/amiga_compat.h` contains only the minimal ABI declarations needed by the platform layer.
 
 ## Workbench startup

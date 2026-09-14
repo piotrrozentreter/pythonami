@@ -14,7 +14,7 @@ Hello from Python68K
 14
 
 1> python -V
-Python68K 0.1.0
+Python68K 0.5.0
 ```
 
 Python68K is not CPython and must not be described as a complete Python implementation. It implements a frozen, documented subset called **Python68K Language Level 0.1**.
@@ -2101,7 +2101,7 @@ Acceptance:
 
 ```text
 python -V
-Python68K 0.1.0
+Python68K 0.5.0
 ```
 
 ### Phase 1: tokenizer and expressions
@@ -2254,7 +2254,7 @@ Constraints:
 Acceptance:
 1. host-debug and host-release build
 2. amiga-debug and amiga-release build
-3. `python -V` prints `Python68K 0.1.0`
+3. `python -V` prints `Python68K 0.5.0`
 4. allocator tests pass
 5. clean shutdown reports zero live allocations
 ```

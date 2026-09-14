@@ -7,13 +7,15 @@ set -eu
 pythonami=$1
 script=$2
 expected=$3
-actual=${4:-}
+shift 3
 
-if [ -z "$actual" ]; then
-  actual=$(mktemp)
-  trap 'rm -f "$actual"' EXIT
-fi
+actual=$(mktemp)
+expected_normalized=$(mktemp)
+actual_normalized=$(mktemp)
+trap 'rm -f "$actual" "$expected_normalized" "$actual_normalized"' EXIT
 
-"$pythonami" "$script" >"$actual"
-diff -u "$expected" "$actual"
+"$pythonami" "$script" "$@" >"$actual"
+tr -d '\r' <"$expected" >"$expected_normalized"
+tr -d '\r' <"$actual" >"$actual_normalized"
+diff -u "$expected_normalized" "$actual_normalized"
 echo "PASS: $script"

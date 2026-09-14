@@ -37,36 +37,37 @@ help:
 
 # ---- Host (GCC) ----------------------------------------------------------
 
+ifeq ($(MODE),release)
 host:
-	@if [ "$(MODE)" = "release" ]; then \
-		$(MAKE) -f Makefile.host release; \
-	else \
-		$(MAKE) -f Makefile.host debug; \
-	fi
+	$(MAKE) -f Makefile.host release
+else
+host:
+	$(MAKE) -f Makefile.host debug
+endif
 	@echo "Host binary: build/host/pythonami"
 
 debug release test language-test:
-	$(MAKE) -f Makefile.host $@
+	"$(MAKE)" -f Makefile.host $@
 
 # ---- Amiga (vbcc) --------------------------------------------------------
 
 amiga:
 	@if [ "$(MODE)" = "debug" ]; then \
-		$(MAKE) -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)"; \
+		"$(MAKE)" -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)"; \
 		echo "Amiga binary: pythonami-debug"; \
 	else \
-		$(MAKE) -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"; \
+		"$(MAKE)" -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"; \
 		echo "Amiga binary: pythonami"; \
 	fi
 
 amiga-debug:
-	$(MAKE) -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)"
+	"$(MAKE)" -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)"
 
 amiga-release:
-	$(MAKE) -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"
+	"$(MAKE)" -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"
 
 # ---- Clean ---------------------------------------------------------------
 
 clean:
-	$(MAKE) -f Makefile.host clean
-	$(MAKE) -f Makefile.amiga clean
+	"$(MAKE)" -f Makefile.host clean
+	"$(MAKE)" -f Makefile.amiga clean

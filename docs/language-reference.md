@@ -37,6 +37,9 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 - `import name`, `import name as alias`
 - `from name import a, b`, `from name import a as b`
 - Search: directory of the importing source, then entries in `sys.path` (starts with `.`)
+- A successfully loaded module is cached and its top-level code runs once per runtime.
+- A module that is currently loading is rejected with `ImportError: import cycle detected`.
+- Failed imports are removed from the cache; their partial globals are not published.
 - No relative imports, no `from x import *`, no multi-level packages
 
 `sys` is a builtin module: `sys.path` (list), `sys.modules`, `sys.argv`.

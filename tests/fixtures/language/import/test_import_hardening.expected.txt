@@ -1,0 +1,6 @@
+17
+17
+17
+script-dir
+first-path
+["tests/language/import/test_import_hardening.py", "arg-one", "arg-two"]

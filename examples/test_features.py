@@ -241,4 +241,9 @@ print(assign_get("PY68KFEAT") != None)
 assign_remove("PY68KFEAT")
 print(assign_get("PY68KFEAT") == None)
 
+print("=== 24. Command Arguments ===")
+import sys
+print(sys.argv)
+print(sys.argv[0])
+
 print("=== Feature Test Complete ===")
