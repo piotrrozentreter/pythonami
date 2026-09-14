@@ -34,9 +34,11 @@ TEST_FLOAT_SOURCES := tests/unit/test_float.c $(TEST_COMMON)
 TEST_EXCEPTION_SOURCES := tests/unit/test_exceptions.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 TEST_IMPORT_SOURCES := tests/unit/test_import.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
+IMPORT_CHECK := tests/integration/host/run_import_checks.sh
 DEBUG_STATS_CHECK := tests/integration/host/run_debug_stats_check.sh
+STDIO_REDIRECTION_CHECK := tests/integration/host/run_stdio_redirection_check.sh
 
-.PHONY: all debug release test language-test debug-stats-test clean
+.PHONY: all debug release test language-test import-test debug-stats-test stdio-redirection-test clean
 
 all: debug
 
@@ -126,7 +128,7 @@ $(HOST_BUILD)/test_exceptions: $(TEST_EXCEPTION_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_import: $(TEST_IMPORT_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_IMPORT_SOURCES) -o $@
 
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM)
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM) language-test import-failure-test debug-stats-test stdio-redirection-test
 	$(HOST_BUILD)/test_memory
 	$(HOST_BUILD)/test_tokenizer
 	$(HOST_BUILD)/test_parser
@@ -154,7 +156,6 @@ test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_
 	$(HOST_BUILD)/test_import
 	$(HOST_PROGRAM) -V
 	$(HOST_PROGRAM) --help
-	"$(MAKE)" -f Makefile.host language-test
 
 language-test: $(HOST_PROGRAM)
 	chmod +x $(LANGUAGE_CHECK)
@@ -174,15 +175,30 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/exceptions/test_with.py tests/fixtures/language/exceptions/test_with.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_driver.py tests/fixtures/language/import/test_import_driver.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_argv.py tests/fixtures/language/import/test_argv.expected.txt arg-one arg-two
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_cache.py tests/fixtures/language/import/test_import_cache.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_from_alias.py tests/fixtures/language/import/test_import_from_alias.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_precedence_argv.py tests/fixtures/language/import/test_import_precedence_argv.expected.txt arg-one arg-two
 	@printf 'Alice\n' | $(HOST_PROGRAM) tests/language/test_input.py > build/host/test_input_lang.out
 	@tr -d '\r' < tests/fixtures/language/test_input.expected.txt > build/host/test_input_expected.normalized
 	@tr -d '\r' < build/host/test_input_lang.out > build/host/test_input_lang.normalized
 	@diff -u build/host/test_input_expected.normalized build/host/test_input_lang.normalized
 	@echo "PASS: tests/language/test_input.py"
 
+import-test: $(HOST_PROGRAM) $(HOST_BUILD)/test_import
+	$(HOST_BUILD)/test_import
+	"$(MAKE)" -f Makefile.host language-test
+	sh $(IMPORT_CHECK) $(HOST_PROGRAM) .
+
+import-failure-test: $(HOST_PROGRAM)
+	sh $(IMPORT_CHECK) $(HOST_PROGRAM) .
+
 debug-stats-test: $(HOST_PROGRAM)
 	chmod +x $(DEBUG_STATS_CHECK)
 	$(DEBUG_STATS_CHECK) $(HOST_PROGRAM)
+
+stdio-redirection-test: $(HOST_PROGRAM)
+	chmod +x $(STDIO_REDIRECTION_CHECK)
+	$(STDIO_REDIRECTION_CHECK) $(HOST_PROGRAM)
 
 clean:
 	rm -rf build python python-debug pythonami pythonami-debug

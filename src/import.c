@@ -85,6 +85,24 @@ static Py68Status py68_import_cache_add(Py68Runtime *runtime,
     return PY68_STATUS_OK;
 }
 
+static void py68_import_cache_remove(Py68Runtime *runtime,
+                                     Py68Module *module)
+{
+    Py68U16 index;
+    for (index = 0; index < runtime->import_count; ++index) {
+        if (runtime->import_modules[index] == &module->base) {
+            py68_object_release(runtime, runtime->import_modules[index]);
+            --runtime->import_count;
+            while (index < runtime->import_count) {
+                runtime->import_modules[index] =
+                    runtime->import_modules[index + 1];
+                ++index;
+            }
+            return;
+        }
+    }
+}
+
 static Py68Module *py68_import_cache_find(Py68Runtime *runtime,
                                           const char *path)
 {
@@ -146,6 +164,12 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     if (status != PY68_STATUS_OK) goto cleanup_arena;
     status = py68_module_new(runtime, name, path, &module);
     if (status != PY68_STATUS_OK) goto cleanup_code;
+    module->base.flags |= 1;
+    status = py68_import_cache_add(runtime, module);
+    if (status != PY68_STATUS_OK) {
+        py68_object_release(runtime, &module->base);
+        goto cleanup_code;
+    }
     saved_globals = runtime->globals;
     saved_count = runtime->global_count;
     saved_capacity = runtime->global_capacity;
@@ -160,18 +184,15 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     runtime->global_count = saved_count;
     runtime->global_capacity = saved_capacity;
     if (status != PY68_STATUS_OK) {
+        py68_import_cache_remove(runtime, module);
         py68_object_release(runtime, &module->base);
         goto cleanup_code;
     }
+    module->base.flags &= (Py68U16)~1;
     module->owned_source = source.data;
     module->owned_source_length = source.length;
     source.data = NULL;
     source.length = 0;
-    status = py68_import_cache_add(runtime, module);
-    if (status != PY68_STATUS_OK) {
-        py68_object_release(runtime, &module->base);
-        goto cleanup_code;
-    }
     *result = module;
 cleanup_code:
     py68_code_destroy(&runtime->allocator, &code);
@@ -207,6 +228,9 @@ Py68Status py68_import_name(Py68Runtime *runtime, const Py68U8 *name,
     char path[PY68_PATH_MAX];
     Py68Module *module;
     Py68U16 index;
+    Py68Value item;
+    const char *dir;
+    char dirbuf[PY68_PATH_MAX];
 
     if (name_length == 0 || name_length >= 63) {
         py68_import_error(runtime, PY68_ERROR_IMPORT, "invalid module name");
@@ -222,6 +246,11 @@ Py68Status py68_import_name(Py68Runtime *runtime, const Py68U8 *name,
     }
     module = py68_import_cache_find(runtime, module_name);
     if (module != NULL) {
+        if ((module->base.flags & 1) != 0) {
+            py68_import_error(runtime, PY68_ERROR_IMPORT,
+                              "import cycle detected");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
         *result = py68_value_from_object(&module->base);
         py68_value_retain(*result);
         return PY68_STATUS_OK;
@@ -235,15 +264,15 @@ Py68Status py68_import_name(Py68Runtime *runtime, const Py68U8 *name,
     if (py68_platform_path_exists(path)) {
         if (py68_import_execute_file(runtime, module_name, path, &module) !=
             PY68_STATUS_OK)
-            return PY68_STATUS_RUNTIME_ERROR;
+            return runtime->error.kind == PY68_ERROR_SYNTAX ?
+                PY68_STATUS_SOURCE_ERROR : PY68_STATUS_RUNTIME_ERROR;
         *result = py68_value_from_object(&module->base);
         return PY68_STATUS_OK;
     }
     if (runtime->sys_path != NULL) {
         for (index = 0; index < runtime->sys_path->count; ++index) {
-            Py68Value item = runtime->sys_path->items[index];
-            const char *dir = ".";
-            char dirbuf[PY68_PATH_MAX];
+            item = runtime->sys_path->items[index];
+            dir = ".";
             if (item.type == PY68_VALUE_OBJECT && item.as.object != NULL &&
                 item.as.object->type == PY68_OBJECT_STRING) {
                 Py68String *string = (Py68String *)item.as.object;
@@ -257,7 +286,8 @@ Py68Status py68_import_name(Py68Runtime *runtime, const Py68U8 *name,
             if (py68_platform_path_exists(path)) {
                 if (py68_import_execute_file(runtime, module_name, path,
                                              &module) != PY68_STATUS_OK)
-                    return PY68_STATUS_RUNTIME_ERROR;
+                    return runtime->error.kind == PY68_ERROR_SYNTAX ?
+                        PY68_STATUS_SOURCE_ERROR : PY68_STATUS_RUNTIME_ERROR;
                 *result = py68_value_from_object(&module->base);
                 return PY68_STATUS_OK;
             }
@@ -326,6 +356,8 @@ Py68Status py68_sys_set_argv(Py68Runtime *runtime, int argc, char **argv)
             return status;
         }
     }
+    if (runtime->sys_argv != NULL)
+        py68_object_release(runtime, &runtime->sys_argv->base);
     runtime->sys_argv = list;
     return PY68_STATUS_OK;
 }

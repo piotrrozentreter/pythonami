@@ -1,0 +1,3 @@
+script-dir
+second-path
+["tests/language/import/test_import_precedence_argv.py", "arg-one", "arg-two"]

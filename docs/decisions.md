@@ -154,6 +154,20 @@
 - Alternatives considered: Full package/`__init__.py` trees; CPython `.pyc`.
 - Consequences: Multi-file programs work for sibling `.py` files; no CPython bytecode compatibility.
 
+## D-0023: Transactional single-level import cache
+
+- Context: Imported modules must execute once, failed imports must not leave
+	stale globals, and recursive imports must not recurse indefinitely.
+- Decision: Insert a module in the cache with a private loading flag before
+	executing it. A lookup of a loading module reports `ImportError: import cycle
+	detected`; successful execution clears the flag, while any failure removes
+	the cache entry and releases the partial module.
+- Alternatives considered: Execute imports without caching, expose partially
+	initialized modules to cycles, or add package-style import state.
+- Consequences: Cache identity and one-time execution are deterministic. Cycles
+	are rejected intentionally; packages, dotted names, and relative imports
+	remain outside this increment.
+
 ## D-0020: `set` and `dict` are names, not keywords
 
 - Context: The 0.1 tokenizer classified `set` and `dict` as unsupported keywords, unlike Python where they are builtins.

@@ -1,0 +1,1 @@
+value = "script-dir"

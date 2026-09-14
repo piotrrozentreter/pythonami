@@ -4,6 +4,8 @@ Host checks are driven by `make test`. Phase 0 covers type/runtime bootstrap sta
 
 The opt-in `make -f Makefile.host debug-stats-test` check validates `--debug`. It confirms that the report is written only to stderr, is absent for normal execution and `--debug -V`, is deterministic for repeated `-c` execution, and remains present on a runtime failure without replacing its exit status. The report labels all source-derived values as `top-level source`; imported-module aggregation is intentionally not part of this increment.
 
+The opt-in `make -f Makefile.host stdio-redirection-test` check validates separate host stdout/stderr redirection for successful `-c` execution, a runtime failure with exit code 11, and `--debug`. It normalizes CRLF/LF before comparing output and confirms that debug statistics and diagnostics stay on stderr while script output stays on stdout.
+
 `tests/unit/test_compiler.c` covers `break`/`continue` bytecode generation and jump patching: `break` inside a `while` body, `continue` inside a `for` body (verified via executed VM state), and `while`-`else` compilation for both the normal-completion path (else runs) and the `break`-exits-early path (else is skipped), each checked with `allocator.stats.current_bytes == 0` after teardown. It also covers source-level compilation and VM execution of `def` functions: parameter binding, recursion (`fibonacci`), local-variable shadowing of globals, `UNBOUND` local read errors, rejection of nested `def` statements, and rejection of duplicate parameter names.
 
 ## Language-level advanced fixtures
@@ -25,6 +27,12 @@ Subsequent host fixes covered by `tests/language/test_bugfix_suite.py` and `exam
 ## 0.3–0.5 types, exceptions, and import coverage
 
 Host unit tests `test_tuple`, `test_dict`, `test_set`, `test_attr`, `test_float`, `test_exceptions`, and `test_import` cover the new object types, limited attributes, binary32 float, try/except/finally/raise, and the import loader. Language fixtures live under `tests/language/types/`, `tests/language/exceptions/` (including `with fopen` on file handles), and `tests/language/import/`. Remaining unsupported keywords (`class`, `lambda`, `global`, `nonlocal`, `async`/`await`, `yield`, `match`/`case`, relative import, `import *`) produce targeted diagnostics.
+
+Import coverage includes sibling modules, `from` imports and aliases, cache-once
+behavior, script-directory precedence, ordered `sys.path` lookup, `sys.argv`
+preservation, missing-module status 11, imported syntax-error status 10,
+imported runtime-error status 11, and cycle rejection. Run the focused slice
+with `make -f Makefile.host import-test HOST_CC=<clang>`.
 
 ## 0.2.0 file and env/assign coverage
 

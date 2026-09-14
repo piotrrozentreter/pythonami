@@ -56,6 +56,7 @@ int main(void)
                                    &value) == PY68_STATUS_OK;
     passed &= value.type == PY68_VALUE_INT && value.as.integer == 41;
     py68_value_release(&runtime, value);
+    passed &= runtime.import_count == 2;
     py68_code_destroy(&runtime.allocator, &code);
     py68_ast_arena_destroy(&arena);
     py68_token_array_destroy(&runtime.allocator, &tokens);
