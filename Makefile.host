@@ -34,8 +34,9 @@ TEST_FLOAT_SOURCES := tests/unit/test_float.c $(TEST_COMMON)
 TEST_EXCEPTION_SOURCES := tests/unit/test_exceptions.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 TEST_IMPORT_SOURCES := tests/unit/test_import.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
+DEBUG_STATS_CHECK := tests/integration/host/run_debug_stats_check.sh
 
-.PHONY: all debug release test language-test clean
+.PHONY: all debug release test language-test debug-stats-test clean
 
 all: debug
 
@@ -178,6 +179,10 @@ language-test: $(HOST_PROGRAM)
 	@tr -d '\r' < build/host/test_input_lang.out > build/host/test_input_lang.normalized
 	@diff -u build/host/test_input_expected.normalized build/host/test_input_lang.normalized
 	@echo "PASS: tests/language/test_input.py"
+
+debug-stats-test: $(HOST_PROGRAM)
+	chmod +x $(DEBUG_STATS_CHECK)
+	$(DEBUG_STATS_CHECK) $(HOST_PROGRAM)
 
 clean:
 	rm -rf build python python-debug pythonami pythonami-debug

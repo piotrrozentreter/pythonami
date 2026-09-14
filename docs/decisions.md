@@ -1,5 +1,12 @@
 # Decisions
 
+## D-0022: Opt-in top-level debug statistics
+
+- Context: The CLI needs deterministic execution statistics without changing normal script output or exit status.
+- Decision: `--debug` is accepted before `-c` or a script path and emits a delimited report through the platform stderr abstraction after VM execution and before source/code cleanup. Source file count, source bytes/lines, tokens, and bytecode metrics describe only the top-level source unit in this increment.
+- Alternatives considered: Always-on diagnostics, reporting after cleanup, or aggregating imported modules before the import metrics contract is defined.
+- Consequences: Report writes are best-effort and cannot replace the original status. `-V` and `--help` remain report-free, including when preceded by `--debug`; imported-module aggregation remains future work.
+
 ## D-0021: Linux-first host compiler with local Windows fallback
 
 - Context: Linux is the primary development environment, while this workspace
