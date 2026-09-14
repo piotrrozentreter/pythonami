@@ -7,6 +7,13 @@
 - Alternatives considered: Always-on diagnostics, reporting after cleanup, or aggregating imported modules before the import metrics contract is defined.
 - Consequences: Report writes are best-effort and cannot replace the original status. `-V` and `--help` remain report-free, including when preceded by `--debug`; imported-module aggregation remains future work.
 
+## D-0023: Amiga stderr without requiring dos.library V47
+
+- Context: NDK 3.2 documents `ErrorOutput()` as V47-only. Calling that LVO on Kickstart 2.x–3.1 crashes after successful script output when `--debug` or diagnostics first touch stderr.
+- Decision: `py68_platform_write_stderr` on Amiga uses `ErrorOutput()` only when `DOSBase->dl_lib.lib_Version >= 47`; otherwise it writes to `pr_CES` when non-zero and falls back to `Output()`. Reject a null file handle before `Write()`.
+- Alternatives considered: Require AmigaOS 3.2, always write diagnostics to `Output()`, or open a fixed console.
+- Consequences: Separated stdout/stderr redirection works on OS 3.2 shells; on older systems stderr merges with stdout unless the process already has `pr_CES` set.
+
 ## D-0021: Linux-first host compiler with local Windows fallback
 
 - Context: Linux is the primary development environment, while this workspace

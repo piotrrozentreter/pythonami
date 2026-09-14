@@ -4,6 +4,8 @@
 #include "py68k_runtime.h"
 
 #include <proto/dos.h>
+#include <proto/exec.h>
+#include <dos/dosextens.h>
 
 Py68Status py68_platform_initialize(Py68Runtime *runtime)
 {
@@ -16,10 +18,33 @@ void py68_platform_shutdown(Py68Runtime *runtime)
     runtime->trace_enabled = 0;
 }
 
+/*
+ * ErrorOutput() is dos.library V47 (AmigaOS 3.2). On Kickstart 2.x–3.1 the
+ * LVO is missing and calling it Guru Meditation / hard-crashes. Mirror the
+ * V47 semantics: pr_CES when set, otherwise Output().
+ */
+static BPTR py68_amiga_error_output(void)
+{
+    BPTR handle = 0;
+
+    if (DOSBase != NULL && DOSBase->dl_lib.lib_Version >= 47)
+        return ErrorOutput();
+
+    {
+        struct Process *process = (struct Process *)FindTask(NULL);
+        if (process != NULL)
+            handle = process->pr_CES;
+    }
+    if (handle == 0)
+        handle = Output();
+    return handle;
+}
+
 static Py68Status py68_platform_write(BPTR handle, const char *data,
                                        Py68U32 length)
 {
     LONG written;
+    if (handle == 0) return PY68_STATUS_RUNTIME_ERROR;
     if (length > 2147483647UL) return PY68_STATUS_RUNTIME_ERROR;
     written = Write(handle, (CONST_APTR)data, (LONG)length);
     if (written != (LONG)length) {
@@ -41,7 +66,8 @@ Py68Status py68_platform_write_stdout(Py68Runtime *runtime,
 Py68Status py68_platform_write_stderr(Py68Runtime *runtime,
                                       const char *data, Py68U32 length)
 {
-    Py68Status status = py68_platform_write(ErrorOutput(), data, length);
+    Py68Status status = py68_platform_write(py68_amiga_error_output(),
+                                            data, length);
     if (status != PY68_STATUS_OK) {
         runtime->error.active = 1;
     }

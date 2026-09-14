@@ -45,7 +45,9 @@ echo $RC
 
 Expected: `$RC` is `0`, `T:py68k-stdout` contains only `42` followed by a newline, and `T:py68k-stderr` contains the debug-statistics header and footer but no line containing the script output `42`. These commands require an AmigaDOS emulator or Amiga hardware and are not automatically run by the host or Amiga make targets.
 
-AmigaDOS console output uses `Output()` for standard output and `ErrorOutput()` for standard error, then writes raw length-delimited data with `Write()`. This preserves CLI redirection and avoids hosted `stdio` assumptions. `platform/amiga/amiga_compat.h` contains only the minimal ABI declarations needed by the platform layer.
+AmigaDOS console output uses `Output()` for standard output and a V36-safe error-stream helper for standard error, then writes raw length-delimited data with `Write()`. On dos.library V47+ the helper calls `ErrorOutput()`; on older Kickstarts it uses `pr_CES` when set and otherwise falls back to `Output()`. This preserves CLI redirection on AmigaOS 3.2 while remaining safe on AmigaOS 2.x–3.1, and avoids hosted `stdio` assumptions. `platform/amiga/amiga_compat.h` contains only the minimal ABI declarations needed by the platform layer.
+
+Note: Amiga Shell `2>` stderr redirection and `SelectError` are also V47-era. On older shells, diagnostics and `--debug` statistics typically appear on the same console stream as script output unless `pr_CES` was already set by the caller.
 
 ## Workbench startup
 

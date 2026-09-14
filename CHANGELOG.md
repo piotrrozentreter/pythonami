@@ -28,3 +28,6 @@
 - Copyright preamble on all C/H sources: 2026 Piotr Rozentreter (Rozsoft).
 
 ## Unreleased
+
+- Amiga: avoid calling `ErrorOutput()` on dos.library < V47 (fixes `--debug` /
+  stderr Guru on Kickstart 2.x–3.1); use `pr_CES` or `Output()` instead.

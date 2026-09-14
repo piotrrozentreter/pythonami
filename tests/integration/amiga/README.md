@@ -4,6 +4,10 @@ This is a manual integration specification for an AmigaDOS emulator or real Amig
 
 Run from the directory containing the release Hunk executable `pythonami` (use `pythonami-debug` for a debug build). AmigaDOS `$RC` is the process return code.
 
+On Kickstart / dos.library before V47, Amiga Shell `2>` may be unavailable and
+stderr often shares the console with stdout; the binary still must not crash
+when writing diagnostics or `--debug` statistics.
+
 ```text
 pythonami -c "print(42)" >T:py68k-stdout 2>T:py68k-stderr
 echo $RC
