@@ -269,6 +269,44 @@ static Py68Status py68_collect_expression(Py68Allocator *allocator,
     case PY68_AST_ATTRIBUTE:
         return py68_collect_expression(allocator, source, function,
                                        node->as.attribute.value);
+    case PY68_AST_LIST_COMP:
+    case PY68_AST_SET_COMP:
+    case PY68_AST_DICT_COMP: {
+        Py68U16 generator_index;
+        Py68U16 filter_index;
+        status = py68_collect_expression(allocator, source, function,
+                                         node->as.comprehension.elt);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_collect_expression(allocator, source, function,
+                                         node->as.comprehension.value);
+        if (status != PY68_STATUS_OK) return status;
+        for (generator_index = 0;
+             generator_index < node->as.comprehension.generators.count;
+             ++generator_index) {
+            Py68AstNode *clause =
+                node->as.comprehension.generators.items[generator_index];
+            if (function != NULL) {
+                status = py68_add_local(
+                    allocator, source, function,
+                    clause->as.comprehension_for.name_offset,
+                    clause->as.comprehension_for.name_length);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            status = py68_collect_expression(
+                allocator, source, function,
+                clause->as.comprehension_for.iterable);
+            if (status != PY68_STATUS_OK) return status;
+            for (filter_index = 0;
+                 filter_index < clause->as.comprehension_for.ifs.count;
+                 ++filter_index) {
+                status = py68_collect_expression(
+                    allocator, source, function,
+                    clause->as.comprehension_for.ifs.items[filter_index]);
+                if (status != PY68_STATUS_OK) return status;
+            }
+        }
+        return PY68_STATUS_OK;
+    }
     default:
         return PY68_STATUS_OK;
     }

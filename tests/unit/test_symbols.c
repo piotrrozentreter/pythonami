@@ -132,6 +132,31 @@ int main(void)
     py68_ast_arena_destroy(&arena);
     py68_token_array_destroy(&allocator, &tokens);
     py68_source_destroy(&allocator, &source);
+
+    {
+        const char *comp_fn =
+            "def collect(items):\n"
+            "    return [item for item in items if item]\n";
+        py68_token_array_initialize(&tokens);
+        passed &= check(parse_source(&allocator, comp_fn, &source, &tokens,
+                                     &arena, &module, &error) == PY68_STATUS_OK,
+                        "comprehension function parses");
+        passed &= check(py68_symbol_analyze(&allocator, &source, module,
+                                            &analysis, &error) == PY68_STATUS_OK,
+                        "comprehension function analyzes");
+        passed &= check(analysis.function_count == 1,
+                        "comprehension function record is created");
+        function = &analysis.functions[0];
+        passed &= check(function->parameter_count == 1,
+                        "items is the parameter");
+        passed &= check(function->local_count == 1,
+                        "comprehension target becomes a local");
+        py68_symbol_analysis_destroy(&allocator, &analysis);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+    }
+
     passed &= check(allocator.stats.current_bytes == 0,
                     "symbol analysis releases all allocations");
     if (passed) {

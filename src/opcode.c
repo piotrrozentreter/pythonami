@@ -36,6 +36,9 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     static const Py68OpcodeInfo load_index = INFO(1, -1, "LOAD_INDEX");
     static const Py68OpcodeInfo store_index = INFO(1, -3, "STORE_INDEX");
     static const Py68OpcodeInfo load_slice = INFO(1, -2, "LOAD_SLICE");
+    static const Py68OpcodeInfo list_append = INFO(2, -1, "LIST_APPEND");
+    static const Py68OpcodeInfo set_add = INFO(2, -1, "SET_ADD");
+    static const Py68OpcodeInfo map_add = INFO(2, -2, "MAP_ADD");
     static const Py68OpcodeInfo range_init = INFO(2, 0, "RANGE_INIT");
     static const Py68OpcodeInfo range_next = INFO(3, 1, "RANGE_NEXT");
     static const Py68OpcodeInfo make_function = INFO(3, 1, "MAKE_FUNCTION");
@@ -62,6 +65,9 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
         return &jump_or_pop;
     case OP_BUILD_LIST: case OP_BUILD_TUPLE: case OP_BUILD_DICT:
     case OP_BUILD_SET: return &build_list;
+    case OP_LIST_APPEND: return &list_append;
+    case OP_SET_ADD: return &set_add;
+    case OP_MAP_ADD: return &map_add;
     case OP_LOAD_ATTR: return &load_attr;
     case OP_STORE_ATTR: return &store_attr;
     case OP_SETUP_TRY: return &setup_try;

@@ -118,6 +118,12 @@ int main(void)
     passed &= check(strstr(error.message, "relative imports") != NULL,
                     "relative import diagnostic is targeted");
     py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "ys = (x for x in xs)\n",
+                                  &arena, &module, &error),
+                    "generator expression is rejected");
+    passed &= check(strstr(error.message, "generator expressions") != NULL,
+                    "generator-expression diagnostic is targeted");
+    py68_ast_arena_destroy(&arena);
     passed &= check(allocator.stats.current_bytes == 0,
                     "statement parser releases all allocations");
     if (passed) {

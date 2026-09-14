@@ -42,7 +42,11 @@ typedef enum Py68AstKind {
     PY68_AST_LIST,
     PY68_AST_TUPLE,
     PY68_AST_SET,
-    PY68_AST_DICT
+    PY68_AST_DICT,
+    PY68_AST_LIST_COMP,
+    PY68_AST_SET_COMP,
+    PY68_AST_DICT_COMP,
+    PY68_AST_COMP_FOR
 } Py68AstKind;
 
 typedef struct Py68AstNode Py68AstNode;
@@ -105,6 +109,10 @@ struct Py68AstNode {
                  Py68U16 name_length; } attribute;
         struct { Py68AstList elements; } list_literal;
         struct { Py68AstList keys; Py68AstList values; } dict_literal;
+        struct { Py68AstNode *elt; Py68AstNode *value;
+                 Py68AstList generators; } comprehension;
+        struct { Py68U32 name_offset; Py68U16 name_length;
+                 Py68AstNode *iterable; Py68AstList ifs; } comprehension_for;
     } as;
 };
 

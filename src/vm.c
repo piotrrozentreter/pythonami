@@ -1333,6 +1333,123 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             ip += 3;
             break;
         }
+        case OP_LIST_APPEND:
+        case OP_SET_ADD: {
+            Py68U8 depth_op = current_code->bytecode[ip + 1];
+            Py68Value element;
+            Py68Value container;
+            if (runtime->value_stack_count <= depth_op) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "value stack underflow");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            container = runtime->value_stack[
+                runtime->value_stack_count - 1 - depth_op];
+            status = py68_vm_pop(runtime, &element);
+            if (status != PY68_STATUS_OK) break;
+            if (opcode == OP_LIST_APPEND) {
+                if (container.type != PY68_VALUE_OBJECT ||
+                    container.as.object == NULL ||
+                    container.as.object->type != PY68_OBJECT_LIST) {
+                    py68_value_release(runtime, element);
+                    py68_vm_error(runtime, PY68_ERROR_TYPE,
+                                  "list append requires a list");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+                status = py68_list_append_copy(
+                    runtime, (Py68List *)container.as.object, element);
+                py68_value_release(runtime, element);
+                if (status == PY68_STATUS_MEMORY_ERROR) {
+                    py68_vm_error(runtime, PY68_ERROR_MEMORY,
+                                  "list append failed");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_VALUE,
+                                  "cyclic containers are not supported");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+            } else {
+                if (container.type != PY68_VALUE_OBJECT ||
+                    container.as.object == NULL ||
+                    container.as.object->type != PY68_OBJECT_SET) {
+                    py68_value_release(runtime, element);
+                    py68_vm_error(runtime, PY68_ERROR_TYPE,
+                                  "set add requires a set");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+                status = py68_set_add(runtime, (Py68Set *)container.as.object,
+                                      element);
+                py68_value_release(runtime, element);
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_TYPE,
+                                  "unhashable set item");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+            }
+            ip += 2;
+            break;
+        }
+        case OP_MAP_ADD: {
+            Py68U8 depth_op = current_code->bytecode[ip + 1];
+            Py68Value key_val;
+            Py68Value value_val;
+            Py68Value container;
+            if (runtime->value_stack_count <= depth_op) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "value stack underflow");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            container = runtime->value_stack[
+                runtime->value_stack_count - 1 - depth_op];
+            status = py68_vm_pop(runtime, &value_val);
+            if (status == PY68_STATUS_OK)
+                status = py68_vm_pop(runtime, &key_val);
+            if (status != PY68_STATUS_OK) break;
+            if (container.type != PY68_VALUE_OBJECT ||
+                container.as.object == NULL ||
+                container.as.object->type != PY68_OBJECT_DICT) {
+                py68_value_release(runtime, value_val);
+                py68_value_release(runtime, key_val);
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "dict store requires a dict");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            status = py68_dict_set_copy(runtime,
+                                        (Py68Dict *)container.as.object,
+                                        key_val, value_val);
+            py68_value_release(runtime, value_val);
+            py68_value_release(runtime, key_val);
+            if (status != PY68_STATUS_OK) {
+                if (status == PY68_STATUS_RUNTIME_ERROR)
+                    py68_vm_error(runtime, PY68_ERROR_VALUE,
+                                  "cyclic containers are not supported");
+                else
+                    py68_vm_error(runtime, PY68_ERROR_TYPE,
+                                  "unhashable or cyclic dict key");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                ip = current_code->bytecode_length;
+                break;
+            }
+            ip += 2;
+            break;
+        }
         case OP_LOAD_ATTR: {
             const Py68U8 *name_bytes;
             Py68U16 name_length;

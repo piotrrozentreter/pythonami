@@ -262,4 +262,12 @@ print("123".isdigit())
 table = maketrans("ab", "AB")
 print("ab".translate(table))
 
+print("=== 26. Comprehensions ===")
+print([x * x for x in range(4)])
+print([x for x in range(5) if x % 2 == 1])
+print({x for x in range(3)} == {0, 1, 2})
+squares = {n: n * n for n in range(3)}
+print(squares[2])
+print([a + b for a in range(2) for b in range(2)])
+
 print("=== Feature Test Complete ===")
