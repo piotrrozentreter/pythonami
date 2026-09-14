@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Amiga LoadSeg extensions: `load_library(path)` loads `*.py68k` plugins with a
+  public export ABI (`include/py68k_ext.h`); sample `ext/demo_add` (vbcc C +
+  vasm) via `make amiga-ext` (D-0027).
+
 ## 0.6.0
 
 - Language Level 0.6: list, set, and dict comprehensions with nested `for`

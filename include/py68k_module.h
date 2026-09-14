@@ -16,6 +16,8 @@ struct Py68Module {
     Py68GlobalEntry *globals;
     Py68U16 global_count;
     Py68U16 global_capacity;
+    /* Amiga LoadSeg handle for *.py68k libraries; NULL for .py modules. */
+    void *native_seg;
 };
 typedef struct Py68Module Py68Module;
 

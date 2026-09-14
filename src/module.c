@@ -55,6 +55,7 @@ Py68Status py68_module_new(Py68Runtime *runtime, const char *name,
     module->globals = NULL;
     module->global_count = 0;
     module->global_capacity = 0;
+    module->native_seg = NULL;
     *result = module;
     return PY68_STATUS_OK;
 }

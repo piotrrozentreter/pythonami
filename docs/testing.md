@@ -39,6 +39,13 @@ with `make -f Makefile.host import-test HOST_CC=<clang>`.
 
 Host `tests/unit/test_file_io.c` and `tests/language/test_file_io_suite.py` exercise `fopen`/`fwrite`/`fread`/`freadline`/`fclose`/`exists`/`rename`/`remove` and host `getenv`/`setenv`/`unsetenv`. Amiga release/debug builds compile the same builtins as `assign_get`/`assign_add`/`assign_remove` (D-0012); assign execution on emulator/hardware is owner-verified, not claimed from host results.
 
+## Amiga LoadSeg extensions
+
+`make amiga-ext` builds `ext/demo_add/demo_add.py68k` (vbcc + vasm + vlink). The
+Amiga interpreter (`src/ext_amiga.c`) installs `load_library`. Owner-run steps
+and expected stdout are in `tests/integration/amiga/README.md` and
+`tests/integration/amiga/test_load_library.py`. Host has no `load_library`.
+
 ## Cross-target fixture comparison (host vs. Amiga emulator/hardware)
 
 The host build (Intel/Linux, this environment) can run and be verified directly. The Amiga Hunk build (`vbcc +aos68k`, produced by `Makefile.amiga`) cannot execute in this sandboxed environment — it requires an AmigaDOS runtime, a 680x0 emulator (e.g. WinUAE/FS-UAE), or real hardware, and must be tested by the project owner. Every increment therefore builds and tests **both** targets:

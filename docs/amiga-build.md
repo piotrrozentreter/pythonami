@@ -20,6 +20,16 @@ make amiga VBCC=/home/piotr/local/vbcc NDK=/run/media/piotr/BACKUP/Rozen/Program
 
 `Makefile.amiga` uses vbcc through `vc`, targets `+aos68k`, and passes `-cpu=68000 -fpu=0`. Release and debug both keep `-use-framepointer -no-delayed-popping` to avoid 68000 stack-layout failures. The Amiga build uses the vbcc-native target tree for the C runtime, `startup.o`, and `vc.lib`. NDK 3.2 `Include_H` supplies Amiga system headers; its `lib/amiga.lib` is not mixed into the vbcc link. Emulator and real-hardware execution remain owner-verified.
 
+## LoadSeg extensions (`*.py68k`)
+
+```text
+make amiga-ext             # → ext/demo_add/demo_add.py68k
+```
+
+Uses `vasmm68k_mot` and `vlink` from the vbcc tree to build a pure Hunk plugin
+(no `startup.o`). Authoring guide: `docs/amiga-extensions.md`. Integration
+steps: `tests/integration/amiga/README.md`.
+
 ## CLI stdout/stderr redirection fixture
 
 The host equivalent is run with `make -f Makefile.host stdio-redirection-test`. To verify the Amiga handles in an AmigaDOS emulator or on hardware, run the commands below from the directory containing `pythonami` (or replace the executable with `pythonami-debug` for a debug build). `$RC` is the AmigaDOS return code; remove the temporary files after checking them.

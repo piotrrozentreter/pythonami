@@ -37,3 +37,31 @@ delete T:py68k-stderr
 ```
 
 The host counterpart is `make -f Makefile.host stdio-redirection-test`.
+
+## LoadSeg `load_library` fixture
+
+Build the interpreter and sample plugin on a machine with vbcc/vasm/vlink:
+
+```text
+make amiga
+make amiga-ext
+```
+
+Place `pythonami` and `ext/demo_add/demo_add.py68k` so the script’s path resolves
+(default: `demo_add.py68k` in the current directory). Then:
+
+```text
+pythonami tests/integration/amiga/test_load_library.py >T:py68k-ext-out
+echo $RC
+type T:py68k-ext-out
+```
+
+Expected: `$RC` is `0`; `T:py68k-ext-out` contains:
+
+```text
+5
+6
+True
+```
+
+Details: `tests/integration/amiga/test_load_library.md` and `docs/amiga-extensions.md`.

@@ -15,6 +15,7 @@
 #include "py68k_exception.h"
 #include "py68k_module.h"
 #include "py68k_native.h"
+#include "py68k_platform.h"
 
 #include <stddef.h>
 
@@ -116,7 +117,10 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
                   sizeof(Py68Exception));
     } else if (object->type == PY68_OBJECT_MODULE) {
         Py68Module *module = (Py68Module *)object;
+        void *seg = module->native_seg;
+        module->native_seg = NULL;
         py68_module_clear(runtime, module);
+        py68_platform_unload_seg(seg);
         py68_free(&runtime->allocator, PY68_MEM_MODULE, module,
                   sizeof(Py68Module));
     } else {

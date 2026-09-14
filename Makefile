@@ -19,7 +19,7 @@ NDK  ?= /run/media/piotr/BACKUP/Rozen/Programy/Amiga/NDK3.2
 MODE ?=
 
 .PHONY: all help host amiga debug release test language-test \
-	amiga-debug amiga-release clean
+	amiga-debug amiga-release amiga-ext clean
 
 all: help
 
@@ -27,6 +27,7 @@ help:
 	@echo "Python68K build targets:"
 	@echo "  make host              Host GCC build (default debug; MODE=release for optimized)"
 	@echo "  make amiga             Amiga vbcc +aos68k build (default release; MODE=debug for debug)"
+	@echo "  make amiga-ext         Amiga LoadSeg sample extension (demo_add.py68k via vasm/vlink)"
 	@echo "  make test              Host unit + language tests"
 	@echo "  make language-test     Host language fixture diffs only"
 	@echo "  make clean             Remove build products"
@@ -65,6 +66,9 @@ amiga-debug:
 
 amiga-release:
 	"$(MAKE)" -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"
+
+amiga-ext:
+	"$(MAKE)" -f Makefile.amiga amiga-ext VBCC="$(VBCC)" NDK="$(NDK)"
 
 # ---- Clean ---------------------------------------------------------------
 

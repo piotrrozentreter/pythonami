@@ -1,5 +1,12 @@
 # Decisions
 
+## D-0027: Amiga LoadSeg extension plugins (not OpenLibrary)
+
+- Context: Authors want vbcc/vasm performance helpers callable from pythonami without rebuilding the interpreter. Classic AmigaOS `.library` (Resident/LibInit/LVOs) is heavy for this use case; host `dlopen` is out of scope.
+- Decision: Amiga-only builtin `load_library(path)` uses `LoadSeg` on a relocatable Hunk file (`*.py68k`). First hunk payload after the seglist next-pointer is a `Py68ExtHeader` (`'PY68'`, ABI 1, export table). Each export becomes a `Py68NativeFunction` on a returned module. `UnLoadSeg` runs when the module is destroyed (after clearing globals). Public ABI is `include/py68k_ext.h`. Plugins must not link `startup.o` / `vc.lib` / NDK `amiga.lib`.
+- Alternatives considered: Real AmigaOS `.library` via `OpenLibrary`; extending `import` to auto-load natives; host ELF `dlopen`.
+- Consequences: Scripts keep the library module alive while calling exports; escaped native refs after unload are undefined. `import` remains `.py`-only. Sample + vasm workflow live under `ext/demo_add/` and `make amiga-ext`.
+
 ## D-0022: Opt-in top-level debug statistics
 
 - Context: The CLI needs deterministic execution statistics without changing normal script output or exit status.

@@ -57,3 +57,4 @@ dkms.conf
 build/
 pythonami
 pythonami-debug
+*.py68k

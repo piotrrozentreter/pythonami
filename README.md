@@ -75,6 +75,9 @@ Amiga uses DOS `Open`/`Read`/`Write`/`Seek`/`Close`/`Lock`/`DeleteFile`/`Rename`
 | `setenv(name, value)` | `assign_add(name, path)` via `AssignPath` |
 | `unsetenv(name)` | `assign_remove(name)` via `AssignLock(name, 0)` |
 
+Amiga also provides `load_library(path)` for LoadSeg `*.py68k` plugins (vbcc/vasm);
+see `docs/amiga-extensions.md`. Host has no `load_library`.
+
 ### Tooling
 - CLI: `pythonami script.py`, `pythonami -c "..."`, `-V` / `--help`
 - Pipeline: tokenize → parse (AST) → symbol analysis → compile → verify → VM execute
@@ -94,6 +97,7 @@ make host                 # → build/host/pythonami (debug)
 make host MODE=release
 make amiga                # → ./pythonami (Amiga release Hunk)
 make amiga MODE=debug     # → ./pythonami-debug
+make amiga-ext            # → ext/demo_add/demo_add.py68k (vasm/vlink)
 make test                 # host unit + language tests
 make clean
 ```
@@ -160,6 +164,7 @@ Makefile.amiga vbcc Amiga build
 | `docs/language-reference.md` | What is executable |
 | `docs/host-build.md` | Host GCC build |
 | `docs/amiga-build.md` | vbcc / AmigaOS build and Workbench notes |
+| `docs/amiga-extensions.md` | LoadSeg `*.py68k` plugins (`load_library`) |
 | `docs/testing.md` | Test coverage narrative |
 | `docs/decisions.md` | Design decisions (D-0001…) |
 | `docs/architecture.md` | Pipeline and module overview |
