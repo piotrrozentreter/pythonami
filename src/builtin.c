@@ -3,6 +3,7 @@
 #include "py68k_builtin.h"
 #include "py68k_exception.h"
 #include "py68k_native.h"
+#include "py68k_string_methods.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -120,6 +121,14 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "abs", 1, 1, py68_builtin_abs },
         { "min", 2, 2, py68_builtin_min },
         { "max", 2, 2, py68_builtin_max },
+        { "ord", 1, 1, py68_builtin_ord },
+        { "chr", 1, 1, py68_builtin_chr },
+        { "repr", 1, 1, py68_builtin_repr },
+        { "ascii", 1, 1, py68_builtin_ascii },
+        { "all", 1, 1, py68_builtin_all },
+        { "any", 1, 1, py68_builtin_any },
+        { "format", 1, 2, py68_builtin_format },
+        { "maketrans", 1, 3, py68_builtin_maketrans },
         { "exit", 0, 1, py68_builtin_exit },
         { "fopen", 2, 2, py68_builtin_fopen },
         { "fclose", 1, 1, py68_builtin_fclose },

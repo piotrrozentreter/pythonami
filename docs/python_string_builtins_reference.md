@@ -526,48 +526,53 @@ len('e\u0301')                  # 2, e plus combining accent
 ### All public `str` methods
 
 ```text
-[ ] capitalize    [ ] casefold       [ ] center
-[ ] count         [ ] encode         [ ] endswith
-[ ] expandtabs    [ ] find           [ ] format
-[ ] format_map    [ ] index          [ ] isalnum
-[ ] isalpha       [ ] isascii        [ ] isdecimal
-[ ] isdigit       [ ] isidentifier   [ ] islower
-[ ] isnumeric     [ ] isprintable    [ ] isspace
-[ ] istitle       [ ] isupper        [ ] join
-[ ] ljust         [ ] lower          [ ] lstrip
-[ ] maketrans     [ ] partition      [ ] removeprefix
-[ ] removesuffix  [ ] replace        [ ] rfind
-[ ] rindex        [ ] rjust          [ ] rpartition
-[ ] rsplit        [ ] rstrip         [ ] split
-[ ] splitlines    [ ] startswith     [ ] strip
-[ ] swapcase      [ ] title          [ ] translate
-[ ] upper         [ ] zfill
+[x] capitalize    [x] casefold       [x] center
+[x] count         [ ] encode         [x] endswith
+[x] expandtabs    [x] find           [ ] format
+[ ] format_map    [x] index          [x] isalnum
+[x] isalpha       [x] isascii        [x] isdecimal
+[x] isdigit       [x] isidentifier   [x] islower
+[x] isnumeric     [x] isprintable    [x] isspace
+[x] istitle       [x] isupper        [x] join
+[x] ljust         [x] lower          [x] lstrip
+[x] maketrans     [x] partition      [x] removeprefix
+[x] removesuffix  [x] replace        [x] rfind
+[x] rindex        [x] rjust          [x] rpartition
+[x] rsplit        [x] rstrip         [x] split
+[x] splitlines    [x] startswith     [x] strip
+[x] swapcase      [x] title          [x] translate
+[x] upper         [x] zfill
 ```
+
+Notes: `encode` deferred (no `bytes`). `format` / `format_map` deferred as methods; minimal builtin `format(value, spec)` covers int padding. `maketrans` is a builtin (no `str` type object). `casefold` is ASCII `lower`. Classifiers are ASCII/8-bit only (see D-0024).
 
 ### Import-free built-ins relevant to text
 
 ```text
-[ ] all       [ ] any       [ ] ascii      [ ] bool
-[ ] bytearray [ ] bytes     [ ] chr        [ ] compile
-[ ] enumerate [ ] eval      [ ] exec       [ ] format
-[ ] input     [ ] iter      [ ] len        [ ] list
-[ ] max       [ ] min       [ ] next       [ ] ord
-[ ] print     [ ] repr      [ ] reversed   [ ] sorted
-[ ] str       [ ] tuple
+[x] all       [x] any       [x] ascii      [x] bool
+[ ] bytearray [ ] bytes     [x] chr        [ ] compile
+[ ] enumerate [ ] eval      [ ] exec       [x] format
+[x] input     [ ] iter      [x] len        [x] list
+[x] max       [x] min       [ ] next       [x] ord
+[x] print     [x] repr      [ ] reversed   [ ] sorted
+[x] str       [x] tuple
 ```
+
+Notes: `bytes`/`bytearray`/`eval`/`exec`/`compile` deferred. Iterator helpers deferred; `for` already iterates strings. `format` is minimal int specs only. `maketrans` is also installed as a builtin (see above).
 
 ### Operators and language features
 
 ```text
-[ ] + concatenation             [ ] * repetition
-[ ] == != < <= > >= comparisons [ ] [] indexing
-[ ] [start:stop:step] slicing   [ ] in / not in
-[ ] string iteration            [ ] truth value
-[ ] adjacent literals           [ ] escape sequences
+[x] + concatenation             [x] * repetition
+[x] == != < <= > >= comparisons [x] [] indexing
+[x] [start:stop] slicing (no step)  [x] in / not in
+[x] string iteration            [x] truth value
+[ ] adjacent literals           [x] escape sequences
 [ ] raw strings                 [ ] f-strings
-[ ] immutability errors
+[x] immutability errors
 ```
 
+Notes: Escapes decoded: `\\ \' \" \n \r \t \xHH`. Adjacent literals, raw strings, and f-strings remain deferred.
 ---
 
 ## Scope and official references

@@ -30,7 +30,7 @@ Catchable runtime kinds: `TypeError`, `ValueError`, `IndexError`, `KeyError`, `Z
 
 ## Attributes
 
-Limited attribute access: `obj.name` loads a bound method from a per-type table, or a module export. Not a user object system. `list.append` / `list.pop` exist alongside `list_append` / `list_pop`. Dict: `get`, `keys`, `values`, `items`, `pop`. Set: `add`, `remove`, `discard`.
+Limited attribute access: `obj.name` loads a bound method from a per-type table, or a module export. Not a user object system. `list.append` / `list.pop` exist alongside `list_append` / `list_pop`. Dict: `get`, `keys`, `values`, `items`, `pop`. Set: `add`, `remove`, `discard`. Strings: ASCII/8-bit methods including case (`upper`/`lower`/`capitalize`/`swapcase`/`title`/`casefold`), search (`find`/`rfind`/`index`/`rindex`/`count`/`startswith`/`endswith`), trim (`strip`/`lstrip`/`rstrip`/`removeprefix`/`removesuffix`), split/join (`split`/`rsplit`/`splitlines`/`partition`/`rpartition`/`join`), `replace`, align (`center`/`ljust`/`rjust`/`zfill`), `expandtabs`, `translate`, and classifiers (`isalnum`…`isupper`). Methods are positional-only (no kwargs).
 
 ## Imports (0.5)
 
@@ -46,8 +46,10 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 ## Builtins
 
-`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`.
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`.
+
+`ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`.
 
 ## Still not implemented
 
-Classes and instances, Unicode, bytes, comprehensions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, and Language Level freeze after owner emulator/hardware verification.
+Classes and instances, Unicode, bytes/bytearray/`encode`, comprehensions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.

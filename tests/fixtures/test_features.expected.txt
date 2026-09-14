@@ -116,4 +116,18 @@ True
 === 24. Command Arguments ===
 ["examples/test_features.py", "feature-one", "feature-two"]
 examples/test_features.py
+=== 25. String Methods & Text Builtins ===
+ABC
+2
+hi
+a-b
+["a", "b"]
+65
+A
+0042
+True
+True
+True
+True
+AB
 === Feature Test Complete ===

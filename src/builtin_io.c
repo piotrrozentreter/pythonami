@@ -334,9 +334,24 @@ Py68Status py68_builtin_print(Py68Runtime *runtime, Py68U16 argument_count,
                         tuple->items[item].as.integer ? 4 : 5);
                 else if (status == PY68_STATUS_OK &&
                          tuple->items[item].type == PY68_VALUE_FLOAT)
-                    status = py68_print_float(runtime, tuple->items[item]); else if (status == PY68_STATUS_OK &&
-                           tuple->items[item].type == PY68_VALUE_NONE)
+                    status = py68_print_float(runtime, tuple->items[item]);
+                else if (status == PY68_STATUS_OK &&
+                         tuple->items[item].type == PY68_VALUE_NONE)
                     status = py68_platform_write_stdout(runtime, "None", 4);
+                else if (status == PY68_STATUS_OK &&
+                         tuple->items[item].type == PY68_VALUE_OBJECT &&
+                         tuple->items[item].as.object != NULL &&
+                         tuple->items[item].as.object->type ==
+                             PY68_OBJECT_STRING) {
+                    Py68String *string =
+                        (Py68String *)tuple->items[item].as.object;
+                    status = py68_platform_write_stdout(runtime, "\"", 1);
+                    if (status == PY68_STATUS_OK)
+                        status = py68_platform_write_stdout(
+                            runtime, string->data, string->length);
+                    if (status == PY68_STATUS_OK)
+                        status = py68_platform_write_stdout(runtime, "\"", 1);
+                }
                 else status = PY68_STATUS_RUNTIME_ERROR;
             }
             if (status == PY68_STATUS_OK && tuple->count == 1)

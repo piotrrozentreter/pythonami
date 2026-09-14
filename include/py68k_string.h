@@ -17,6 +17,10 @@ typedef struct Py68String Py68String;
 Py68Status py68_string_new_copy(struct Py68Runtime *runtime,
                                 const char *data, Py68U32 length,
                                 Py68String **result);
+/* Decode Python68K string-literal escapes (\\ \' \" \n \r \t \xHH). */
+Py68Status py68_string_new_from_escaped(struct Py68Runtime *runtime,
+                                        const char *data, Py68U32 length,
+                                        Py68String **result);
 Py68U32 py68_string_hash_bytes(const char *data, Py68U32 length);
 Py68Status py68_string_concat(struct Py68Runtime *runtime,
                               Py68String *left, Py68String *right,

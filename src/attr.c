@@ -10,6 +10,7 @@
 #include "py68k_runtime.h"
 #include "py68k_set.h"
 #include "py68k_string.h"
+#include "py68k_string_methods.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -268,7 +269,137 @@ Py68Status py68_attr_load(Py68Runtime *runtime, Py68Value object,
                ? PY68_STATUS_OK
                : py68_attr_error(runtime, PY68_ERROR_NAME,
                                  "module has no such attribute");
-    if (type == PY68_OBJECT_LIST) {
+    if (type == PY68_OBJECT_STRING) {
+        if (py68_attr_name_is(name, name_length, "upper"))
+            return py68_attr_bind(runtime, object, "upper", 1, 1,
+                                  py68_attr_string_upper, result);
+        if (py68_attr_name_is(name, name_length, "lower"))
+            return py68_attr_bind(runtime, object, "lower", 1, 1,
+                                  py68_attr_string_lower, result);
+        if (py68_attr_name_is(name, name_length, "casefold"))
+            return py68_attr_bind(runtime, object, "casefold", 1, 1,
+                                  py68_attr_string_casefold, result);
+        if (py68_attr_name_is(name, name_length, "capitalize"))
+            return py68_attr_bind(runtime, object, "capitalize", 1, 1,
+                                  py68_attr_string_capitalize, result);
+        if (py68_attr_name_is(name, name_length, "swapcase"))
+            return py68_attr_bind(runtime, object, "swapcase", 1, 1,
+                                  py68_attr_string_swapcase, result);
+        if (py68_attr_name_is(name, name_length, "title"))
+            return py68_attr_bind(runtime, object, "title", 1, 1,
+                                  py68_attr_string_title, result);
+        if (py68_attr_name_is(name, name_length, "find"))
+            return py68_attr_bind(runtime, object, "find", 2, 4,
+                                  py68_attr_string_find, result);
+        if (py68_attr_name_is(name, name_length, "rfind"))
+            return py68_attr_bind(runtime, object, "rfind", 2, 4,
+                                  py68_attr_string_rfind, result);
+        if (py68_attr_name_is(name, name_length, "index"))
+            return py68_attr_bind(runtime, object, "index", 2, 4,
+                                  py68_attr_string_index, result);
+        if (py68_attr_name_is(name, name_length, "rindex"))
+            return py68_attr_bind(runtime, object, "rindex", 2, 4,
+                                  py68_attr_string_rindex, result);
+        if (py68_attr_name_is(name, name_length, "count"))
+            return py68_attr_bind(runtime, object, "count", 2, 4,
+                                  py68_attr_string_count, result);
+        if (py68_attr_name_is(name, name_length, "startswith"))
+            return py68_attr_bind(runtime, object, "startswith", 2, 4,
+                                  py68_attr_string_startswith, result);
+        if (py68_attr_name_is(name, name_length, "endswith"))
+            return py68_attr_bind(runtime, object, "endswith", 2, 4,
+                                  py68_attr_string_endswith, result);
+        if (py68_attr_name_is(name, name_length, "strip"))
+            return py68_attr_bind(runtime, object, "strip", 1, 2,
+                                  py68_attr_string_strip, result);
+        if (py68_attr_name_is(name, name_length, "lstrip"))
+            return py68_attr_bind(runtime, object, "lstrip", 1, 2,
+                                  py68_attr_string_lstrip, result);
+        if (py68_attr_name_is(name, name_length, "rstrip"))
+            return py68_attr_bind(runtime, object, "rstrip", 1, 2,
+                                  py68_attr_string_rstrip, result);
+        if (py68_attr_name_is(name, name_length, "removeprefix"))
+            return py68_attr_bind(runtime, object, "removeprefix", 2, 2,
+                                  py68_attr_string_removeprefix, result);
+        if (py68_attr_name_is(name, name_length, "removesuffix"))
+            return py68_attr_bind(runtime, object, "removesuffix", 2, 2,
+                                  py68_attr_string_removesuffix, result);
+        if (py68_attr_name_is(name, name_length, "split"))
+            return py68_attr_bind(runtime, object, "split", 1, 3,
+                                  py68_attr_string_split, result);
+        if (py68_attr_name_is(name, name_length, "rsplit"))
+            return py68_attr_bind(runtime, object, "rsplit", 1, 3,
+                                  py68_attr_string_rsplit, result);
+        if (py68_attr_name_is(name, name_length, "splitlines"))
+            return py68_attr_bind(runtime, object, "splitlines", 1, 2,
+                                  py68_attr_string_splitlines, result);
+        if (py68_attr_name_is(name, name_length, "partition"))
+            return py68_attr_bind(runtime, object, "partition", 2, 2,
+                                  py68_attr_string_partition, result);
+        if (py68_attr_name_is(name, name_length, "rpartition"))
+            return py68_attr_bind(runtime, object, "rpartition", 2, 2,
+                                  py68_attr_string_rpartition, result);
+        if (py68_attr_name_is(name, name_length, "join"))
+            return py68_attr_bind(runtime, object, "join", 2, 2,
+                                  py68_attr_string_join, result);
+        if (py68_attr_name_is(name, name_length, "replace"))
+            return py68_attr_bind(runtime, object, "replace", 3, 4,
+                                  py68_attr_string_replace, result);
+        if (py68_attr_name_is(name, name_length, "center"))
+            return py68_attr_bind(runtime, object, "center", 2, 3,
+                                  py68_attr_string_center, result);
+        if (py68_attr_name_is(name, name_length, "ljust"))
+            return py68_attr_bind(runtime, object, "ljust", 2, 3,
+                                  py68_attr_string_ljust, result);
+        if (py68_attr_name_is(name, name_length, "rjust"))
+            return py68_attr_bind(runtime, object, "rjust", 2, 3,
+                                  py68_attr_string_rjust, result);
+        if (py68_attr_name_is(name, name_length, "zfill"))
+            return py68_attr_bind(runtime, object, "zfill", 2, 2,
+                                  py68_attr_string_zfill, result);
+        if (py68_attr_name_is(name, name_length, "expandtabs"))
+            return py68_attr_bind(runtime, object, "expandtabs", 1, 2,
+                                  py68_attr_string_expandtabs, result);
+        if (py68_attr_name_is(name, name_length, "translate"))
+            return py68_attr_bind(runtime, object, "translate", 2, 2,
+                                  py68_attr_string_translate, result);
+        if (py68_attr_name_is(name, name_length, "isalnum"))
+            return py68_attr_bind(runtime, object, "isalnum", 1, 1,
+                                  py68_attr_string_isalnum, result);
+        if (py68_attr_name_is(name, name_length, "isalpha"))
+            return py68_attr_bind(runtime, object, "isalpha", 1, 1,
+                                  py68_attr_string_isalpha, result);
+        if (py68_attr_name_is(name, name_length, "isascii"))
+            return py68_attr_bind(runtime, object, "isascii", 1, 1,
+                                  py68_attr_string_isascii, result);
+        if (py68_attr_name_is(name, name_length, "isdecimal"))
+            return py68_attr_bind(runtime, object, "isdecimal", 1, 1,
+                                  py68_attr_string_isdecimal, result);
+        if (py68_attr_name_is(name, name_length, "isdigit"))
+            return py68_attr_bind(runtime, object, "isdigit", 1, 1,
+                                  py68_attr_string_isdigit, result);
+        if (py68_attr_name_is(name, name_length, "isidentifier"))
+            return py68_attr_bind(runtime, object, "isidentifier", 1, 1,
+                                  py68_attr_string_isidentifier, result);
+        if (py68_attr_name_is(name, name_length, "islower"))
+            return py68_attr_bind(runtime, object, "islower", 1, 1,
+                                  py68_attr_string_islower, result);
+        if (py68_attr_name_is(name, name_length, "isnumeric"))
+            return py68_attr_bind(runtime, object, "isnumeric", 1, 1,
+                                  py68_attr_string_isnumeric, result);
+        if (py68_attr_name_is(name, name_length, "isprintable"))
+            return py68_attr_bind(runtime, object, "isprintable", 1, 1,
+                                  py68_attr_string_isprintable, result);
+        if (py68_attr_name_is(name, name_length, "isspace"))
+            return py68_attr_bind(runtime, object, "isspace", 1, 1,
+                                  py68_attr_string_isspace, result);
+        if (py68_attr_name_is(name, name_length, "istitle"))
+            return py68_attr_bind(runtime, object, "istitle", 1, 1,
+                                  py68_attr_string_istitle, result);
+        if (py68_attr_name_is(name, name_length, "isupper"))
+            return py68_attr_bind(runtime, object, "isupper", 1, 1,
+                                  py68_attr_string_isupper, result);
+    } else if (type == PY68_OBJECT_LIST) {
         if (py68_attr_name_is(name, name_length, "append"))
             return py68_attr_bind(runtime, object, "append", 2, 2,
                                   py68_attr_list_append, result);

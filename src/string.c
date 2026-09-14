@@ -44,6 +44,74 @@ Py68Status py68_string_new_copy(Py68Runtime *runtime, const char *data,
     return PY68_STATUS_OK;
 }
 
+static int py68_string_hex_value(char character, int *value)
+{
+    if (character >= '0' && character <= '9') {
+        *value = character - '0';
+        return 1;
+    }
+    if (character >= 'a' && character <= 'f') {
+        *value = 10 + (character - 'a');
+        return 1;
+    }
+    if (character >= 'A' && character <= 'F') {
+        *value = 10 + (character - 'A');
+        return 1;
+    }
+    return 0;
+}
+
+Py68Status py68_string_new_from_escaped(Py68Runtime *runtime, const char *data,
+                                        Py68U32 length, Py68String **result)
+{
+    char *buffer;
+    Py68U32 index = 0;
+    Py68U32 out = 0;
+    Py68Status status;
+    buffer = (char *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP, length + 1);
+    if (buffer == NULL) return PY68_STATUS_MEMORY_ERROR;
+    while (index < length) {
+        char c = data[index++];
+        if (c != '\\') {
+            buffer[out++] = c;
+            continue;
+        }
+        if (index >= length) {
+            py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, length + 1);
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        c = data[index++];
+        if (c == '\\' || c == '\'' || c == '"') {
+            buffer[out++] = c;
+        } else if (c == 'n') {
+            buffer[out++] = '\n';
+        } else if (c == 'r') {
+            buffer[out++] = '\r';
+        } else if (c == 't') {
+            buffer[out++] = '\t';
+        } else if (c == 'x') {
+            int hi;
+            int lo;
+            if (index + 1 >= length ||
+                !py68_string_hex_value(data[index], &hi) ||
+                !py68_string_hex_value(data[index + 1], &lo)) {
+                py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
+                          length + 1);
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            buffer[out++] = (char)((hi << 4) | lo);
+            index += 2;
+        } else {
+            py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, length + 1);
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+    }
+    buffer[out] = '\0';
+    status = py68_string_new_copy(runtime, buffer, out, result);
+    py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, length + 1);
+    return status;
+}
+
 Py68Status py68_string_concat(Py68Runtime *runtime, Py68String *left,
                               Py68String *right, Py68String **result)
 {

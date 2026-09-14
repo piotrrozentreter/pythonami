@@ -181,3 +181,17 @@
 - Decision: Remove them from the keyword table so they tokenize as `PY68_TOKEN_NAME` and resolve to constructor builtins.
 - Alternatives considered: Keep them as keywords that introduce literal syntax only.
 - Consequences: `set = 1` is a legal (if unwise) assignment that shadows the builtin.
+
+## D-0024: 8-bit ASCII string methods vs CPython Unicode
+
+- Context: The string builtins reference mirrors CPython Unicode `str` APIs. Python68K strings are 8-bit byte strings (Language Level contract), not Unicode.
+- Decision: Implement Phase-2/Phase-3 `str` methods and related text builtins with ASCII / 8-bit semantics only. Case mapping and classifiers operate on `A-Z`/`a-z` and ASCII digit/whitespace/printable ranges; other bytes are left unchanged (case) or rejected by classifiers as appropriate. `casefold` is an ASCII alias of `lower`. `isdecimal`/`isdigit`/`isnumeric` all mean ASCII `'0'-'9'`. `isidentifier` follows the tokenizer’s ASCII name rules. `chr` accepts `0..255` only (not `0..0x10FFFF`). Literal escapes `\\ \' \" \n \r \t \xHH` are decoded when materializing string constants.
+- Alternatives considered: Fake Unicode tables; leave escapes undecoded in constants.
+- Consequences: Scripts that rely on Unicode casefolding, numeric characters, or code points above 255 are out of scope. Documented divergence from CPython is intentional.
+
+## D-0025: `maketrans` builtin; deferred encode/bytes/eval/format_map
+
+- Context: CPython exposes `str.maketrans` as a static method on the `str` type object. Python68K has no type objects. Full `str.format` / `format_map`, `bytes`/`bytearray`/`encode`, and `eval`/`exec`/`compile` conflict with Level 0.1 constraints (no kwargs, no bytes type, security).
+- Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`) except where list/tuple/`for` already covers use. `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
+- Alternatives considered: Opaque translation-table object; alias `ascii` to `repr`.
+- Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work.

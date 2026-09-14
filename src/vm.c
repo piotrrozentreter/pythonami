@@ -531,11 +531,17 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                     py68_vm_error(runtime, PY68_ERROR_BYTECODE, "string constant out of range");
                     status = PY68_STATUS_RUNTIME_ERROR; ip = current_code->bytecode_length; break;
                 }
-                status = py68_string_new_copy(runtime,
+                status = py68_string_new_from_escaped(runtime,
                     (const char *)current_code->source_data + constant->offset,
                     constant->length, &string);
-                if (status == PY68_STATUS_OK)
-                    status = py68_vm_push(runtime, py68_value_from_object(&string->base));
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_VALUE,
+                                  "invalid string escape sequence");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    ip = current_code->bytecode_length;
+                    break;
+                }
+                status = py68_vm_push(runtime, py68_value_from_object(&string->base));
                 ip += 3;
                 break;
             }

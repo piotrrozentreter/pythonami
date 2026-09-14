@@ -82,5 +82,19 @@ Py68Status py68_builtin_float(Py68Runtime *runtime, Py68U16 argument_count,
 Py68Status py68_builtin_exception(Py68Runtime *runtime,
                                   Py68U16 argument_count,
                                   Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_ord(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_chr(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_repr(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_ascii(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_all(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_any(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_format(Py68Runtime *runtime, Py68U16 argument_count,
+                               Py68Value *arguments, Py68Value *result);
 
 #endif

@@ -1,0 +1,80 @@
+=== case ===
+Hello world
+ABC
+abc
+aBc
+Hello World
+abc
+=== search ===
+2
+2
+4
+2
+True
+True
+4
+-1
+=== trim ===
+hello
+hello
+Case
+image
+=== split join ===
+["a", "b"]
+["a", "b,c"]
+["a,b", "c"]
+2
+2
+1
+["a", "b"]
+a
+=
+b=c
+a=b
+=
+c
+a-b-c
+=== replace align tabs ===
+bAnAna
+  cat  
+cat...
+...cat
+-0042
+A   B
+5
+=== translate ===
+ABC
+=== classifiers ===
+True
+True
+True
+True
+True
+True
+True
+True
+True
+True
+True
+True
+True
+False
+=== builtins ===
+65
+A
+'A\nB'
+'A'
+0042
+7
+True
+False
+True
+False
+True
+=== errors ===
+1
+1
+1
+1
+1
+1

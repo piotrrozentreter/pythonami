@@ -6,8 +6,8 @@ LDFLAGS ?=
 
 HOST_BUILD := build/host
 HOST_PROGRAM := $(HOST_BUILD)/pythonami
-HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/import.c src/module.c src/float.c
-TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/native.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/module.c src/float.c
+HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/string_methods.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/builtin_text.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/import.c src/module.c src/float.c
+TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/string_methods.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/builtin_text.c src/native.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/module.c src/float.c
 TEST_MEMORY_SOURCES := tests/unit/test_memory.c $(TEST_COMMON)
 TEST_TOKENIZER_SOURCES := tests/unit/test_tokenizer.c $(TEST_COMMON) src/tokenizer.c
 TEST_PARSER_SOURCES := tests/unit/test_parser.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
@@ -33,6 +33,7 @@ TEST_ATTR_SOURCES := tests/unit/test_attr.c $(TEST_COMMON)
 TEST_FLOAT_SOURCES := tests/unit/test_float.c $(TEST_COMMON)
 TEST_EXCEPTION_SOURCES := tests/unit/test_exceptions.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 TEST_IMPORT_SOURCES := tests/unit/test_import.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
+TEST_STRING_METHODS_SOURCES := tests/unit/test_string_methods.c $(TEST_COMMON)
 LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
 IMPORT_CHECK := tests/integration/host/run_import_checks.sh
 DEBUG_STATS_CHECK := tests/integration/host/run_debug_stats_check.sh
@@ -119,6 +120,9 @@ $(HOST_BUILD)/test_set: $(TEST_SET_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_attr: $(TEST_ATTR_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_ATTR_SOURCES) -o $@
 
+$(HOST_BUILD)/test_string_methods: $(TEST_STRING_METHODS_SOURCES) | $(HOST_BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_STRING_METHODS_SOURCES) -o $@
+
 $(HOST_BUILD)/test_float: $(TEST_FLOAT_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_FLOAT_SOURCES) -o $@
 
@@ -128,7 +132,7 @@ $(HOST_BUILD)/test_exceptions: $(TEST_EXCEPTION_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_import: $(TEST_IMPORT_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_IMPORT_SOURCES) -o $@
 
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM) language-test import-failure-test debug-stats-test stdio-redirection-test
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_string_methods $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM) language-test import-failure-test debug-stats-test stdio-redirection-test
 	$(HOST_BUILD)/test_memory
 	$(HOST_BUILD)/test_tokenizer
 	$(HOST_BUILD)/test_parser
@@ -151,6 +155,7 @@ test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_
 	$(HOST_BUILD)/test_dict
 	$(HOST_BUILD)/test_set
 	$(HOST_BUILD)/test_attr
+	$(HOST_BUILD)/test_string_methods
 	$(HOST_BUILD)/test_float
 	$(HOST_BUILD)/test_exceptions
 	$(HOST_BUILD)/test_import
@@ -168,6 +173,7 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/functions/test_functions_advanced.py tests/fixtures/language/functions/test_functions_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/lists/test_lists_advanced.py tests/fixtures/language/lists/test_lists_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_strings_advanced.py tests/fixtures/language/strings/test_strings_advanced.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_string_methods.py tests/fixtures/language/strings/test_string_methods.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_bugfix_suite.py tests/fixtures/language/test_bugfix_suite.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_file_io_suite.py tests/fixtures/language/test_file_io_suite.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/types/test_types.py tests/fixtures/language/types/test_types.expected.txt

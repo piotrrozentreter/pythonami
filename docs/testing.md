@@ -16,7 +16,7 @@ The opt-in `make -f Makefile.host stdio-redirection-test` check validates separa
 - `tests/language/control_flow/` — `elif` ladders, `while`-`else` (complete and break-skip), `for`-`else`, `continue` in `for`/`while`, nested `for` loops.
 - `tests/language/functions/` — recursion (fibonacci/factorial/deep sum), local shadowing, reading globals from functions, `continue` inside functions, augassign on locals, multi-path `return`, implicit `None` return.
 - `tests/language/lists/` — concat, `list_append`/`list_pop`, nested index, list-building helpers, empty/`step`/`reverse` `range`, list slices with explicit bounds.
-- `tests/language/strings/` — concat, index/slice, falsy empty string, `str`/`int` conversions.
+- `tests/language/strings/` — concat, index/slice, falsy empty string, `str`/`int` conversions, ASCII string methods, and text builtins (`ord`/`chr`/`repr`/`format`/`maketrans`, …).
 - `tests/language/test_advanced_suite.py` — single cross-cutting differential fixture combining the above.
 - `examples/test_features.py` sections 13–18 extend the incremental demo with the same advanced behaviors.
 
