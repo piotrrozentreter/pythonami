@@ -113,4 +113,7 @@ False
 === 23. Amiga Assigns ===
 True
 True
+=== 24. Command Arguments ===
+["examples/test_features.py", "feature-one", "feature-two"]
+examples/test_features.py
 === Feature Test Complete ===
