@@ -1,4 +1,5 @@
-CC ?= gcc
+HOST_CC ?= gcc
+CC := $(HOST_CC)
 CPPFLAGS ?= -Iinclude
 CFLAGS ?= -std=c89 -pedantic -Wall -Wextra -Werror -O0 -g
 LDFLAGS ?=
@@ -152,7 +153,7 @@ test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_
 	$(HOST_BUILD)/test_import
 	$(HOST_PROGRAM) -V
 	$(HOST_PROGRAM) --help
-	$(MAKE) -f Makefile.host language-test
+	"$(MAKE)" -f Makefile.host language-test
 
 language-test: $(HOST_PROGRAM)
 	chmod +x $(LANGUAGE_CHECK)
@@ -171,8 +172,11 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/exceptions/test_exceptions.py tests/fixtures/language/exceptions/test_exceptions.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/exceptions/test_with.py tests/fixtures/language/exceptions/test_with.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_driver.py tests/fixtures/language/import/test_import_driver.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_argv.py tests/fixtures/language/import/test_argv.expected.txt arg-one arg-two
 	@printf 'Alice\n' | $(HOST_PROGRAM) tests/language/test_input.py > build/host/test_input_lang.out
-	@diff -u tests/fixtures/language/test_input.expected.txt build/host/test_input_lang.out
+	@tr -d '\r' < tests/fixtures/language/test_input.expected.txt > build/host/test_input_expected.normalized
+	@tr -d '\r' < build/host/test_input_lang.out > build/host/test_input_lang.normalized
+	@diff -u build/host/test_input_expected.normalized build/host/test_input_lang.normalized
 	@echo "PASS: tests/language/test_input.py"
 
 clean:

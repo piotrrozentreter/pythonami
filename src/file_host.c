@@ -241,7 +241,11 @@ Py68Status py68_platform_var_set(Py68Runtime *runtime, const char *name,
 {
     (void)runtime;
     if (name == NULL || value == NULL) return PY68_STATUS_INTERNAL_ERROR;
+#if defined(_WIN32)
+    if (_putenv_s(name, value) != 0) return PY68_STATUS_RUNTIME_ERROR;
+#else
     if (setenv(name, value, 1) != 0) return PY68_STATUS_RUNTIME_ERROR;
+#endif
     return PY68_STATUS_OK;
 }
 
@@ -249,6 +253,10 @@ Py68Status py68_platform_var_unset(Py68Runtime *runtime, const char *name)
 {
     (void)runtime;
     if (name == NULL) return PY68_STATUS_INTERNAL_ERROR;
+#if defined(_WIN32)
+    if (_putenv_s(name, "") != 0) return PY68_STATUS_RUNTIME_ERROR;
+#else
     if (unsetenv(name) != 0) return PY68_STATUS_RUNTIME_ERROR;
+#endif
     return PY68_STATUS_OK;
 }

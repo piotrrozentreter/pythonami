@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     } else if (argc == 1) {
         status = py68_write_literal(&runtime, PY68K_HELP);
     } else if (argc == 3 && strcmp(argv[1], "-c") == 0) {
-        status = py68_sys_set_argv(&runtime, argc - 1, argv + 1);
+        status = py68_sys_set_argv(&runtime, 1, argv + 1);
         if (status == PY68_STATUS_OK)
             status = py68_execute_command(&runtime, argv[2]);
     } else if (argc >= 2 && argv[1][0] != '-') {

@@ -65,7 +65,7 @@ Do not begin a later phase while the current increment lacks its required tests 
 
 ## Required validation
 
-For each increment, cover positive behavior, boundaries, negative/error behavior, ownership and cleanup where relevant, allocation failure where relevant, host integration, and differential behavior against desktop Python where compatibility is intended. Report exact commands, results, warnings, unavailable configurations, and failing test names. Required bootstrap evidence includes `python -V` producing `Python68K 0.1.0` and clean shutdown with `value_stack_count == 0`, `frame_count == 0`, `live_objects == NULL`, and `allocator.stats.current_bytes == 0`.
+For each increment, cover positive behavior, boundaries, negative/error behavior, ownership and cleanup where relevant, allocation failure where relevant, host integration, and differential behavior against desktop Python where compatibility is intended. Report exact commands, results, warnings, unavailable configurations, and failing test names. Required bootstrap evidence includes `python -V` producing `Python68K 0.5.0` and clean shutdown with `value_stack_count == 0`, `frame_count == 0`, `live_objects == NULL`, and `allocator.stats.current_bytes == 0`.
 
 Cross-target test strategy:
 

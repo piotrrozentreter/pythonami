@@ -1,5 +1,21 @@
 # Decisions
 
+## D-0021: Linux-first host compiler with local Windows fallback
+
+- Context: Linux is the primary development environment, while this workspace
+	also needs a local compiler for host tests on Windows.
+- Decision: Keep `gcc` as the default host compiler and support Clang through
+	the `HOST_CC` make variable. The Windows workspace uses LLVM-MinGW Clang
+	22.1.8 installed locally through WinGet. Visual Studio 2026 is installed,
+	but `cl.exe` is not the configured compiler and must be evaluated from a
+	Developer PowerShell if support is added later.
+- Alternatives considered: Make the repository depend on Visual Studio, add
+	a committed compiler binary, or change the Linux default to Clang.
+- Consequences: Linux builds remain unchanged with `make test`; Windows host
+	tests can use `HOST_CC=<path-to-clang.exe>`. The compiler installation is a
+	machine prerequisite, not a repository dependency, and Amiga builds remain
+	controlled by `Makefile.amiga`.
+
 ## D-0001: Host 32-bit language integer typedef
 
 - Context: The brief requires `signed long` for `Py68I32`, while modern 64-bit hosts commonly define `long` as 64 bits.

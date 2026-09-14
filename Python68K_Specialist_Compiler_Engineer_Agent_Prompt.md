@@ -60,7 +60,7 @@ Hello from Python68K
 14
 
 1> python -V
-Python68K 0.1.0
+Python68K 0.5.0
 ```
 
 Primary target:
@@ -181,7 +181,7 @@ Acceptance:
 
 ```text
 python -V
-Python68K 0.1.0
+Python68K 0.5.0
 ```
 
 Do not implement tokenization in this phase.
@@ -535,7 +535,7 @@ Phase 0 acceptance evidence must include:
 
 ```text
 python -V
-Python68K 0.1.0
+Python68K 0.5.0
 ```
 
 and proof from the host tests that clean shutdown leaves:
