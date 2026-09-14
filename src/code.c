@@ -27,6 +27,7 @@ void py68_code_destroy(Py68Allocator *allocator, Py68Code *code)
               (Py68U32)code->name_capacity * sizeof(Py68U32));
     py68_free(allocator, PY68_MEM_CODE, code->name_lengths,
               (Py68U32)code->name_capacity * sizeof(Py68U16));
+    py68_free(allocator, PY68_MEM_CODE, code->interned, code->interned_capacity);
     py68_code_initialize(code);
 }
 
@@ -150,6 +151,19 @@ Py68Status py68_code_add_constant(Py68Allocator *allocator, Py68Code *code,
     return PY68_STATUS_OK;
 }
 
+#define PY68_NAME_INTERNED ((Py68U32)0x80000000u)
+
+const Py68U8 *py68_code_name_bytes(const Py68Code *code, Py68U16 index)
+{
+    Py68U32 offset;
+    if (code == NULL || index >= code->name_count) return NULL;
+    offset = code->name_offsets[index];
+    if ((offset & PY68_NAME_INTERNED) != 0)
+        return code->interned + (offset & ~PY68_NAME_INTERNED);
+    if (code->source_data == NULL) return NULL;
+    return code->source_data + offset;
+}
+
 Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
                               Py68U32 offset, Py68U16 length,
                               Py68U16 *index_out)
@@ -158,17 +172,23 @@ Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
     Py68U16 capacity;
     Py68U32 *offsets;
     Py68U16 *lengths;
+    const Py68U8 *incoming;
+    incoming = ((offset & PY68_NAME_INTERNED) != 0)
+                   ? code->interned + (offset & ~PY68_NAME_INTERNED)
+                   : (code->source_data != NULL ? code->source_data + offset
+                                                : NULL);
     for (index = 0; index < code->name_count; ++index) {
         if (code->name_lengths[index] == length) {
             if (code->name_offsets[index] == offset) {
                 *index_out = index;
                 return PY68_STATUS_OK;
             }
-            if (code->source_data != NULL &&
-                memcmp(code->source_data + code->name_offsets[index],
-                       code->source_data + offset, length) == 0) {
-                *index_out = index;
-                return PY68_STATUS_OK;
+            if (incoming != NULL) {
+                const Py68U8 *existing = py68_code_name_bytes(code, index);
+                if (existing != NULL && memcmp(existing, incoming, length) == 0) {
+                    *index_out = index;
+                    return PY68_STATUS_OK;
+                }
             }
         }
     }
@@ -193,4 +213,35 @@ Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
     code->name_offsets[code->name_count] = offset;
     code->name_lengths[code->name_count++] = length;
     return PY68_STATUS_OK;
+}
+
+Py68Status py68_code_add_interned_name(Py68Allocator *allocator, Py68Code *code,
+                                       const char *bytes, Py68U16 length,
+                                       Py68U16 *index_out)
+{
+    Py68U8 *replacement;
+    Py68U32 capacity;
+    Py68U32 offset;
+    if (bytes == NULL || length == 0) return PY68_STATUS_INTERNAL_ERROR;
+    if (code->interned_length > (Py68U32)~(Py68U32)0 - length)
+        return PY68_STATUS_MEMORY_ERROR;
+    if (code->interned_length + length > code->interned_capacity) {
+        capacity = code->interned_capacity == 0 ? 32 : code->interned_capacity * 2;
+        while (capacity < code->interned_length + length) {
+            if (capacity > ((Py68U32)~(Py68U32)0) / 2)
+                return PY68_STATUS_MEMORY_ERROR;
+            capacity *= 2;
+        }
+        replacement = (Py68U8 *)py68_realloc(
+            allocator, PY68_MEM_CODE, code->interned, code->interned_capacity,
+            capacity);
+        if (replacement == NULL) return PY68_STATUS_MEMORY_ERROR;
+        code->interned = replacement;
+        code->interned_capacity = capacity;
+    }
+    offset = code->interned_length;
+    memcpy(code->interned + offset, bytes, length);
+    code->interned_length += length;
+    return py68_code_add_name(allocator, code, PY68_NAME_INTERNED | offset,
+                              length, index_out);
 }

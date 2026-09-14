@@ -39,7 +39,11 @@ Py68Status py68_native_call(Py68NativeFunction *function,
                             Py68Runtime *runtime, Py68U16 argument_count,
                             Py68Value *arguments, Py68Value *result)
 {
+    Py68Status status;
     if (py68_native_check_arguments(function, argument_count) != PY68_STATUS_OK)
         return PY68_STATUS_RUNTIME_ERROR;
-    return function->callback(runtime, argument_count, arguments, result);
+    runtime->active_native = function;
+    status = function->callback(runtime, argument_count, arguments, result);
+    runtime->active_native = NULL;
+    return status;
 }

@@ -33,9 +33,14 @@ static Py68I32 py68_effect(const Py68U8 *bytes, Py68U32 offset,
 {
     const Py68OpcodeInfo *info = py68_opcode_info(opcode);
     Py68U16 operand;
-    if (opcode == OP_BUILD_LIST) {
+    if (opcode == OP_BUILD_LIST || opcode == OP_BUILD_TUPLE ||
+        opcode == OP_BUILD_SET) {
         operand = py68_read_u16(bytes, offset + 1);
         return 1 - (Py68I32)operand;
+    }
+    if (opcode == OP_BUILD_DICT) {
+        operand = py68_read_u16(bytes, offset + 1);
+        return 1 - (Py68I32)operand * 2;
     }
     if (opcode == OP_RANGE_INIT) {
         return 1 - (Py68I32)bytes[offset + 1];
@@ -123,7 +128,9 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         boundaries[offset] = 1;
         if (((opcode == OP_LOAD_CONST || opcode == OP_MAKE_FUNCTION) &&
              py68_read_u16(code->bytecode, offset + 1) >= code->constant_count) ||
-            ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL) &&
+            ((opcode == OP_LOAD_GLOBAL || opcode == OP_STORE_GLOBAL ||
+              opcode == OP_LOAD_ATTR || opcode == OP_STORE_ATTR ||
+              opcode == OP_IMPORT_NAME || opcode == OP_IMPORT_FROM) &&
              py68_read_u16(code->bytecode, offset + 1) >= code->name_count) ||
             ((opcode == OP_LOAD_LOCAL || opcode == OP_STORE_LOCAL) &&
              py68_read_u16(code->bytecode, offset + 1) >= code->local_count)) {
@@ -167,10 +174,11 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         if (depth + effect > maximum) maximum = depth + effect;
         next = current + info->width;
         if (opcode == OP_HALT || opcode == OP_RETURN_VALUE ||
-            opcode == OP_RETURN_NONE) continue;
+            opcode == OP_RETURN_NONE || opcode == OP_RAISE) continue;
         if (opcode == OP_JUMP || opcode == OP_JUMP_IF_FALSE ||
             opcode == OP_JUMP_IF_TRUE || opcode == OP_JUMP_IF_FALSE_OR_POP ||
-            opcode == OP_JUMP_IF_TRUE_OR_POP || opcode == OP_RANGE_NEXT) {
+            opcode == OP_JUMP_IF_TRUE_OR_POP || opcode == OP_RANGE_NEXT ||
+            opcode == OP_SETUP_TRY || opcode == OP_CHECK_EXCEPT) {
             Py68I32 target_depth;
             if (opcode == OP_RANGE_NEXT) {
                 target_depth = depth - 1;
@@ -178,6 +186,9 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
                        opcode == OP_JUMP_IF_TRUE_OR_POP) {
                 /* Jump keeps TOS; fall-through (effect -1) pops it. */
                 target_depth = depth;
+            } else if (opcode == OP_SETUP_TRY) {
+                /* Handler receives the pushed exception. */
+                target_depth = depth + 1;
             } else {
                 target_depth = depth + effect;
             }

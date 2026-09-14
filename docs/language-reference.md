@@ -1,7 +1,50 @@
 # Language Reference
 
-Language Level 0.1 syntax and semantics are specified by the project brief. The parser accepts the documented expression and statement forms at the AST boundary. Symbol analysis classifies names using local, module-global, builtin, and undefined lookup order; parameters occupy the first local slots and later assignment targets use deterministic source order.
+Python68K is a restricted Python-compatible language. Language Levels **0.1** (core), **0.2.0** (file/env I/O), **0.3** (types and limited attributes), **0.4** (exceptions and `with`), and **0.5** (import/modules) are executable on the host and Amiga builds.
 
-Currently executable: scalar integer/boolean/None values and arithmetic (`+ - * // %` with checked overflow and Python-compatible floor division/modulo for negative operands), comparisons, short-circuit `and`/`or`, `if`/`elif`/`else`, `while` and `for ... in range(...)` loops with `break`/`continue`, list literals/indexing/assignment/concatenation/slicing, string literals/concatenation/indexing/slicing, augmented assignment (`+= -= *= //= %=`) to locals and globals, `def` function statements with parameters, locals, recursion, `return` (explicit and implicit `None`), CLI `pythonami script.py` and `pythonami -c "..."`, error reporting with frame traceback, and the builtins `print`, `input`, `len`, `range`, `list_pop`, `list_append`, `int`, `str`, `bool`, `abs`, `min`, `max`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host builds also provide `getenv`/`setenv`/`unsetenv`; Amiga builds provide `assign_get`/`assign_add`/`assign_remove` for DOS assigns. Referencing a local variable before it has been assigned within a function is a runtime error rather than yielding `None`. Empty strings and empty lists are falsy. `input([prompt])` writes an optional prompt to stdout, reads one line from stdin (AmigaDOS `Input()`), and returns the line without the trailing newline; EOF raises an I/O error.
+Symbol analysis classifies names using local, module-global, builtin, and undefined lookup order; parameters occupy the first local slots and later assignment targets use deterministic source order. Referencing a local before assignment is a runtime `NameError`. Empty strings, lists, tuples, dicts, and sets are falsy. `input([prompt])` writes an optional prompt, reads one line, and returns it without the trailing newline; EOF raises an I/O error.
 
-Not yet implemented: AmigaDOS `ENV:` variables (GetVar/SetVar), file seek, method-style file objects, encodings/Unicode, and Language Level freeze after owner emulator/hardware verification of assigns.
+## Values
+
+- Scalars: signed 32-bit `int` (checked overflow), `bool`, `None`, IEEE-754 binary32 `float` (no NaN/Inf; no 68881; integer-only software in `src/float.c`).
+- `str`: 8-bit strings (not Unicode).
+- `list`, `tuple` (parenthesized only: `()`, `(a,)`, `(a, b)`), `dict`, `set`.
+- Hashable keys: `None`, `bool`, `int`, `str`, and tuples of hashable items. Lists, dicts, sets, files, functions, and modules are unhashable.
+- Cyclic list/dict insertion is rejected (`ValueError`).
+- `/` is true division and yields `float`. `//` is integer floor division. Mixed int/float arithmetic promotes to float.
+
+## Operators and comparisons
+
+Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare when types match). Short-circuit `and` / `or` are value-preserving.
+
+## Control flow
+
+- `if` / `elif` / `else`
+- `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set)
+- `break` / `continue` / `return` / `pass`
+- `try` / `except` / `except TypeError` / `except TypeError as e` / `finally`
+- `raise` and `raise TypeError("msg")`
+- `with EXPR as NAME` (file handles from `fopen` implement `__enter__` / `__exit__`)
+
+Catchable runtime kinds: `TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `IOError`, `RecursionError`, `ImportError`. Token, syntax, bytecode, memory, and internal errors are not catchable. Matching is by kind name, not a class hierarchy.
+
+## Attributes
+
+Limited attribute access: `obj.name` loads a bound method from a per-type table, or a module export. Not a user object system. `list.append` / `list.pop` exist alongside `list_append` / `list_pop`. Dict: `get`, `keys`, `values`, `items`, `pop`. Set: `add`, `remove`, `discard`.
+
+## Imports (0.5)
+
+- `import name`, `import name as alias`
+- `from name import a, b`, `from name import a as b`
+- Search: directory of the importing source, then entries in `sys.path` (starts with `.`)
+- No relative imports, no `from x import *`, no multi-level packages
+
+`sys` is a builtin module: `sys.path` (list), `sys.modules`, `sys.argv`.
+
+## Builtins
+
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`.
+
+## Still not implemented
+
+Classes and instances, Unicode, bytes, comprehensions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, and Language Level freeze after owner emulator/hardware verification.

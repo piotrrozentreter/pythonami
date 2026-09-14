@@ -69,5 +69,18 @@ Py68Status py68_builtin_assign_add(Py68Runtime *runtime,
 Py68Status py68_builtin_assign_remove(Py68Runtime *runtime,
                                       Py68U16 argument_count,
                                       Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_list(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_tuple(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_dict(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_set(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_float(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_exception(Py68Runtime *runtime,
+                                  Py68U16 argument_count,
+                                  Py68Value *arguments, Py68Value *result);
 
 #endif

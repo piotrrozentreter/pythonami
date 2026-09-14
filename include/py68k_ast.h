@@ -19,8 +19,16 @@ typedef enum Py68AstKind {
     PY68_AST_BREAK,
     PY68_AST_CONTINUE,
     PY68_AST_PASS,
+    PY68_AST_TRY,
+    PY68_AST_EXCEPT_HANDLER,
+    PY68_AST_RAISE,
+    PY68_AST_WITH,
+    PY68_AST_IMPORT,
+    PY68_AST_IMPORT_FROM,
+    PY68_AST_IMPORT_ALIAS,
     PY68_AST_EXPRESSION_STATEMENT,
     PY68_AST_INTEGER,
+    PY68_AST_FLOAT,
     PY68_AST_STRING,
     PY68_AST_BOOL,
     PY68_AST_NONE,
@@ -30,7 +38,11 @@ typedef enum Py68AstKind {
     PY68_AST_CALL,
     PY68_AST_INDEX,
     PY68_AST_SLICE,
-    PY68_AST_LIST
+    PY68_AST_ATTRIBUTE,
+    PY68_AST_LIST,
+    PY68_AST_TUPLE,
+    PY68_AST_SET,
+    PY68_AST_DICT
 } Py68AstKind;
 
 typedef struct Py68AstNode Py68AstNode;
@@ -62,8 +74,22 @@ struct Py68AstNode {
         struct { Py68U32 name_offset; Py68U16 name_length;
                  Py68AstList parameters; Py68AstList body; } function_def;
         struct { Py68AstNode *value; } return_statement;
+        struct { Py68AstList body; Py68AstList handlers;
+                 Py68AstList finally_body; } try_statement;
+        struct { Py68AstNode *type; Py68U32 as_offset; Py68U16 as_length;
+                 Py68AstList body; } except_handler;
+        struct { Py68AstNode *value; } raise_statement;
+        struct { Py68AstNode *context; Py68U32 as_offset; Py68U16 as_length;
+                 Py68AstList body; } with_statement;
+        struct { Py68U32 name_offset; Py68U16 name_length;
+                 Py68U32 as_offset; Py68U16 as_length; } import_statement;
+        struct { Py68U32 module_offset; Py68U16 module_length;
+                 Py68AstList names; } import_from;
+        struct { Py68U32 name_offset; Py68U16 name_length;
+                 Py68U32 as_offset; Py68U16 as_length; } import_alias;
         struct { Py68AstNode *value; } expression_statement;
         struct { Py68I32 value; } integer_literal;
+        struct { Py68U32 bits; } float_literal;
         struct { Py68U32 offset; Py68U16 length; Py68U16 quote_flags; }
             string_literal;
         struct { Py68U32 offset; Py68U16 length; } name;
@@ -75,7 +101,10 @@ struct Py68AstNode {
         struct { Py68AstNode *container; Py68AstNode *index; } index;
         struct { Py68AstNode *container; Py68AstNode *start;
                  Py68AstNode *end; } slice;
+        struct { Py68AstNode *value; Py68U32 name_offset;
+                 Py68U16 name_length; } attribute;
         struct { Py68AstList elements; } list_literal;
+        struct { Py68AstList keys; Py68AstList values; } dict_literal;
     } as;
 };
 

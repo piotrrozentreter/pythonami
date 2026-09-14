@@ -23,6 +23,11 @@ typedef struct Py68LoopContext {
     int pop_on_break;
 } Py68LoopContext;
 
+typedef struct Py68TryCompile {
+    Py68AstList *finally_body;
+    struct Py68TryCompile *parent;
+} Py68TryCompile;
+
 static void py68_loop_context_initialize(Py68LoopContext *loop,
                                          Py68U32 continue_target,
                                          int pop_on_break)
@@ -162,6 +167,7 @@ static Py68U8 py68_augmented_opcode(Py68U16 operator_kind)
     case PY68_TOKEN_PLUS_ASSIGN: return OP_ADD;
     case PY68_TOKEN_MINUS_ASSIGN: return OP_SUBTRACT;
     case PY68_TOKEN_STAR_ASSIGN: return OP_MULTIPLY;
+    case PY68_TOKEN_SLASH_ASSIGN: return OP_TRUE_DIVIDE;
     case PY68_TOKEN_FLOOR_DIVIDE_ASSIGN: return OP_FLOOR_DIVIDE;
     case PY68_TOKEN_PERCENT_ASSIGN: return OP_MODULO;
     default: return OP_HALT;
@@ -175,13 +181,22 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
                                           const Py68SymbolAnalysis *analysis,
                                           const Py68FunctionSymbols *function);
 
+static Py68Status py68_compile_finally_chain(Py68Allocator *allocator,
+                                             const Py68Source *source,
+                                             Py68Code *code, Py68Error *error,
+                                             Py68LoopContext *loop,
+                                             const Py68SymbolAnalysis *analysis,
+                                             const Py68FunctionSymbols *function,
+                                             Py68TryCompile *try_ctx);
+
 static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                           const Py68Source *source,
                                           Py68AstList *statements,
                                           Py68Code *code, Py68Error *error,
                                           Py68LoopContext *loop,
                                           const Py68SymbolAnalysis *analysis,
-                                          const Py68FunctionSymbols *function)
+                                          const Py68FunctionSymbols *function,
+                                          Py68TryCompile *try_ctx)
 {
     Py68U16 index;
     Py68AstNode *statement;
@@ -192,6 +207,25 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
         switch ((Py68AstKind)statement->kind) {
         case PY68_AST_ASSIGN:
             if (statement->as.assign.target != NULL &&
+                statement->as.assign.target->kind == PY68_AST_ATTRIBUTE) {
+                Py68AstNode *attr = statement->as.assign.target;
+                Py68U16 name_index;
+                status = py68_compile_expression(
+                    allocator, source, attr->as.attribute.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, statement->as.assign.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_code_add_name(allocator, code,
+                                            attr->as.attribute.name_offset,
+                                            attr->as.attribute.name_length,
+                                            &name_index);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_u16_op(allocator, code, OP_STORE_ATTR,
+                                          name_index);
+            } else if (statement->as.assign.target != NULL &&
                 statement->as.assign.target->kind == PY68_AST_INDEX) {
                 Py68AstNode *index_target = statement->as.assign.target;
                 status = py68_compile_expression(
@@ -259,7 +293,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             status = py68_compile_statements(allocator, source,
                                              &statement->as.if_statement.body,
                                              code, error, loop, analysis,
-                                             function);
+                                             function, try_ctx);
             if (status != PY68_STATUS_OK) return status;
             status = py68_emit_jump(allocator, code, OP_JUMP, &end_operand);
             if (status != PY68_STATUS_OK) return status;
@@ -268,7 +302,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             status = py68_compile_statements(allocator, source,
                                              &statement->as.if_statement.else_body,
                                              code, error, loop, analysis,
-                                             function);
+                                             function, try_ctx);
             if (status != PY68_STATUS_OK) return status;
             status = py68_patch_jump(code, end_operand, code->bytecode_length);
             break;
@@ -289,7 +323,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             status = py68_compile_statements(allocator, source,
                                              &statement->as.while_statement.body,
                                              code, error, &while_loop,
-                                             analysis, function);
+                                             analysis, function, try_ctx);
             if (status != PY68_STATUS_OK) {
                 py68_loop_context_destroy(allocator, &while_loop);
                 return status;
@@ -304,7 +338,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 status = py68_compile_statements(
                     allocator, source,
                     &statement->as.while_statement.else_body,
-                    code, error, loop, analysis, function);
+                    code, error, loop, analysis, function, try_ctx);
             }
             if (status == PY68_STATUS_OK)
                 status = py68_loop_context_patch_breaks(code, &while_loop,
@@ -360,7 +394,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             status = py68_compile_statements(allocator, source,
                                              &statement->as.for_statement.body,
                                              code, error, &for_loop, analysis,
-                                             function);
+                                             function, try_ctx);
             if (status != PY68_STATUS_OK) {
                 py68_loop_context_destroy(allocator, &for_loop);
                 return status;
@@ -375,7 +409,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 status = py68_compile_statements(
                     allocator, source,
                     &statement->as.for_statement.else_body,
-                    code, error, loop, analysis, function);
+                    code, error, loop, analysis, function, try_ctx);
             }
             if (status == PY68_STATUS_OK)
                 status = py68_loop_context_patch_breaks(code, &for_loop,
@@ -390,6 +424,10 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                    "break outside loop");
                 return PY68_STATUS_SOURCE_ERROR;
             }
+            status = py68_compile_finally_chain(allocator, source, code, error,
+                                               loop, analysis, function,
+                                               try_ctx);
+            if (status != PY68_STATUS_OK) return status;
             if (loop->pop_on_break) {
                 status = py68_emit_op(allocator, code, OP_POP);
                 if (status != PY68_STATUS_OK) return status;
@@ -406,6 +444,10 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                    "continue outside loop");
                 return PY68_STATUS_SOURCE_ERROR;
             }
+            status = py68_compile_finally_chain(allocator, source, code, error,
+                                               loop, analysis, function,
+                                               try_ctx);
+            if (status != PY68_STATUS_OK) return status;
             status = py68_emit_jump(allocator, code, OP_JUMP, &continue_operand);
             if (status != PY68_STATUS_OK) return status;
             status = py68_patch_jump(code, continue_operand, loop->continue_target);
@@ -422,8 +464,16 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                     allocator, source, statement->as.return_statement.value,
                     code, error, analysis, function);
                 if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_finally_chain(allocator, source, code,
+                                                    error, loop, analysis,
+                                                    function, try_ctx);
+                if (status != PY68_STATUS_OK) return status;
                 status = py68_emit_op(allocator, code, OP_RETURN_VALUE);
             } else {
+                status = py68_compile_finally_chain(allocator, source, code,
+                                                    error, loop, analysis,
+                                                    function, try_ctx);
+                if (status != PY68_STATUS_OK) return status;
                 status = py68_emit_op(allocator, code, OP_RETURN_NONE);
             }
             break;
@@ -460,7 +510,7 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 nested_symbols->parameter_count + nested_symbols->local_count);
             status = py68_compile_statements(
                 allocator, source, &statement->as.function_def.body,
-                nested_code, error, NULL, analysis, nested_symbols);
+                nested_code, error, NULL, analysis, nested_symbols, NULL);
             if (status != PY68_STATUS_OK) return status;
             status = py68_emit_op(allocator, nested_code, OP_RETURN_NONE);
             if (status != PY68_STATUS_OK) return status;
@@ -484,6 +534,246 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                                       def_name_index);
             break;
         }
+        case PY68_AST_RAISE:
+            if (statement->as.raise_statement.value != NULL) {
+                status = py68_compile_expression(
+                    allocator, source, statement->as.raise_statement.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+            } else {
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            status = py68_emit_op(allocator, code, OP_RAISE);
+            break;
+        case PY68_AST_IMPORT: {
+            Py68U16 name_index;
+            status = py68_code_add_name(allocator, code,
+                                        statement->as.import_statement.name_offset,
+                                        statement->as.import_statement.name_length,
+                                        &name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_IMPORT_NAME,
+                                      name_index);
+            if (status != PY68_STATUS_OK) return status;
+            if (statement->as.import_statement.as_length != 0)
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    statement->as.import_statement.as_offset,
+                    statement->as.import_statement.as_length);
+            else
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    statement->as.import_statement.name_offset,
+                    statement->as.import_statement.name_length);
+            break;
+        }
+        case PY68_AST_IMPORT_FROM: {
+            Py68U16 name_index;
+            Py68U16 alias_index;
+            status = py68_code_add_name(allocator, code,
+                                        statement->as.import_from.module_offset,
+                                        statement->as.import_from.module_length,
+                                        &name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_IMPORT_NAME,
+                                      name_index);
+            if (status != PY68_STATUS_OK) return status;
+            for (index = 0; index < statement->as.import_from.names.count;
+                 ++index) {
+                Py68AstNode *alias =
+                    statement->as.import_from.names.items[index];
+                status = py68_emit_op(allocator, code, OP_DUP);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_code_add_name(allocator, code,
+                                            alias->as.import_alias.name_offset,
+                                            alias->as.import_alias.name_length,
+                                            &alias_index);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_u16_op(allocator, code, OP_IMPORT_FROM,
+                                          alias_index);
+                if (status != PY68_STATUS_OK) return status;
+                if (alias->as.import_alias.as_length != 0)
+                    status = py68_emit_store_name(
+                        allocator, source, function, code,
+                        alias->as.import_alias.as_offset,
+                        alias->as.import_alias.as_length);
+                else
+                    status = py68_emit_store_name(
+                        allocator, source, function, code,
+                        alias->as.import_alias.name_offset,
+                        alias->as.import_alias.name_length);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            status = py68_emit_op(allocator, code, OP_POP);
+            break;
+        }
+        case PY68_AST_TRY: {
+            Py68U32 handler_operand;
+            Py68U32 success_operand;
+            Py68U32 done_jumps[16];
+            Py68U16 done_count = 0;
+            Py68TryCompile child;
+            Py68U16 handler_index;
+            child.finally_body = &statement->as.try_statement.finally_body;
+            child.parent = try_ctx;
+            status = py68_emit_jump(allocator, code, OP_SETUP_TRY,
+                                    &handler_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_statements(allocator, source,
+                                             &statement->as.try_statement.body,
+                                             code, error, loop, analysis,
+                                             function, &child);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_POP_TRY);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_jump(allocator, code, OP_JUMP, &success_operand);
+            if (status != PY68_STATUS_OK) return status;
+            if (done_count >= 16) return PY68_STATUS_INTERNAL_ERROR;
+            done_jumps[done_count++] = success_operand;
+            status = py68_patch_jump(code, handler_operand,
+                                     code->bytecode_length);
+            if (status != PY68_STATUS_OK) return status;
+            for (handler_index = 0;
+                 handler_index < statement->as.try_statement.handlers.count;
+                 ++handler_index) {
+                Py68AstNode *handler =
+                    statement->as.try_statement.handlers.items[handler_index];
+                Py68U32 next_handler = 0;
+                Py68U32 handled_jump;
+                if (handler->as.except_handler.type != NULL) {
+                    status = py68_compile_expression(
+                        allocator, source, handler->as.except_handler.type,
+                        code, error, analysis, function);
+                    if (status != PY68_STATUS_OK) return status;
+                    status = py68_emit_jump(allocator, code, OP_CHECK_EXCEPT,
+                                            &next_handler);
+                    if (status != PY68_STATUS_OK) return status;
+                }
+                if (handler->as.except_handler.as_length != 0) {
+                    status = py68_emit_store_name(
+                        allocator, source, function, code,
+                        handler->as.except_handler.as_offset,
+                        handler->as.except_handler.as_length);
+                } else {
+                    status = py68_emit_op(allocator, code, OP_POP);
+                }
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_statements(
+                    allocator, source, &handler->as.except_handler.body,
+                    code, error, loop, analysis, function, &child);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_jump(allocator, code, OP_JUMP, &handled_jump);
+                if (status != PY68_STATUS_OK) return status;
+                if (done_count >= 16) return PY68_STATUS_INTERNAL_ERROR;
+                done_jumps[done_count++] = handled_jump;
+                if (next_handler != 0) {
+                    status = py68_patch_jump(code, next_handler,
+                                             code->bytecode_length);
+                    if (status != PY68_STATUS_OK) return status;
+                }
+            }
+            if (statement->as.try_statement.finally_body.count > 0) {
+                status = py68_compile_statements(
+                    allocator, source,
+                    &statement->as.try_statement.finally_body,
+                    code, error, loop, analysis, function, try_ctx);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            status = py68_emit_op(allocator, code, OP_RAISE);
+            if (status != PY68_STATUS_OK) return status;
+            for (handler_index = 0; handler_index < done_count;
+                 ++handler_index) {
+                status = py68_patch_jump(code, done_jumps[handler_index],
+                                         code->bytecode_length);
+                if (status != PY68_STATUS_OK) return status;
+            }
+            if (statement->as.try_statement.finally_body.count > 0) {
+                status = py68_compile_statements(
+                    allocator, source,
+                    &statement->as.try_statement.finally_body,
+                    code, error, loop, analysis, function, try_ctx);
+            }
+            break;
+        }
+        case PY68_AST_WITH: {
+            Py68U16 enter_index;
+            Py68U16 exit_index;
+            Py68U32 handler_operand;
+            Py68U32 end_operand;
+            status = py68_compile_expression(
+                allocator, source, statement->as.with_statement.context,
+                code, error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_DUP);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_code_add_interned_name(allocator, code, "__enter__",
+                                                 9, &enter_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_code_add_interned_name(allocator, code, "__exit__",
+                                                 8, &exit_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_LOAD_ATTR,
+                                      enter_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u8_op(allocator, code, OP_CALL, 0);
+            if (status != PY68_STATUS_OK) return status;
+            if (statement->as.with_statement.as_length != 0)
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    statement->as.with_statement.as_offset,
+                    statement->as.with_statement.as_length);
+            else
+                status = py68_emit_op(allocator, code, OP_POP);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_jump(allocator, code, OP_SETUP_TRY,
+                                    &handler_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_statements(allocator, source,
+                                             &statement->as.with_statement.body,
+                                             code, error, loop, analysis,
+                                             function, try_ctx);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_POP_TRY);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_LOAD_ATTR,
+                                      exit_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_u8_op(allocator, code, OP_CALL, 3);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_POP);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_jump(allocator, code, OP_JUMP, &end_operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_patch_jump(code, handler_operand,
+                                     code->bytecode_length);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_ROT_TWO);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_LOAD_ATTR,
+                                      exit_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_u8_op(allocator, code, OP_CALL, 3);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_POP);
+            if (status == PY68_STATUS_OK)
+                status = py68_emit_op(allocator, code, OP_RAISE);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_patch_jump(code, end_operand, code->bytecode_length);
+            break;
+        }
         default:
             status = PY68_STATUS_OK;
             break;
@@ -491,6 +781,26 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
         if (status != PY68_STATUS_OK) return status;
     }
     return PY68_STATUS_OK;
+}
+
+static Py68Status py68_compile_finally_chain(Py68Allocator *allocator,
+                                             const Py68Source *source,
+                                             Py68Code *code, Py68Error *error,
+                                             Py68LoopContext *loop,
+                                             const Py68SymbolAnalysis *analysis,
+                                             const Py68FunctionSymbols *function,
+                                             Py68TryCompile *try_ctx)
+{
+    Py68TryCompile *cursor = try_ctx;
+    Py68Status status = PY68_STATUS_OK;
+    while (cursor != NULL && status == PY68_STATUS_OK) {
+        if (cursor->finally_body != NULL && cursor->finally_body->count > 0)
+            status = py68_compile_statements(
+                allocator, source, cursor->finally_body, code, error, loop,
+                analysis, function, cursor->parent);
+        cursor = cursor->parent;
+    }
+    return status;
 }
 
 static Py68Status py68_compile_expression(Py68Allocator *allocator,
@@ -512,6 +822,17 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         constant.kind = PY68_CONSTANT_INTEGER;
         constant.flags = 0;
         constant.integer = node->as.integer_literal.value;
+        constant.offset = 0;
+        constant.length = 0;
+        status = py68_code_add_constant(allocator, code, constant, &index);
+        if (status != PY68_STATUS_OK) return status;
+        return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
+    }
+    case PY68_AST_FLOAT: {
+        Py68Constant constant;
+        constant.kind = PY68_CONSTANT_FLOAT;
+        constant.flags = 0;
+        constant.integer = (Py68I32)node->as.float_literal.bits;
         constant.offset = 0;
         constant.length = 0;
         status = py68_code_add_constant(allocator, code, constant, &index);
@@ -583,6 +904,7 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         case PY68_TOKEN_PLUS: return py68_emit_op(allocator, code, OP_ADD);
         case PY68_TOKEN_MINUS: return py68_emit_op(allocator, code, OP_SUBTRACT);
         case PY68_TOKEN_STAR: return py68_emit_op(allocator, code, OP_MULTIPLY);
+        case PY68_TOKEN_SLASH: return py68_emit_op(allocator, code, OP_TRUE_DIVIDE);
         case PY68_TOKEN_FLOOR_DIVIDE: return py68_emit_op(allocator, code, OP_FLOOR_DIVIDE);
         case PY68_TOKEN_PERCENT: return py68_emit_op(allocator, code, OP_MODULO);
         case PY68_TOKEN_EQUAL: return py68_emit_op(allocator, code, OP_EQUAL);
@@ -603,6 +925,50 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
         }
         return py68_emit_u16_op(allocator, code, OP_BUILD_LIST, element_count);
+    case PY68_AST_TUPLE:
+        element_count = node->as.list_literal.elements.count;
+        for (index = 0; index < element_count; ++index) {
+            status = py68_compile_expression(allocator, source,
+                node->as.list_literal.elements.items[index], code, error,
+                analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return py68_emit_u16_op(allocator, code, OP_BUILD_TUPLE, element_count);
+    case PY68_AST_SET:
+        element_count = node->as.list_literal.elements.count;
+        for (index = 0; index < element_count; ++index) {
+            status = py68_compile_expression(allocator, source,
+                node->as.list_literal.elements.items[index], code, error,
+                analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return py68_emit_u16_op(allocator, code, OP_BUILD_SET, element_count);
+    case PY68_AST_DICT:
+        element_count = node->as.dict_literal.keys.count;
+        for (index = 0; index < element_count; ++index) {
+            status = py68_compile_expression(allocator, source,
+                node->as.dict_literal.keys.items[index], code, error,
+                analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source,
+                node->as.dict_literal.values.items[index], code, error,
+                analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return py68_emit_u16_op(allocator, code, OP_BUILD_DICT, element_count);
+    case PY68_AST_ATTRIBUTE: {
+        Py68U16 name_index;
+        status = py68_compile_expression(allocator, source,
+                                          node->as.attribute.value, code,
+                                          error, analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_code_add_name(allocator, code,
+                                    node->as.attribute.name_offset,
+                                    node->as.attribute.name_length,
+                                    &name_index);
+        if (status != PY68_STATUS_OK) return status;
+        return py68_emit_u16_op(allocator, code, OP_LOAD_ATTR, name_index);
+    }
     case PY68_AST_CALL:
         status = py68_compile_expression(allocator, source,
                                          node->as.call.callee, code, error,
@@ -675,7 +1041,8 @@ Py68Status py68_compile_module(Py68Allocator *allocator,
         code->source_length = source->length;
         status = py68_compile_statements(allocator, source,
                                          &module->as.module.statements,
-                                         code, error, NULL, &analysis, NULL);
+                                         code, error, NULL, &analysis, NULL,
+                                         NULL);
         if (status == PY68_STATUS_OK) {
             status = py68_emit_op(allocator, code, OP_HALT);
         }

@@ -1,6 +1,6 @@
 # Python68K
 
-**Version 0.2.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
+**Version 0.5.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
 
 Python68K is a deliberately restricted, Python-compatible language and runtime for classic **Motorola 68000** Amiga systems (AmigaOS 2.x+), with a modern **Linux/host** build for development and testing.
 
@@ -10,37 +10,48 @@ Executable name: `pythonami`
 
 ---
 
-## Features (Language Level 0.1 + 0.2.0 I/O)
+## Features (Language Level 0.1–0.5)
 
 ### Values and operators
-- Scalars: integers (signed 32-bit, checked overflow), `True` / `False`, `None`
-- Arithmetic: `+ - * // %` with Python floor-division and modulo for negatives
-- Comparisons: `== != < <= > >=` (bool compares as 0/1; `None == None`)
+- Scalars: integers (signed 32-bit, checked overflow), IEEE-754 binary32 `float` (soft-float, no NaN/Inf), `True` / `False`, `None`
+- Arithmetic: `+ - * / // %` (`/` is true divide → float; `//` is floor-int)
+- Comparisons: `== != < <= > >=` (bool as 0/1; `None == None`; str/list/tuple equality)
 - Unary: `+ - not`
-- Short-circuit `and` / `or` (value-preserving; empty string/list are falsy)
+- Short-circuit `and` / `or` (value-preserving; empty containers are falsy)
 
 ### Control flow
 - `if` / `elif` / `else`
-- `while` … `else`, `for … in range(...)` … `else`
+- `while` … `else`, `for … in` range/list/tuple/dict/set … `else`
 - `break` / `continue` (including `break` inside `for`)
+- `try` / `except` / `except Type as e` / `finally` / `raise`
+- `with fopen(...) as f`
 
 ### Data
-- Lists: literals, index get/set (including nested), concat, slice, `list_append` / `list_pop`
+- Lists: literals, index get/set, concat, slice, `list_append` / `list_pop` and `.append` / `.pop`
+- Tuples: parenthesized `(a, b)`, `(a,)`, `()`
+- Dicts: `{k: v}`, subscript get/set, `.get` / `.keys` / `.values` / `.items` / `.pop`
+- Sets: `{a, b}`, `set()`, `.add` / `.remove` / `.discard`
 - Strings: literals, concat, index, slice, `len`
-- `range(stop)`, `range(start, stop)`, `range(start, stop, step)` (including negative step)
+- Limited attributes (`obj.name` → bound method or module export)
+- `range(stop)`, `range(start, stop)`, `range(start, stop, step)`
 
 ### Functions
 - `def` with parameters and locals, recursion, explicit/`None` return
 - Local shadowing of globals; unbound local reads raise errors
 - Augmented assignment: `+= -= *= //= %=`
 
+### Imports (0.5)
+- `import name`, `import name as alias`, `from name import a, b`
+- Search: importer directory, then `sys.path`
+- Builtin module `sys` (`path`, `modules`, `argv`)
+
 ### Builtins (core)
-`print`, `input`, `len`, `range`, `list_append`, `list_pop`, `int`, `str`, `bool`, `abs`, `min`, `max`, `exit`
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `exit`
 
 `input([prompt])` writes an optional prompt (no newline), flushes stdout, reads one line from the console, and returns it without the trailing newline.
 
 ### File I/O (0.2.0)
-Function builtins (no method-style file objects — no attribute access yet):
+Function builtins plus `with fopen(...) as f` (`__enter__`/`__exit__` close the handle):
 
 | Builtin | Notes |
 |---------|--------|
@@ -67,8 +78,8 @@ Amiga uses DOS `Open`/`Read`/`Write`/`Seek`/`Close`/`Lock`/`DeleteFile`/`Rename`
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback
 
-### Not in 0.2.0
-Classes, imports, exceptions as objects, floats, Unicode, dicts, comprehensions, closures, nested `def`, method-style `open()`, `with`, seek, Amiga `ENV:` GetVar/SetVar, argv list, frozen emulator/hardware differential sign-off.
+### Not in 0.5.0
+Classes, Unicode, bytes, comprehensions, closures, nested `def`, method-style `open()`, seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
 
 ---
 

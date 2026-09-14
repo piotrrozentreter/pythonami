@@ -245,6 +245,30 @@ static Py68Status py68_collect_expression(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
         }
         return PY68_STATUS_OK;
+    case PY68_AST_TUPLE:
+    case PY68_AST_SET:
+        for (index = 0; index < node->as.list_literal.elements.count; ++index) {
+            status = py68_collect_expression(
+                allocator, source, function,
+                node->as.list_literal.elements.items[index]);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return PY68_STATUS_OK;
+    case PY68_AST_DICT:
+        for (index = 0; index < node->as.dict_literal.keys.count; ++index) {
+            status = py68_collect_expression(
+                allocator, source, function,
+                node->as.dict_literal.keys.items[index]);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_collect_expression(
+                allocator, source, function,
+                node->as.dict_literal.values.items[index]);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return PY68_STATUS_OK;
+    case PY68_AST_ATTRIBUTE:
+        return py68_collect_expression(allocator, source, function,
+                                       node->as.attribute.value);
     default:
         return PY68_STATUS_OK;
     }
@@ -346,6 +370,86 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
             status = py68_collect_expression(allocator, source, function,
                                               statement->as.expression_statement.value);
             break;
+        case PY68_AST_RAISE:
+            status = py68_collect_expression(allocator, source, function,
+                                              statement->as.raise_statement.value);
+            break;
+        case PY68_AST_TRY: {
+            Py68U16 handler_index;
+            status = py68_collect_statements(allocator, source, function,
+                                             &statement->as.try_statement.body,
+                                             error);
+            for (handler_index = 0;
+                 status == PY68_STATUS_OK &&
+                 handler_index < statement->as.try_statement.handlers.count;
+                 ++handler_index) {
+                Py68AstNode *handler =
+                    statement->as.try_statement.handlers.items[handler_index];
+                if (handler->as.except_handler.as_length != 0)
+                    status = py68_add_local(
+                        allocator, source, function,
+                        handler->as.except_handler.as_offset,
+                        handler->as.except_handler.as_length);
+                if (status == PY68_STATUS_OK)
+                    status = py68_collect_expression(
+                        allocator, source, function,
+                        handler->as.except_handler.type);
+                if (status == PY68_STATUS_OK)
+                    status = py68_collect_statements(
+                        allocator, source, function,
+                        &handler->as.except_handler.body, error);
+            }
+            if (status == PY68_STATUS_OK)
+                status = py68_collect_statements(
+                    allocator, source, function,
+                    &statement->as.try_statement.finally_body, error);
+            break;
+        }
+        case PY68_AST_WITH:
+            status = py68_collect_expression(
+                allocator, source, function,
+                statement->as.with_statement.context);
+            if (status == PY68_STATUS_OK &&
+                statement->as.with_statement.as_length != 0)
+                status = py68_add_local(allocator, source, function,
+                                        statement->as.with_statement.as_offset,
+                                        statement->as.with_statement.as_length);
+            if (status == PY68_STATUS_OK)
+                status = py68_collect_statements(
+                    allocator, source, function,
+                    &statement->as.with_statement.body, error);
+            break;
+        case PY68_AST_IMPORT:
+            if (statement->as.import_statement.as_length != 0)
+                status = py68_add_local(allocator, source, function,
+                                        statement->as.import_statement.as_offset,
+                                        statement->as.import_statement.as_length);
+            else
+                status = py68_add_local(
+                    allocator, source, function,
+                    statement->as.import_statement.name_offset,
+                    statement->as.import_statement.name_length);
+            break;
+        case PY68_AST_IMPORT_FROM: {
+            Py68U16 alias_index;
+            status = PY68_STATUS_OK;
+            for (alias_index = 0;
+                 status == PY68_STATUS_OK &&
+                 alias_index < statement->as.import_from.names.count;
+                 ++alias_index) {
+                Py68AstNode *alias =
+                    statement->as.import_from.names.items[alias_index];
+                if (alias->as.import_alias.as_length != 0)
+                    status = py68_add_local(allocator, source, function,
+                                            alias->as.import_alias.as_offset,
+                                            alias->as.import_alias.as_length);
+                else
+                    status = py68_add_local(allocator, source, function,
+                                            alias->as.import_alias.name_offset,
+                                            alias->as.import_alias.name_length);
+            }
+            break;
+        }
         default:
             status = PY68_STATUS_OK;
             break;
@@ -393,6 +497,54 @@ static Py68Status py68_analyze_statement(Py68Allocator *allocator,
         return py68_add_global(allocator, source, analysis,
                                statement->as.augmented_assign.target->as.name.offset,
                                statement->as.augmented_assign.target->as.name.length);
+    }
+    if (statement->kind == PY68_AST_IMPORT) {
+        if (statement->as.import_statement.as_length != 0)
+            return py68_add_global(allocator, source, analysis,
+                                   statement->as.import_statement.as_offset,
+                                   statement->as.import_statement.as_length);
+        return py68_add_global(allocator, source, analysis,
+                               statement->as.import_statement.name_offset,
+                               statement->as.import_statement.name_length);
+    }
+    if (statement->kind == PY68_AST_IMPORT_FROM) {
+        Py68U16 alias_index;
+        for (alias_index = 0;
+             alias_index < statement->as.import_from.names.count;
+             ++alias_index) {
+            Py68AstNode *alias =
+                statement->as.import_from.names.items[alias_index];
+            if (alias->as.import_alias.as_length != 0)
+                status = py68_add_global(allocator, source, analysis,
+                                         alias->as.import_alias.as_offset,
+                                         alias->as.import_alias.as_length);
+            else
+                status = py68_add_global(allocator, source, analysis,
+                                         alias->as.import_alias.name_offset,
+                                         alias->as.import_alias.name_length);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return PY68_STATUS_OK;
+    }
+    if (statement->kind == PY68_AST_WITH &&
+        statement->as.with_statement.as_length != 0)
+        return py68_add_global(allocator, source, analysis,
+                               statement->as.with_statement.as_offset,
+                               statement->as.with_statement.as_length);
+    if (statement->kind == PY68_AST_TRY) {
+        Py68U16 handler_index;
+        for (handler_index = 0;
+             handler_index < statement->as.try_statement.handlers.count;
+             ++handler_index) {
+            Py68AstNode *handler =
+                statement->as.try_statement.handlers.items[handler_index];
+            if (handler->as.except_handler.as_length != 0) {
+                status = py68_add_global(allocator, source, analysis,
+                                         handler->as.except_handler.as_offset,
+                                         handler->as.except_handler.as_length);
+                if (status != PY68_STATUS_OK) return status;
+            }
+        }
     }
     return PY68_STATUS_OK;
 }

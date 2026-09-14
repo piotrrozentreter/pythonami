@@ -105,6 +105,19 @@ int main(void)
                         &module, &error),
           "break outside loop is rejected");
     py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "class Thing:\n    pass\n",
+                                  &arena, &module, &error),
+                    "class is rejected");
+    passed &= check(error.kind == PY68_ERROR_SYNTAX &&
+                    strstr(error.message, "class is not supported") != NULL,
+                    "class diagnostic names the keyword");
+    py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "from .x import y\n",
+                                  &arena, &module, &error),
+                    "relative import is rejected");
+    passed &= check(strstr(error.message, "relative imports") != NULL,
+                    "relative import diagnostic is targeted");
+    py68_ast_arena_destroy(&arena);
     passed &= check(allocator.stats.current_bytes == 0,
                     "statement parser releases all allocations");
     if (passed) {

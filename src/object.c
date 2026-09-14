@@ -8,6 +8,13 @@
 #include "py68k_native.h"
 #include "py68k_range.h"
 #include "py68k_file.h"
+#include "py68k_tuple.h"
+#include "py68k_dict.h"
+#include "py68k_set.h"
+#include "py68k_attr.h"
+#include "py68k_exception.h"
+#include "py68k_module.h"
+#include "py68k_native.h"
 
 #include <stddef.h>
 
@@ -67,6 +74,51 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
                   sizeof(Py68Range));
     } else if (object->type == PY68_OBJECT_FILE) {
         py68_file_destroy(runtime, (Py68File *)object);
+    } else if (object->type == PY68_OBJECT_TUPLE) {
+        Py68Tuple *tuple = (Py68Tuple *)object;
+        Py68U32 index;
+        for (index = 0; index < tuple->count; ++index)
+            py68_value_release(runtime, tuple->items[index]);
+        py68_free(&runtime->allocator, PY68_MEM_TUPLE, tuple->items,
+                  tuple->count * sizeof(Py68Value));
+        py68_free(&runtime->allocator, PY68_MEM_TUPLE, tuple,
+                  sizeof(Py68Tuple));
+    } else if (object->type == PY68_OBJECT_DICT) {
+        Py68Dict *dict = (Py68Dict *)object;
+        Py68U32 index;
+        for (index = 0; index < dict->capacity; ++index) {
+            if (dict->entries[index].used == 1) {
+                py68_value_release(runtime, dict->entries[index].key);
+                py68_value_release(runtime, dict->entries[index].value);
+            }
+        }
+        py68_free(&runtime->allocator, PY68_MEM_DICT, dict->entries,
+                  dict->capacity * sizeof(Py68DictEntry));
+        py68_free(&runtime->allocator, PY68_MEM_DICT, dict, sizeof(Py68Dict));
+    } else if (object->type == PY68_OBJECT_SET) {
+        Py68Set *set = (Py68Set *)object;
+        Py68U32 index;
+        for (index = 0; index < set->capacity; ++index) {
+            if (set->entries[index].used == 1)
+                py68_value_release(runtime, set->entries[index].value);
+        }
+        py68_free(&runtime->allocator, PY68_MEM_SET, set->entries,
+                  set->capacity * sizeof(Py68SetEntry));
+        py68_free(&runtime->allocator, PY68_MEM_SET, set, sizeof(Py68Set));
+    } else if (object->type == PY68_OBJECT_BOUND_METHOD) {
+        Py68BoundMethod *method = (Py68BoundMethod *)object;
+        py68_value_release(runtime, method->self);
+        py68_object_release(runtime, &method->function->base);
+        py68_free(&runtime->allocator, PY68_MEM_FUNCTION, method,
+                  sizeof(Py68BoundMethod));
+    } else if (object->type == PY68_OBJECT_EXCEPTION) {
+        py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
+                  sizeof(Py68Exception));
+    } else if (object->type == PY68_OBJECT_MODULE) {
+        Py68Module *module = (Py68Module *)object;
+        py68_module_clear(runtime, module);
+        py68_free(&runtime->allocator, PY68_MEM_MODULE, module,
+                  sizeof(Py68Module));
     } else {
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
                   (Py68U32)sizeof(Py68Object));

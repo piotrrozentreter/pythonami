@@ -1,8 +1,10 @@
 /* 2026 by Piotr Rozentreter (Rozsoft) */
 
 #include "py68k_parser.h"
+#include "py68k_float.h"
 
 #include <stddef.h>
+#include <string.h>
 
 static Py68Token *py68_current(Py68ExpressionParser *parser)
 {
@@ -82,8 +84,9 @@ static int py68_precedence(Py68TokenKind kind)
     if (kind == PY68_TOKEN_AND) return 2;
     if (kind >= PY68_TOKEN_EQUAL && kind <= PY68_TOKEN_GREATER_EQUAL) return 3;
     if (kind == PY68_TOKEN_PLUS || kind == PY68_TOKEN_MINUS) return 4;
-    if (kind == PY68_TOKEN_STAR || kind == PY68_TOKEN_FLOOR_DIVIDE ||
-        kind == PY68_TOKEN_PERCENT) return 5;
+    if (kind == PY68_TOKEN_STAR || kind == PY68_TOKEN_SLASH ||
+        kind == PY68_TOKEN_FLOOR_DIVIDE || kind == PY68_TOKEN_PERCENT)
+        return 5;
     return 0;
 }
 
@@ -96,6 +99,35 @@ static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
     Py68I32 value;
 
     if (token == NULL) return PY68_STATUS_SOURCE_ERROR;
+    if (token->kind == PY68_TOKEN_FLOAT) {
+        char buffer[64];
+        Py68U32 index;
+        Py68U32 out = 0;
+        Py68U32 bits;
+        if (token->location.length >= 63) {
+            py68_parser_error(parser, token->location, "float literal is too long");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        for (index = 0; index < token->location.length; ++index) {
+            if (parser->source->data[token->location.offset + index] ==
+                (Py68U8)'_')
+                continue;
+            buffer[out++] =
+                (char)parser->source->data[token->location.offset + index];
+        }
+        buffer[out] = '\0';
+        if (!py68_f32_parse(buffer, out, &bits)) {
+            py68_parser_error(parser, token->location,
+                              "non-finite float literal");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        status = py68_ast_arena_new(parser->arena, PY68_AST_FLOAT,
+                                    token->location, &node);
+        if (status == PY68_STATUS_OK) node->as.float_literal.bits = bits;
+        ++parser->position;
+        *node_out = node;
+        return status;
+    }
     if (token->kind == PY68_TOKEN_INTEGER) {
         status = py68_integer_value(parser->source->data,
                                     token->location.offset,
@@ -179,15 +211,148 @@ static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
         return PY68_STATUS_OK;
     }
     if (py68_accept(parser, PY68_TOKEN_LEFT_PAREN)) {
-        status = py68_parse_expression(parser, node_out);
-        if (status != PY68_STATUS_OK ||
-            !py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
+        Py68AstNode *first;
+        if (py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
+            status = py68_ast_arena_new(parser->arena, PY68_AST_TUPLE,
+                                        token->location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            py68_ast_list_initialize(&node->as.list_literal.elements);
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        status = py68_parse_expression(parser, &first);
+        if (status != PY68_STATUS_OK) return status;
+        if (py68_accept(parser, PY68_TOKEN_COMMA)) {
+            status = py68_ast_arena_new(parser->arena, PY68_AST_TUPLE,
+                                        token->location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            py68_ast_list_initialize(&node->as.list_literal.elements);
+            status = py68_ast_list_append(parser->arena,
+                                          &node->as.list_literal.elements,
+                                          first);
+            if (status != PY68_STATUS_OK) return status;
+            if (!py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
+                for (;;) {
+                    Py68AstNode *element;
+                    status = py68_parse_expression(parser, &element);
+                    if (status != PY68_STATUS_OK) return status;
+                    status = py68_ast_list_append(
+                        parser->arena, &node->as.list_literal.elements,
+                        element);
+                    if (status != PY68_STATUS_OK) return status;
+                    if (py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) break;
+                    if (!py68_accept(parser, PY68_TOKEN_COMMA)) {
+                        token = py68_current(parser);
+                        py68_parser_error(parser, token->location,
+                                          "expected comma or closing parenthesis");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                    if (py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) break;
+                }
+            }
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        if (!py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
             token = py68_current(parser);
             py68_parser_error(parser, token->location,
                               "expected closing parenthesis");
             return PY68_STATUS_SOURCE_ERROR;
         }
-        return status;
+        *node_out = first;
+        return PY68_STATUS_OK;
+    }
+    if (py68_accept(parser, PY68_TOKEN_LEFT_BRACE)) {
+        Py68AstNode *first;
+        if (py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) {
+            status = py68_ast_arena_new(parser->arena, PY68_AST_DICT,
+                                        token->location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            py68_ast_list_initialize(&node->as.dict_literal.keys);
+            py68_ast_list_initialize(&node->as.dict_literal.values);
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        status = py68_parse_expression(parser, &first);
+        if (status != PY68_STATUS_OK) return status;
+        if (py68_accept(parser, PY68_TOKEN_COLON)) {
+            Py68AstNode *value_node;
+            status = py68_ast_arena_new(parser->arena, PY68_AST_DICT,
+                                        token->location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            py68_ast_list_initialize(&node->as.dict_literal.keys);
+            py68_ast_list_initialize(&node->as.dict_literal.values);
+            status = py68_parse_expression(parser, &value_node);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_ast_list_append(parser->arena,
+                                          &node->as.dict_literal.keys, first);
+            if (status == PY68_STATUS_OK)
+                status = py68_ast_list_append(parser->arena,
+                                              &node->as.dict_literal.values,
+                                              value_node);
+            if (status != PY68_STATUS_OK) return status;
+            if (!py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) {
+                for (;;) {
+                    Py68AstNode *key;
+                    Py68AstNode *item;
+                    if (!py68_accept(parser, PY68_TOKEN_COMMA)) {
+                        token = py68_current(parser);
+                        py68_parser_error(parser, token->location,
+                                          "expected comma or closing brace");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                    if (py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) break;
+                    status = py68_parse_expression(parser, &key);
+                    if (status != PY68_STATUS_OK ||
+                        !py68_accept(parser, PY68_TOKEN_COLON)) {
+                        token = py68_current(parser);
+                        py68_parser_error(parser, token->location,
+                                          "expected dictionary key and colon");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                    status = py68_parse_expression(parser, &item);
+                    if (status != PY68_STATUS_OK) return status;
+                    status = py68_ast_list_append(parser->arena,
+                                                  &node->as.dict_literal.keys,
+                                                  key);
+                    if (status == PY68_STATUS_OK)
+                        status = py68_ast_list_append(
+                            parser->arena, &node->as.dict_literal.values, item);
+                    if (status != PY68_STATUS_OK) return status;
+                    if (py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) break;
+                }
+            }
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        status = py68_ast_arena_new(parser->arena, PY68_AST_SET,
+                                    token->location, &node);
+        if (status != PY68_STATUS_OK) return status;
+        py68_ast_list_initialize(&node->as.list_literal.elements);
+        status = py68_ast_list_append(parser->arena,
+                                      &node->as.list_literal.elements, first);
+        if (status != PY68_STATUS_OK) return status;
+        if (!py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) {
+            for (;;) {
+                Py68AstNode *element;
+                if (!py68_accept(parser, PY68_TOKEN_COMMA)) {
+                    token = py68_current(parser);
+                    py68_parser_error(parser, token->location,
+                                      "expected comma or closing brace");
+                    return PY68_STATUS_SOURCE_ERROR;
+                }
+                if (py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) break;
+                status = py68_parse_expression(parser, &element);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_ast_list_append(parser->arena,
+                                              &node->as.list_literal.elements,
+                                              element);
+                if (status != PY68_STATUS_OK) return status;
+                if (py68_accept(parser, PY68_TOKEN_RIGHT_BRACE)) break;
+            }
+        }
+        *node_out = node;
+        return PY68_STATUS_OK;
     }
     py68_parser_error(parser, token->location, "expected expression");
     return PY68_STATUS_SOURCE_ERROR;
@@ -321,6 +486,25 @@ static Py68Status py68_parse_postfix(Py68ExpressionParser *parser,
             suffix->as.slice.start = start;
             suffix->as.slice.end = end;
             node = suffix;
+            continue;
+        }
+        if (py68_accept(parser, PY68_TOKEN_DOT)) {
+            Py68AstNode *attribute;
+            Py68Token *name_token = py68_current(parser);
+            if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME) {
+                token = py68_current(parser);
+                py68_parser_error(parser, token->location,
+                                  "expected attribute name");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            ++parser->position;
+            status = py68_ast_arena_new(parser->arena, PY68_AST_ATTRIBUTE,
+                                        node->location, &attribute);
+            if (status != PY68_STATUS_OK) return status;
+            attribute->as.attribute.value = node;
+            attribute->as.attribute.name_offset = name_token->location.offset;
+            attribute->as.attribute.name_length = name_token->location.length;
+            node = attribute;
             continue;
         }
         break;

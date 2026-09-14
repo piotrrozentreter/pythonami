@@ -16,5 +16,6 @@ enum {
 };
 
 Py68Status py68_vm_execute(Py68Runtime *runtime, Py68Code *code);
+Py68Status py68_vm_execute_module(Py68Runtime *runtime, Py68Code *code);
 
 #endif

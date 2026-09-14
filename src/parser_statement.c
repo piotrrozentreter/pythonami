@@ -3,6 +3,7 @@
 #include "py68k_parser.h"
 
 #include <stddef.h>
+#include <string.h>
 
 static Py68Token *py68_statement_current(Py68StatementParser *parser)
 {
@@ -54,7 +55,8 @@ static int py68_statement_needs_newline(Py68AstKind kind)
     return kind == PY68_AST_ASSIGN || kind == PY68_AST_AUGMENTED_ASSIGN ||
            kind == PY68_AST_RETURN || kind == PY68_AST_BREAK ||
            kind == PY68_AST_CONTINUE || kind == PY68_AST_PASS ||
-           kind == PY68_AST_EXPRESSION_STATEMENT;
+           kind == PY68_AST_RAISE || kind == PY68_AST_IMPORT ||
+           kind == PY68_AST_IMPORT_FROM || kind == PY68_AST_EXPRESSION_STATEMENT;
 }
 
 static Py68Status py68_parse_suite(Py68StatementParser *parser,
@@ -71,6 +73,228 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
 
     if (token == NULL) return py68_statement_error(parser, token,
                                                    "expected statement");
+    if (token->kind == PY68_TOKEN_UNSUPPORTED_KEYWORD) {
+        const Py68U8 *text = parser->expression.source->data +
+                             token->location.offset;
+        if (token->location.length == 5 && memcmp(text, "class", 5) == 0)
+            return py68_statement_error(parser, token,
+                "class is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 6 && memcmp(text, "lambda", 6) == 0)
+            return py68_statement_error(parser, token,
+                "lambda is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 6 && memcmp(text, "global", 6) == 0)
+            return py68_statement_error(parser, token,
+                "global is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 8 && memcmp(text, "nonlocal", 8) == 0)
+            return py68_statement_error(parser, token,
+                "nonlocal is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 5 && memcmp(text, "async", 5) == 0)
+            return py68_statement_error(parser, token,
+                "async is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 5 && memcmp(text, "await", 5) == 0)
+            return py68_statement_error(parser, token,
+                "await is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 5 && memcmp(text, "yield", 5) == 0)
+            return py68_statement_error(parser, token,
+                "yield is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 5 && memcmp(text, "match", 5) == 0)
+            return py68_statement_error(parser, token,
+                "match is not supported by Python68K Language Level 0.5");
+        if (token->location.length == 4 && memcmp(text, "case", 4) == 0)
+            return py68_statement_error(parser, token,
+                "case is not supported by Python68K Language Level 0.5");
+        return py68_statement_error(parser, token,
+            "this keyword is not supported by Python68K Language Level 0.5");
+    }
+    if (token->kind == PY68_TOKEN_IMPORT) {
+        Py68Token *name_token;
+        ++parser->expression.position;
+        name_token = py68_statement_current(parser);
+        if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME)
+            return py68_statement_error(parser, name_token,
+                                        "expected module name");
+        ++parser->expression.position;
+        status = py68_statement_new(parser, PY68_AST_IMPORT, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        node->as.import_statement.name_offset = name_token->location.offset;
+        node->as.import_statement.name_length = name_token->location.length;
+        node->as.import_statement.as_offset = 0;
+        node->as.import_statement.as_length = 0;
+        if (py68_statement_accept(parser, PY68_TOKEN_AS)) {
+            Py68Token *as_token = py68_statement_current(parser);
+            if (as_token == NULL || as_token->kind != PY68_TOKEN_NAME)
+                return py68_statement_error(parser, as_token,
+                                            "expected import alias");
+            ++parser->expression.position;
+            node->as.import_statement.as_offset = as_token->location.offset;
+            node->as.import_statement.as_length = as_token->location.length;
+        }
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
+    if (token->kind == PY68_TOKEN_FROM) {
+        Py68Token *module_token;
+        ++parser->expression.position;
+        if (py68_statement_current(parser) != NULL &&
+            py68_statement_current(parser)->kind == PY68_TOKEN_DOT)
+            return py68_statement_error(parser, py68_statement_current(parser),
+                "relative imports are not supported by Python68K Language Level 0.5");
+        module_token = py68_statement_current(parser);
+        if (module_token == NULL || module_token->kind != PY68_TOKEN_NAME)
+            return py68_statement_error(parser, module_token,
+                                        "expected module name");
+        ++parser->expression.position;
+        if (!py68_statement_accept(parser, PY68_TOKEN_IMPORT))
+            return py68_statement_error(parser, py68_statement_current(parser),
+                                        "expected import");
+        if (py68_statement_current(parser) != NULL &&
+            py68_statement_current(parser)->kind == PY68_TOKEN_STAR)
+            return py68_statement_error(parser, py68_statement_current(parser),
+                "star import is not supported by Python68K Language Level 0.5");
+        status = py68_statement_new(parser, PY68_AST_IMPORT_FROM, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        node->as.import_from.module_offset = module_token->location.offset;
+        node->as.import_from.module_length = module_token->location.length;
+        py68_ast_list_initialize(&node->as.import_from.names);
+        for (;;) {
+            Py68AstNode *alias;
+            Py68Token *import_name = py68_statement_current(parser);
+            if (import_name == NULL || import_name->kind != PY68_TOKEN_NAME)
+                return py68_statement_error(parser, import_name,
+                                            "expected imported name");
+            ++parser->expression.position;
+            status = py68_statement_new(parser, PY68_AST_IMPORT_ALIAS,
+                                        import_name, &alias);
+            if (status != PY68_STATUS_OK) return status;
+            alias->as.import_alias.name_offset = import_name->location.offset;
+            alias->as.import_alias.name_length = import_name->location.length;
+            alias->as.import_alias.as_offset = 0;
+            alias->as.import_alias.as_length = 0;
+            if (py68_statement_accept(parser, PY68_TOKEN_AS)) {
+                Py68Token *as_token = py68_statement_current(parser);
+                if (as_token == NULL || as_token->kind != PY68_TOKEN_NAME)
+                    return py68_statement_error(parser, as_token,
+                                                "expected import alias");
+                ++parser->expression.position;
+                alias->as.import_alias.as_offset = as_token->location.offset;
+                alias->as.import_alias.as_length = as_token->location.length;
+            }
+            status = py68_ast_list_append(parser->expression.arena,
+                                          &node->as.import_from.names, alias);
+            if (status != PY68_STATUS_OK) return status;
+            if (!py68_statement_accept(parser, PY68_TOKEN_COMMA)) break;
+        }
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
+    if (token->kind == PY68_TOKEN_RAISE) {
+        ++parser->expression.position;
+        status = py68_statement_new(parser, PY68_AST_RAISE, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        node->as.raise_statement.value = NULL;
+        if (py68_statement_current(parser) != NULL &&
+            py68_statement_current(parser)->kind != PY68_TOKEN_NEWLINE &&
+            py68_statement_current(parser)->kind != PY68_TOKEN_DEDENT &&
+            py68_statement_current(parser)->kind != PY68_TOKEN_EOF) {
+            status = py68_parse_expression(&parser->expression,
+                                           &node->as.raise_statement.value);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
+    if (token->kind == PY68_TOKEN_WITH) {
+        ++parser->expression.position;
+        status = py68_statement_new(parser, PY68_AST_WITH, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_parse_expression(&parser->expression,
+                                       &node->as.with_statement.context);
+        if (status != PY68_STATUS_OK) return status;
+        node->as.with_statement.as_offset = 0;
+        node->as.with_statement.as_length = 0;
+        if (py68_statement_accept(parser, PY68_TOKEN_AS)) {
+            Py68Token *as_token = py68_statement_current(parser);
+            if (as_token == NULL || as_token->kind != PY68_TOKEN_NAME)
+                return py68_statement_error(parser, as_token,
+                                            "expected with target");
+            ++parser->expression.position;
+            node->as.with_statement.as_offset = as_token->location.offset;
+            node->as.with_statement.as_length = as_token->location.length;
+        }
+        if (!py68_statement_accept(parser, PY68_TOKEN_COLON))
+            return py68_statement_error(parser, py68_statement_current(parser),
+                                        "expected with colon");
+        py68_ast_list_initialize(&node->as.with_statement.body);
+        status = py68_parse_suite(parser, &node->as.with_statement.body);
+        if (status != PY68_STATUS_OK) return status;
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
+    if (token->kind == PY68_TOKEN_TRY) {
+        ++parser->expression.position;
+        if (!py68_statement_accept(parser, PY68_TOKEN_COLON))
+            return py68_statement_error(parser, py68_statement_current(parser),
+                                        "expected try colon");
+        status = py68_statement_new(parser, PY68_AST_TRY, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        py68_ast_list_initialize(&node->as.try_statement.body);
+        py68_ast_list_initialize(&node->as.try_statement.handlers);
+        py68_ast_list_initialize(&node->as.try_statement.finally_body);
+        status = py68_parse_suite(parser, &node->as.try_statement.body);
+        if (status != PY68_STATUS_OK) return status;
+        while (py68_statement_accept(parser, PY68_TOKEN_EXCEPT)) {
+            Py68AstNode *handler;
+            Py68Token *except_token = &parser->expression.tokens->items[
+                parser->expression.position - 1];
+            status = py68_statement_new(parser, PY68_AST_EXCEPT_HANDLER,
+                                        except_token, &handler);
+            if (status != PY68_STATUS_OK) return status;
+            handler->as.except_handler.type = NULL;
+            handler->as.except_handler.as_offset = 0;
+            handler->as.except_handler.as_length = 0;
+            py68_ast_list_initialize(&handler->as.except_handler.body);
+            if (!py68_statement_accept(parser, PY68_TOKEN_COLON)) {
+                status = py68_parse_expression(&parser->expression,
+                    &handler->as.except_handler.type);
+                if (status != PY68_STATUS_OK) return status;
+                if (py68_statement_accept(parser, PY68_TOKEN_AS)) {
+                    Py68Token *as_token = py68_statement_current(parser);
+                    if (as_token == NULL || as_token->kind != PY68_TOKEN_NAME)
+                        return py68_statement_error(parser, as_token,
+                                                    "expected except name");
+                    ++parser->expression.position;
+                    handler->as.except_handler.as_offset =
+                        as_token->location.offset;
+                    handler->as.except_handler.as_length =
+                        as_token->location.length;
+                }
+                if (!py68_statement_accept(parser, PY68_TOKEN_COLON))
+                    return py68_statement_error(parser,
+                        py68_statement_current(parser),
+                        "expected except colon");
+            }
+            status = py68_parse_suite(parser, &handler->as.except_handler.body);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_ast_list_append(parser->expression.arena,
+                                          &node->as.try_statement.handlers,
+                                          handler);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        if (py68_statement_accept(parser, PY68_TOKEN_FINALLY)) {
+            if (!py68_statement_accept(parser, PY68_TOKEN_COLON))
+                return py68_statement_error(parser,
+                    py68_statement_current(parser), "expected finally colon");
+            status = py68_parse_suite(parser,
+                                      &node->as.try_statement.finally_body);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        if (node->as.try_statement.handlers.count == 0 &&
+            node->as.try_statement.finally_body.count == 0)
+            return py68_statement_error(parser, token,
+                                        "expected except or finally");
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
     if (token->kind == PY68_TOKEN_IF) {
         Py68AstNode *condition;
         ++parser->expression.position;
@@ -308,6 +532,7 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
             next_kind == PY68_TOKEN_PLUS_ASSIGN ||
             next_kind == PY68_TOKEN_MINUS_ASSIGN ||
             next_kind == PY68_TOKEN_STAR_ASSIGN ||
+            next_kind == PY68_TOKEN_SLASH_ASSIGN ||
             next_kind == PY68_TOKEN_FLOOR_DIVIDE_ASSIGN ||
             next_kind == PY68_TOKEN_PERCENT_ASSIGN) {
             Py68Token target_token = *token;
@@ -352,6 +577,18 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
             node->as.assign.name_length = value->as.name.length;
             node->as.assign.target = NULL;
             node->as.assign.value = NULL;
+            status = py68_parse_expression(&parser->expression,
+                                           &node->as.assign.value);
+            if (status != PY68_STATUS_OK) return status;
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        if (value->kind == PY68_AST_ATTRIBUTE) {
+            status = py68_statement_new(parser, PY68_AST_ASSIGN, token, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.assign.name_offset = 0;
+            node->as.assign.name_length = 0;
+            node->as.assign.target = value;
             status = py68_parse_expression(&parser->expression,
                                            &node->as.assign.value);
             if (status != PY68_STATUS_OK) return status;

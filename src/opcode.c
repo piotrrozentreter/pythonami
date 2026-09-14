@@ -18,12 +18,21 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     static const Py68OpcodeInfo load_local = INFO(3, 1, "LOAD_LOCAL");
     static const Py68OpcodeInfo store_local = INFO(3, -1, "STORE_LOCAL");
     static const Py68OpcodeInfo unary = INFO(1, 0, "UNARY");
+    static const Py68OpcodeInfo rot_two = INFO(1, 0, "ROT_TWO");
     static const Py68OpcodeInfo binary = INFO(1, -1, "BINARY");
     static const Py68OpcodeInfo jump = INFO(3, 0, "JUMP");
     static const Py68OpcodeInfo jump_pop = INFO(3, -1, "JUMP_POP");
     /* Fall-through pops TOS; the jump path keeps TOS (verifier special-cases). */
     static const Py68OpcodeInfo jump_or_pop = INFO(3, -1, "JUMP_OR_POP");
     static const Py68OpcodeInfo build_list = INFO(3, 0, "BUILD_LIST");
+    static const Py68OpcodeInfo load_attr = INFO(3, 0, "LOAD_ATTR");
+    static const Py68OpcodeInfo store_attr = INFO(3, -2, "STORE_ATTR");
+    static const Py68OpcodeInfo setup_try = INFO(3, 0, "SETUP_TRY");
+    static const Py68OpcodeInfo pop_try = INFO(1, 0, "POP_TRY");
+    static const Py68OpcodeInfo raise_op = INFO(1, -1, "RAISE");
+    static const Py68OpcodeInfo import_name = INFO(3, 1, "IMPORT_NAME");
+    static const Py68OpcodeInfo import_from = INFO(3, 1, "IMPORT_FROM");
+    static const Py68OpcodeInfo check_except = INFO(3, -1, "CHECK_EXCEPT");
     static const Py68OpcodeInfo load_index = INFO(1, -1, "LOAD_INDEX");
     static const Py68OpcodeInfo store_index = INFO(1, -3, "STORE_INDEX");
     static const Py68OpcodeInfo load_slice = INFO(1, -2, "LOAD_SLICE");
@@ -42,14 +51,26 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     case OP_LOAD_GLOBAL: return &load_global; case OP_STORE_GLOBAL: return &store_global;
     case OP_LOAD_LOCAL: return &load_local; case OP_STORE_LOCAL: return &store_local;
     case OP_NEGATE: case OP_POSITIVE: case OP_NOT: return &unary;
+    case OP_ROT_TWO: return &rot_two;
     case OP_ADD: case OP_SUBTRACT: case OP_MULTIPLY: case OP_FLOOR_DIVIDE:
-    case OP_MODULO: case OP_EQUAL: case OP_NOT_EQUAL: case OP_LESS:
+    case OP_MODULO: case OP_TRUE_DIVIDE: case OP_EQUAL: case OP_NOT_EQUAL:
+    case OP_LESS:
     case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL: return &binary;
     case OP_JUMP: return &jump; case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE:
         return &jump_pop;
     case OP_JUMP_IF_FALSE_OR_POP: case OP_JUMP_IF_TRUE_OR_POP:
         return &jump_or_pop;
-    case OP_BUILD_LIST: return &build_list; case OP_LOAD_INDEX: return &load_index;
+    case OP_BUILD_LIST: case OP_BUILD_TUPLE: case OP_BUILD_DICT:
+    case OP_BUILD_SET: return &build_list;
+    case OP_LOAD_ATTR: return &load_attr;
+    case OP_STORE_ATTR: return &store_attr;
+    case OP_SETUP_TRY: return &setup_try;
+    case OP_POP_TRY: return &pop_try;
+    case OP_RAISE: return &raise_op;
+    case OP_IMPORT_NAME: return &import_name;
+    case OP_IMPORT_FROM: return &import_from;
+    case OP_CHECK_EXCEPT: return &check_except;
+    case OP_LOAD_INDEX: return &load_index;
     case OP_STORE_INDEX: return &store_index; case OP_LOAD_SLICE: return &load_slice;
     case OP_RANGE_INIT: return &range_init; case OP_RANGE_NEXT: return &range_next;
     case OP_MAKE_FUNCTION: return &make_function; case OP_CALL: return &call;

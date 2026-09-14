@@ -81,3 +81,59 @@
 - Decision: Expose function builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` with modes `r`/`w`/`a`/`rb`/`wb`/`ab`. Binary and text both use string payloads (no `bytes` type). Host installs `getenv`/`setenv`/`unsetenv`; Amiga installs `assign_get`/`assign_add`/`assign_remove` on the same platform_var_* layer (`AssignPath`, `AssignLock(name,0)`, `Lock("name:")`+`NameFromLock`). Platform I/O stays in `file_host.c` / `file_amiga.c`; `PY68_OBJECT_FILE` closes on final release.
 - Alternatives considered: method-style `open()`, Amiga `GetVar`/`SetVar`, full CPython mode matrix (`+`, `x`).
 - Consequences: Scripts targeting Amiga should call `assign_*`. Host tests exercise file APIs and POSIX env. Emulator/hardware assign behavior remains owner-verified.
+
+## D-0013: True divide `/` vs floor divide `//`
+
+- Context: Language Level 0.1 tokenized both `/` and `//` as floor-divide. Level 0.3 adds binary32 float and Python-3 true division.
+- Decision: `/` emits `OP_TRUE_DIVIDE` and always yields a finite `float`. `//` remains integer floor division. NaN and Inf results are rejected as `ValueError`. No 68881 and no Amiga IEEE library: binary32 add/mul/div/parse/print are integer-only software in `src/float.c` (`-cpu=68000 -fpu=0`).
+- Alternatives considered: Keep `/` as floor until a later level; use binary64.
+- Consequences: Existing scripts that used `/` for floor-int must switch to `//`. Decision is a documented language-level break from 0.2.0.
+
+## D-0014: Limited attributes and bound methods
+
+- Context: Level 0.1 had no attribute access; file I/O used function builtins. Dict methods, `with`, and imports need `obj.name`.
+- Decision: `obj.name` compiles to `OP_LOAD_ATTR`. Each heap type has a static method table. Lookup builds a `PY68_OBJECT_BOUND_METHOD` `{self, native}` consumed by `OP_CALL`. Modules resolve attributes in their global table. `STORE_ATTR` is allowed only on module objects. No user-defined attributes or classes.
+- Alternatives considered: Function-style `dict_get` only; full instance dictionaries.
+- Consequences: `list.append` exists alongside `list_append`. `sys.path.append` works because `sys.path` is a list.
+
+## D-0015: Parenthesized tuples only
+
+- Context: `(` `)` already grouped expressions. Bare `a, b` would collide with call and assignment parsing.
+- Decision: Accept only parenthesized tuples: `()`, `(a,)`, `(a, b)`. A single `(expr)` remains grouping.
+- Alternatives considered: Full Python tuple display including unparenthesized targets.
+- Consequences: `return a, b` is a syntax error; write `return (a, b)`.
+
+## D-0016: Hashable keys and cyclic containers
+
+- Context: Dict and set need a value hash/equality protocol. Level 0.1 already rejects cyclic lists.
+- Decision: Hashable: `None`, `bool`, `int`, `str`, and tuples of hashable items. Unhashable keys raise `TypeError`. Inserting a value that would make a dict reachable from itself is `ValueError: cyclic containers are not supported`. `OP_EQUAL` uses the same equality helper (so strings and lists compare).
+- Alternatives considered: Allow all objects as keys via identity; add a tracing GC instead of cycle rejection.
+- Consequences: Deterministic FNV-1a (strings) plus identity-free scalar hashes; no randomized hashing.
+
+## D-0017: Catchable exceptions without classes
+
+- Context: Runtime errors were a single aborting `Py68Error`. Level 0.4 needs `try`/`except`/`finally`/`raise`.
+- Decision: Token/syntax/bytecode/memory/internal errors stay uncatchable. Other `Py68ErrorKind` values become `PY68_OBJECT_EXCEPTION` objects. `OP_SETUP_TRY` / `OP_POP_TRY` record handler IP and stack depth per frame. Matching compares exception kind to a builtin exception-type native (`TypeError`, …), not a class MRO. `finally` bodies are compiled inline before `return`/`break`/`continue`.
+- Alternatives considered: Full exception class hierarchy; CPython block stack with Why flags.
+- Consequences: `except TypeError as e` works; user-defined exception types do not.
+
+## D-0018: `with` as enter / try / finally / exit
+
+- Context: File I/O had no context managers. Level 0.4 adds `with`.
+- Decision: Compile `with EXPR as NAME` to keep the manager on the stack, call `__enter__`, bind the result, wrap the body in `SETUP_TRY`, and call `__exit__(None, None, None)` on both success and handler paths. First context manager: `PY68_OBJECT_FILE` (`__enter__` returns self, `__exit__` closes).
+- Alternatives considered: Method-style `open()`; no `as` target only.
+- Consequences: `with fopen(path, mode) as f:` is the supported form.
+
+## D-0019: Single-directory import loader
+
+- Context: Level 0.1 had no import system. “Module” meant the top-level script code object.
+- Decision: `import` / `from` / `as` compile to `OP_IMPORT_NAME` / `OP_IMPORT_FROM`. The loader reads `name.py` from the importing source directory, then `sys.path` entries. Compiled modules are `PY68_OBJECT_MODULE` objects cached by resolved path. Relative imports and `import *` stay unsupported. `sys` is a builtin module (`path`, `modules`, `argv`).
+- Alternatives considered: Full package/`__init__.py` trees; CPython `.pyc`.
+- Consequences: Multi-file programs work for sibling `.py` files; no CPython bytecode compatibility.
+
+## D-0020: `set` and `dict` are names, not keywords
+
+- Context: The 0.1 tokenizer classified `set` and `dict` as unsupported keywords, unlike Python where they are builtins.
+- Decision: Remove them from the keyword table so they tokenize as `PY68_TOKEN_NAME` and resolve to constructor builtins.
+- Alternatives considered: Keep them as keywords that introduce literal syntax only.
+- Consequences: `set = 1` is a legal (if unwise) assignment that shadows the builtin.

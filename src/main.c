@@ -10,11 +10,13 @@
 #include "py68k_verify.h"
 #include "py68k_vm.h"
 #include "py68k_builtin.h"
+#include "py68k_exception.h"
+#include "py68k_import.h"
 #include "py68k_native.h"
 
 #include <string.h>
 
-#define PY68K_VERSION "Python68K 0.2.0\n"
+#define PY68K_VERSION "Python68K 0.5.0\n"
 #define PY68K_HELP \
     "Usage: pythonami [-V|--help] [-c cmd | script.py]\n"
 
@@ -36,26 +38,6 @@ static Py68U32 py68_format_u32(char *buffer, Py68U32 capacity, Py68U32 value)
         buffer[written++] = digits[--digit_count];
     }
     return written;
-}
-
-static const char *py68_error_kind_name(Py68ErrorKind kind)
-{
-    switch (kind) {
-    case PY68_ERROR_TOKEN: return "TokenError";
-    case PY68_ERROR_SYNTAX: return "SyntaxError";
-    case PY68_ERROR_NAME: return "NameError";
-    case PY68_ERROR_TYPE: return "TypeError";
-    case PY68_ERROR_VALUE: return "ValueError";
-    case PY68_ERROR_INDEX: return "IndexError";
-    case PY68_ERROR_ZERO_DIVISION: return "ZeroDivisionError";
-    case PY68_ERROR_OVERFLOW: return "OverflowError";
-    case PY68_ERROR_RECURSION: return "RecursionError";
-    case PY68_ERROR_MEMORY: return "MemoryError";
-    case PY68_ERROR_IO: return "IOError";
-    case PY68_ERROR_BYTECODE: return "BytecodeError";
-    case PY68_ERROR_INTERNAL: return "InternalError";
-    default: return "Error";
-    }
 }
 
 static Py68Status py68_append_text(char *buffer, Py68U32 capacity,
@@ -139,6 +121,8 @@ static Py68Status py68_execute_source(Py68Runtime *runtime, const char *path,
     if (status != PY68_STATUS_OK) goto cleanup_arena;
     status = py68_builtins_install(runtime);
     if (status != PY68_STATUS_OK) goto cleanup_code;
+    status = py68_sys_install(runtime);
+    if (status != PY68_STATUS_OK) goto cleanup_code;
     status = py68_vm_execute(runtime, &code);
 cleanup_code:
     py68_code_destroy(&runtime->allocator, &code);
@@ -204,9 +188,14 @@ int main(int argc, char **argv)
     } else if (argc == 1) {
         status = py68_write_literal(&runtime, PY68K_HELP);
     } else if (argc == 3 && strcmp(argv[1], "-c") == 0) {
-        status = py68_execute_command(&runtime, argv[2]);
-    } else if (argc == 2) {
-        status = py68_execute_file(&runtime, argv[1]);
+        status = py68_sys_set_argv(&runtime, argc - 1, argv + 1);
+        if (status == PY68_STATUS_OK)
+            status = py68_execute_command(&runtime, argv[2]);
+    } else if (argc >= 2 && argv[1][0] != '-') {
+        py68_set_script_dir(&runtime, argv[1]);
+        status = py68_sys_set_argv(&runtime, argc - 1, argv + 1);
+        if (status == PY68_STATUS_OK)
+            status = py68_execute_file(&runtime, argv[1]);
     } else {
         status = py68_platform_write_stderr(
             &runtime, "error: invalid arguments\n", 25);

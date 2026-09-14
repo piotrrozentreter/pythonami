@@ -60,7 +60,7 @@ Do not begin a later phase while the current increment lacks its required tests 
 - Route every interpreter-owned allocation through the tracked allocator. Check every allocation, multiplication/size calculation, stack growth, operand, index, and conversion. Include allocation-failure tests and leak checks.
 - Use reference counting and explicit owned/borrowed/moved/static-reference rules. Retain incoming aliases before releasing replaced values; failed moves preserve caller ownership; transactional mutations preserve invariants on allocation failure; reject list cycles in Language Level 0.1.
 - Use explicit VM value and call stacks, not C recursion for script calls. Preserve the first active error while unwinding every frame and temporary value. Verify all bytecode before execution, including compiler-produced bytecode.
-- Implement only documented Language Level 0.1. Reject unsupported syntax intentionally with targeted diagnostics; do not silently accept classes, imports, exceptions, floats, Unicode, dictionaries, comprehensions, closures, or other excluded features.
+- Implement only documented Language Levels 0.1–0.5. Reject unsupported syntax intentionally with targeted diagnostics; do not silently accept classes, Unicode, bytes, comprehensions, closures, relative imports, or other excluded features.
 - Keep opcode numbers stable unless the bytecode-format version changes. Encode and decode multibyte values explicitly in big-endian order.
 
 ## Required validation

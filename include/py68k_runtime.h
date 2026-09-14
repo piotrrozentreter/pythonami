@@ -11,6 +11,14 @@
 #include "py68k_status.h"
 #include "py68k_types.h"
 
+#define PY68_TRY_MAX 8
+#define PY68_PATH_MAX 256
+
+typedef struct Py68TryBlock {
+    Py68U32 handler_ip;
+    Py68U16 stack_depth;
+} Py68TryBlock;
+
 typedef struct Py68Frame {
     Py68Code *code;
     Py68Code *return_code;
@@ -18,6 +26,8 @@ typedef struct Py68Frame {
     Py68U16 local_count;
     Py68U16 argument_count;
     Py68U32 return_ip;
+    Py68TryBlock try_stack[PY68_TRY_MAX];
+    Py68U16 try_count;
 } Py68Frame;
 
 typedef struct Py68GlobalEntry {
@@ -48,6 +58,15 @@ struct Py68Runtime {
     Py68U16 trace_enabled;
     char traceback[512];
     Py68U16 traceback_length;
+    Py68Value current_exception;
+    char script_dir[PY68_PATH_MAX];
+    struct Py68Object **import_modules;
+    Py68U16 import_count;
+    Py68U16 import_capacity;
+    struct Py68List *sys_path;
+    struct Py68List *sys_argv;
+    struct Py68Object *sys_module;
+    struct Py68NativeFunction *active_native;
 };
 
 void py68_runtime_initialize_struct(Py68Runtime *runtime);

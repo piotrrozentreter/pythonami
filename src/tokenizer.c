@@ -102,10 +102,10 @@ static Py68TokenKind py68_keyword(const Py68U8 *data, Py68U32 start,
     static const char *names[] = {
         "if", "elif", "else", "while", "for", "in", "def",
         "return", "break", "continue", "pass", "and", "or", "not",
-        "True", "False", "None", "class", "import", "try", "except",
-        "finally", "raise", "with", "lambda", "nonlocal", "async",
-        "await", "yield", "match", "case", "set", "dict", "from",
-        "as", "global", "eval", "exec"
+        "True", "False", "None", "try", "except", "finally", "raise",
+        "with", "import", "from", "as", "class", "lambda", "nonlocal",
+        "async", "await", "yield", "match", "case", "global", "eval",
+        "exec"
     };
     static const Py68TokenKind kinds[] = {
         PY68_TOKEN_IF, PY68_TOKEN_ELIF, PY68_TOKEN_ELSE,
@@ -113,11 +113,9 @@ static Py68TokenKind py68_keyword(const Py68U8 *data, Py68U32 start,
         PY68_TOKEN_RETURN, PY68_TOKEN_BREAK, PY68_TOKEN_CONTINUE,
         PY68_TOKEN_PASS, PY68_TOKEN_AND, PY68_TOKEN_OR, PY68_TOKEN_NOT,
         PY68_TOKEN_TRUE, PY68_TOKEN_FALSE, PY68_TOKEN_NONE,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
+        PY68_TOKEN_TRY, PY68_TOKEN_EXCEPT, PY68_TOKEN_FINALLY,
+        PY68_TOKEN_RAISE, PY68_TOKEN_WITH, PY68_TOKEN_IMPORT,
+        PY68_TOKEN_FROM, PY68_TOKEN_AS,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
@@ -416,13 +414,70 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                 py68_advance(&position, &column);
             }
             kind = py68_keyword(source->data, start, position - start);
-        } else if (py68_is_digit(character)) {
-            while (position < source->length &&
-                   (py68_is_name_continue(source->data[position]) ||
-                    source->data[position] == (Py68U8)'_')) {
+        } else if (py68_is_digit(character) ||
+                   (character == (Py68U8)'.' && position + 1 < source->length &&
+                    py68_is_digit(source->data[position + 1]))) {
+            int is_float = 0;
+            int is_prefixed = 0;
+            if (character == (Py68U8)'.') {
+                is_float = 1;
                 py68_advance(&position, &column);
+                while (position < source->length &&
+                       (py68_is_digit(source->data[position]) ||
+                        source->data[position] == (Py68U8)'_')) {
+                    py68_advance(&position, &column);
+                }
+            } else {
+                if (character == (Py68U8)'0' && position + 1 < source->length) {
+                    Py68U8 next = source->data[position + 1];
+                    if (next == (Py68U8)'x' || next == (Py68U8)'X' ||
+                        next == (Py68U8)'b' || next == (Py68U8)'B' ||
+                        next == (Py68U8)'o' || next == (Py68U8)'O') {
+                        is_prefixed = 1;
+                    }
+                }
+                if (is_prefixed) {
+                    while (position < source->length &&
+                           (py68_is_name_continue(source->data[position]) ||
+                            source->data[position] == (Py68U8)'_')) {
+                        py68_advance(&position, &column);
+                    }
+                } else {
+                    while (position < source->length &&
+                           (py68_is_digit(source->data[position]) ||
+                            source->data[position] == (Py68U8)'_')) {
+                        py68_advance(&position, &column);
+                    }
+                    if (position < source->length &&
+                        source->data[position] == (Py68U8)'.' &&
+                        position + 1 < source->length &&
+                        py68_is_digit(source->data[position + 1])) {
+                        is_float = 1;
+                        py68_advance(&position, &column);
+                        while (position < source->length &&
+                               (py68_is_digit(source->data[position]) ||
+                                source->data[position] == (Py68U8)'_')) {
+                            py68_advance(&position, &column);
+                        }
+                    }
+                }
             }
-            if (!py68_validate_integer(source->data, start, position)) {
+            if (!is_prefixed && position < source->length &&
+                (source->data[position] == (Py68U8)'e' ||
+                 source->data[position] == (Py68U8)'E')) {
+                is_float = 1;
+                py68_advance(&position, &column);
+                if (position < source->length &&
+                    (source->data[position] == (Py68U8)'+' ||
+                     source->data[position] == (Py68U8)'-'))
+                    py68_advance(&position, &column);
+                while (position < source->length &&
+                       py68_is_digit(source->data[position]))
+                    py68_advance(&position, &column);
+            }
+            if (is_float) {
+                kind = PY68_TOKEN_FLOAT;
+            } else if (!py68_validate_integer(source->data, start, position)) {
                 location.offset = start;
                 location.line = start_line;
                 location.column = start_column;
@@ -431,8 +486,9 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                                      "invalid or overflowing integer literal");
                 status = PY68_STATUS_SOURCE_ERROR;
                 break;
+            } else {
+                kind = PY68_TOKEN_INTEGER;
             }
-            kind = PY68_TOKEN_INTEGER;
         } else if (character == (Py68U8)'\'' ||
                    character == (Py68U8)'"') {
             Py68U8 quote = character;
@@ -484,6 +540,9 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                 source->data[position + 1] == (Py68U8)'/') {
                 kind = PY68_TOKEN_FLOOR_DIVIDE;
                 width = 2;
+            } else if (character == (Py68U8)'/' && position + 1 < source->length &&
+                       source->data[position + 1] == (Py68U8)'=') {
+                kind = PY68_TOKEN_SLASH_ASSIGN; width = 2;
             } else if (character == (Py68U8)'+' && position + 1 < source->length &&
                        source->data[position + 1] == (Py68U8)'=') {
                 kind = PY68_TOKEN_PLUS_ASSIGN; width = 2;
@@ -512,12 +571,15 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
             else if (character == (Py68U8)')') { kind = PY68_TOKEN_RIGHT_PAREN; }
             else if (character == (Py68U8)'[') { kind = PY68_TOKEN_LEFT_BRACKET; }
             else if (character == (Py68U8)']') { kind = PY68_TOKEN_RIGHT_BRACKET; }
+            else if (character == (Py68U8)'{') { kind = PY68_TOKEN_LEFT_BRACE; }
+            else if (character == (Py68U8)'}') { kind = PY68_TOKEN_RIGHT_BRACE; }
+            else if (character == (Py68U8)'.') { kind = PY68_TOKEN_DOT; }
             else if (character == (Py68U8)':') { kind = PY68_TOKEN_COLON; }
             else if (character == (Py68U8)',') { kind = PY68_TOKEN_COMMA; }
             else if (character == (Py68U8)'+') { kind = PY68_TOKEN_PLUS; }
             else if (character == (Py68U8)'-') { kind = PY68_TOKEN_MINUS; }
             else if (character == (Py68U8)'*') { kind = PY68_TOKEN_STAR; }
-            else if (character == (Py68U8)'/') { kind = PY68_TOKEN_FLOOR_DIVIDE; }
+            else if (character == (Py68U8)'/') { kind = PY68_TOKEN_SLASH; }
             else if (character == (Py68U8)'%') { kind = PY68_TOKEN_PERCENT; }
             else if (character == (Py68U8)'=') { kind = PY68_TOKEN_ASSIGN; }
             else if (character == (Py68U8)'<') { kind = PY68_TOKEN_LESS; }
@@ -537,7 +599,8 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                 --width;
             }
             if (kind == PY68_TOKEN_LEFT_PAREN ||
-                kind == PY68_TOKEN_LEFT_BRACKET) {
+                kind == PY68_TOKEN_LEFT_BRACKET ||
+                kind == PY68_TOKEN_LEFT_BRACE) {
                 if (group_count == group_capacity &&
                     py68_grow_bytes(allocator, (void **)&groups,
                                     &group_capacity, (Py68U32)sizeof(Py68U8)) !=
@@ -547,14 +610,19 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                 }
                 groups[group_count++] = kind == PY68_TOKEN_LEFT_PAREN
                                         ? (Py68U8)'('
-                                        : (Py68U8)'[';
+                                        : kind == PY68_TOKEN_LEFT_BRACKET
+                                          ? (Py68U8)'['
+                                          : (Py68U8)'{';
             } else if (kind == PY68_TOKEN_RIGHT_PAREN ||
-                       kind == PY68_TOKEN_RIGHT_BRACKET) {
+                       kind == PY68_TOKEN_RIGHT_BRACKET ||
+                       kind == PY68_TOKEN_RIGHT_BRACE) {
                 if (group_count == 0 ||
                     (kind == PY68_TOKEN_RIGHT_PAREN &&
                      groups[group_count - 1] != (Py68U8)'(') ||
                     (kind == PY68_TOKEN_RIGHT_BRACKET &&
-                     groups[group_count - 1] != (Py68U8)'[')) {
+                     groups[group_count - 1] != (Py68U8)'[') ||
+                    (kind == PY68_TOKEN_RIGHT_BRACE &&
+                     groups[group_count - 1] != (Py68U8)'{')) {
                     location.offset = start;
                     location.line = start_line;
                     location.column = start_column;

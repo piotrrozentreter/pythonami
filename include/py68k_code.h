@@ -13,6 +13,7 @@ typedef enum Py68ConstantKind {
     PY68_CONSTANT_BOOL,
     PY68_CONSTANT_INTEGER,
     PY68_CONSTANT_STRING,
+    PY68_CONSTANT_FLOAT,
     /* `integer` holds an index into the owning Py68Code's `nested` array. */
     PY68_CONSTANT_CODE
 } Py68ConstantKind;
@@ -45,6 +46,12 @@ typedef struct Py68Code {
     Py68U16 *name_lengths;
     Py68U16 name_count;
     Py68U16 name_capacity;
+    /* Owned interned name bytes for compiler-generated names such as
+       `__enter__` that may not appear in source_data. Offsets with the
+       high bit set index this buffer. */
+    Py68U8 *interned;
+    Py68U32 interned_length;
+    Py68U32 interned_capacity;
     Py68U16 maximum_stack;
     /* Function-body metadata: total addressable local slots (parameters
        plus other locals) and how many of those are parameters. Zero for
@@ -76,5 +83,9 @@ Py68Status py68_code_add_constant(Py68Allocator *allocator, Py68Code *code,
 Py68Status py68_code_add_name(Py68Allocator *allocator, Py68Code *code,
                               Py68U32 offset, Py68U16 length,
                               Py68U16 *index_out);
+Py68Status py68_code_add_interned_name(Py68Allocator *allocator, Py68Code *code,
+                                       const char *bytes, Py68U16 length,
+                                       Py68U16 *index_out);
+const Py68U8 *py68_code_name_bytes(const Py68Code *code, Py68U16 index);
 
 #endif

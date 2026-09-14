@@ -19,5 +19,6 @@ typedef char Py68AssertChar8[(sizeof(char) == 1) ? 1 : -1];
 typedef char Py68AssertShort16[(sizeof(short) == 2) ? 1 : -1];
 typedef char Py68AssertI32[(sizeof(Py68I32) == 4) ? 1 : -1];
 typedef char Py68AssertU32[(sizeof(Py68U32) == 4) ? 1 : -1];
+typedef char Py68AssertFloat32[(sizeof(float) == 4) ? 1 : -1];
 
 #endif

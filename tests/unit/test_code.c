@@ -16,7 +16,7 @@ int main(void)
     py68_allocator_initialize(&allocator);
     py68_code_initialize(&code);
     passed &= py68_opcode_info(OP_LOAD_CONST) != NULL;
-    passed &= py68_opcode_info(0x0E) == NULL;
+    passed &= py68_opcode_info(0x0F) == NULL;
     passed &= py68_code_emit_u8(&allocator, &code, OP_JUMP) == PY68_STATUS_OK;
     passed &= py68_code_emit_u16_be(&allocator, &code, 0) == PY68_STATUS_OK;
     passed &= py68_code_patch_i16_be(&code, 1, -7) == PY68_STATUS_OK;

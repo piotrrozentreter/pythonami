@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Language Level 0.3: tuple, dict, set, limited attributes, bound methods, value equality/hash, IEEE-754 binary32 float, `/` true divide vs `//` floor divide.
+- Language Level 0.4: catchable exception objects, `try`/`except`/`finally`/`raise`, `with fopen(...) as f`.
+- Language Level 0.5: `import` / `from` / `as`, module objects, loader cache, builtin `sys` (`path`, `modules`, `argv`).
+- Targeted diagnostics for remaining unsupported keywords (`class`, `lambda`, …).
+- Version string `Python68K 0.5.0`.
+
 ## 0.2.0
 
 - File builtins: `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename`

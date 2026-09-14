@@ -1,6 +1,7 @@
 /* 2026 by Piotr Rozentreter (Rozsoft) */
 
 #include "py68k_builtin.h"
+#include "py68k_exception.h"
 #include "py68k_native.h"
 
 #include <stddef.h>
@@ -108,7 +109,12 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "range", 1, 3, py68_builtin_range },
         { "list_pop", 1, 1, py68_builtin_list_pop },
         { "list_append", 2, 2, py68_builtin_list_append },
+        { "list", 0, 1, py68_builtin_list },
+        { "tuple", 0, 1, py68_builtin_tuple },
+        { "dict", 0, 1, py68_builtin_dict },
+        { "set", 0, 1, py68_builtin_set },
         { "int", 1, 1, py68_builtin_int },
+        { "float", 1, 1, py68_builtin_float },
         { "str", 1, 1, py68_builtin_str },
         { "bool", 1, 1, py68_builtin_bool },
         { "abs", 1, 1, py68_builtin_abs },
@@ -172,6 +178,36 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
             py68_value_from_object(&function->base));
         py68_object_release(runtime, &function->base);
         if (status != PY68_STATUS_OK) return status;
+    }
+    {
+        static const struct {
+            const char *name;
+            Py68U16 kind;
+        } exceptions[] = {
+            { "TypeError", PY68_ERROR_TYPE },
+            { "ValueError", PY68_ERROR_VALUE },
+            { "IndexError", PY68_ERROR_INDEX },
+            { "KeyError", PY68_ERROR_KEY },
+            { "ZeroDivisionError", PY68_ERROR_ZERO_DIVISION },
+            { "OverflowError", PY68_ERROR_OVERFLOW },
+            { "NameError", PY68_ERROR_NAME },
+            { "IOError", PY68_ERROR_IO },
+            { "RecursionError", PY68_ERROR_RECURSION },
+            { "ImportError", PY68_ERROR_IMPORT }
+        };
+        for (index = 0; index < sizeof(exceptions) / sizeof(exceptions[0]);
+             ++index) {
+            status = py68_native_new(runtime, exceptions[index].name, 0, 1,
+                                     py68_builtin_exception, &function);
+            if (status != PY68_STATUS_OK) return status;
+            function->base.flags = exceptions[index].kind;
+            status = py68_builtin_set_copy(
+                runtime, (const Py68U8 *)exceptions[index].name,
+                py68_static_strlen(exceptions[index].name),
+                py68_value_from_object(&function->base));
+            py68_object_release(runtime, &function->base);
+            if (status != PY68_STATUS_OK) return status;
+        }
     }
     return PY68_STATUS_OK;
 }

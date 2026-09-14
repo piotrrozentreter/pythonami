@@ -20,6 +20,10 @@ A host bug in `OP_NOT` (truthiness evaluated after overwriting the value type, a
 
 Subsequent host fixes covered by `tests/language/test_bugfix_suite.py` and `examples/test_features.py` sections 19–21: for-`break` emits `OP_POP` to discard the range iterator before joining the exit path; subscript assignment parses `INDEX` targets and executes `OP_STORE_INDEX`; `None`/`bool` equality follows D-0011. Decisions D-0009 through D-0011 record the designs. `tests/unit/test_compiler.c` also executes a for-`break` total accumulation case through verify+VM.
 
+## 0.3–0.5 types, exceptions, and import coverage
+
+Host unit tests `test_tuple`, `test_dict`, `test_set`, `test_attr`, `test_float`, `test_exceptions`, and `test_import` cover the new object types, limited attributes, binary32 float, try/except/finally/raise, and the import loader. Language fixtures live under `tests/language/types/`, `tests/language/exceptions/` (including `with fopen` on file handles), and `tests/language/import/`. Remaining unsupported keywords (`class`, `lambda`, `global`, `nonlocal`, `async`/`await`, `yield`, `match`/`case`, relative import, `import *`) produce targeted diagnostics.
+
 ## 0.2.0 file and env/assign coverage
 
 Host `tests/unit/test_file_io.c` and `tests/language/test_file_io_suite.py` exercise `fopen`/`fwrite`/`fread`/`freadline`/`fclose`/`exists`/`rename`/`remove` and host `getenv`/`setenv`/`unsetenv`. Amiga release/debug builds compile the same builtins as `assign_get`/`assign_add`/`assign_remove` (D-0012); assign execution on emulator/hardware is owner-verified, not claimed from host results.
