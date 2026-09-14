@@ -303,3 +303,9 @@ Py68Status py68_platform_var_unset(Py68Runtime *runtime, const char *name)
     if (AssignLock(name, (BPTR)0) == 0) return PY68_STATUS_RUNTIME_ERROR;
     return PY68_STATUS_OK;
 }
+
+void py68_platform_unload_seg(void *seg)
+{
+    if (seg != NULL)
+        UnLoadSeg((BPTR)(unsigned long)seg);
+}

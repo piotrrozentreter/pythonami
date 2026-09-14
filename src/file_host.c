@@ -260,3 +260,8 @@ Py68Status py68_platform_var_unset(Py68Runtime *runtime, const char *name)
 #endif
     return PY68_STATUS_OK;
 }
+
+void py68_platform_unload_seg(void *seg)
+{
+    (void)seg;
+}

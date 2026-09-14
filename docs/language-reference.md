@@ -46,7 +46,7 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 ## Builtins
 
-`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`.
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`, and `load_library(path)` for LoadSeg `*.py68k` plugins (see `docs/amiga-extensions.md`).
 
 `ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`.
 

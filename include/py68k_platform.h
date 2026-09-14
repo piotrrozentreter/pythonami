@@ -64,4 +64,7 @@ Py68Status py68_platform_var_set(Py68Runtime *runtime, const char *name,
                                  const char *value);
 Py68Status py68_platform_var_unset(Py68Runtime *runtime, const char *name);
 
+/* Amiga: UnLoadSeg for LoadSeg plugins. Host: no-op. */
+void py68_platform_unload_seg(void *seg);
+
 #endif

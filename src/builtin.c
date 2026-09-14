@@ -4,6 +4,9 @@
 #include "py68k_exception.h"
 #include "py68k_native.h"
 #include "py68k_string_methods.h"
+#if defined(PY68K_AMIGA)
+#include "py68k_ext_load.h"
+#endif
 
 #include <stddef.h>
 #include <string.h>
@@ -143,7 +146,8 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
     static const Py68BuiltinDefinition platform_vars[] = {
         { "assign_get", 1, 1, py68_builtin_assign_get },
         { "assign_add", 2, 2, py68_builtin_assign_add },
-        { "assign_remove", 1, 1, py68_builtin_assign_remove }
+        { "assign_remove", 1, 1, py68_builtin_assign_remove },
+        { "load_library", 1, 1, py68_builtin_load_library }
     };
 #else
     /* Host keeps getenv_* and also assign_* aliases so Amiga-favor

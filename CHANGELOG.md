@@ -29,6 +29,9 @@
 
 ## Unreleased
 
+- Amiga LoadSeg extensions: `load_library(path)` loads `*.py68k` plugins with a
+  public export ABI (`include/py68k_ext.h`); sample `ext/demo_add` (vbcc C +
+  vasm) via `make amiga-ext` (D-0026).
 - Amiga: avoid calling `ErrorOutput()` on dos.library < V47 (fixes `--debug` /
   stderr Guru on Kickstart 2.x–3.1); use `pr_CES` or `Output()` instead.
 - String methods (ASCII/8-bit): case, search, trim, split/join, replace, align,
