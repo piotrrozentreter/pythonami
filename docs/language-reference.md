@@ -1,6 +1,6 @@
 # Language Reference
 
-Python68K is a restricted Python-compatible language. Language Levels **0.1** (core), **0.2.0** (file/env I/O), **0.3** (types and limited attributes), **0.4** (exceptions and `with`), and **0.5** (import/modules) are executable on the host and Amiga builds.
+Python68K is a restricted Python-compatible language. Language Levels **0.1** (core), **0.2.0** (file/env I/O), **0.3** (types and limited attributes), **0.4** (exceptions and `with`), **0.5** (import/modules), and **0.6** (comprehensions) are executable on the host and Amiga builds.
 
 Symbol analysis classifies names using local, module-global, builtin, and undefined lookup order; parameters occupy the first local slots and later assignment targets use deterministic source order. Referencing a local before assignment is a runtime `NameError`. Empty strings, lists, tuples, dicts, and sets are falsy. `input([prompt])` writes an optional prompt, reads one line, and returns it without the trailing newline; EOF raises an I/O error.
 
@@ -21,6 +21,7 @@ Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool 
 
 - `if` / `elif` / `else`
 - `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set)
+- List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.
 - `break` / `continue` / `return` / `pass`
 - `try` / `except` / `except TypeError` / `except TypeError as e` / `finally`
 - `raise` and `raise TypeError("msg")`
@@ -52,4 +53,4 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 ## Still not implemented
 
-Classes and instances, Unicode, bytes/bytearray/`encode`, comprehensions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.
+Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.

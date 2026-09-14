@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0
+
+- Language Level 0.6: list, set, and dict comprehensions with nested `for`
+  clauses and `if` filters. Targets bind in the enclosing function or module
+  scope, matching `for` (D-0026). Generator expressions remain rejected.
+- Comprehension bytecode uses `OP_LIST_APPEND` / `OP_SET_ADD` / `OP_MAP_ADD`
+  with existing `RANGE_INIT`/`RANGE_NEXT` loops; no nested functions.
+- Amiga: avoid calling `ErrorOutput()` on dos.library < V47 (fixes `--debug` /
+  stderr Guru on Kickstart 2.x–3.1); use `pr_CES` or `Output()` instead.
+- String methods (ASCII/8-bit): case, search, trim, split/join, replace, align,
+  expandtabs, translate, classifiers; bound via `attr.c`.
+- Text builtins: `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format` (minimal
+  int specs), `maketrans` (returns dict). Literal escapes `\\ \' \" \n \r \t \xHH`
+  decoded at load. See D-0024 / D-0025.
+- Version string `Python68K 0.6.0`.
+
 ## 0.5.0
 
 - Language Level 0.3: tuple, dict, set, limited attributes, bound methods, value equality/hash, IEEE-754 binary32 float, `/` true divide vs `//` floor divide.
@@ -26,13 +42,3 @@
 - Host GCC build (`make host`) and Amiga vbcc build (`make amiga`).
 - Host unit tests and language fixture suite (`make test`).
 - Copyright preamble on all C/H sources: 2026 Piotr Rozentreter (Rozsoft).
-
-## Unreleased
-
-- Amiga: avoid calling `ErrorOutput()` on dos.library < V47 (fixes `--debug` /
-  stderr Guru on Kickstart 2.x–3.1); use `pr_CES` or `Output()` instead.
-- String methods (ASCII/8-bit): case, search, trim, split/join, replace, align,
-  expandtabs, translate, classifiers; bound via `attr.c`.
-- Text builtins: `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format` (minimal
-  int specs), `maketrans` (returns dict). Literal escapes `\\ \' \" \n \r \t \xHH`
-  decoded at load. See D-0024 / D-0025.

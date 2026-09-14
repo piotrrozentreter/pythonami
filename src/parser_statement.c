@@ -78,33 +78,33 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
                              token->location.offset;
         if (token->location.length == 5 && memcmp(text, "class", 5) == 0)
             return py68_statement_error(parser, token,
-                "class is not supported by Python68K Language Level 0.5");
+                "class is not supported by Python68K Language Level 0.6");
         if (token->location.length == 6 && memcmp(text, "lambda", 6) == 0)
             return py68_statement_error(parser, token,
-                "lambda is not supported by Python68K Language Level 0.5");
+                "lambda is not supported by Python68K Language Level 0.6");
         if (token->location.length == 6 && memcmp(text, "global", 6) == 0)
             return py68_statement_error(parser, token,
-                "global is not supported by Python68K Language Level 0.5");
+                "global is not supported by Python68K Language Level 0.6");
         if (token->location.length == 8 && memcmp(text, "nonlocal", 8) == 0)
             return py68_statement_error(parser, token,
-                "nonlocal is not supported by Python68K Language Level 0.5");
+                "nonlocal is not supported by Python68K Language Level 0.6");
         if (token->location.length == 5 && memcmp(text, "async", 5) == 0)
             return py68_statement_error(parser, token,
-                "async is not supported by Python68K Language Level 0.5");
+                "async is not supported by Python68K Language Level 0.6");
         if (token->location.length == 5 && memcmp(text, "await", 5) == 0)
             return py68_statement_error(parser, token,
-                "await is not supported by Python68K Language Level 0.5");
+                "await is not supported by Python68K Language Level 0.6");
         if (token->location.length == 5 && memcmp(text, "yield", 5) == 0)
             return py68_statement_error(parser, token,
-                "yield is not supported by Python68K Language Level 0.5");
+                "yield is not supported by Python68K Language Level 0.6");
         if (token->location.length == 5 && memcmp(text, "match", 5) == 0)
             return py68_statement_error(parser, token,
-                "match is not supported by Python68K Language Level 0.5");
+                "match is not supported by Python68K Language Level 0.6");
         if (token->location.length == 4 && memcmp(text, "case", 4) == 0)
             return py68_statement_error(parser, token,
-                "case is not supported by Python68K Language Level 0.5");
+                "case is not supported by Python68K Language Level 0.6");
         return py68_statement_error(parser, token,
-            "this keyword is not supported by Python68K Language Level 0.5");
+            "this keyword is not supported by Python68K Language Level 0.6");
     }
     if (token->kind == PY68_TOKEN_IMPORT) {
         Py68Token *name_token;
@@ -138,7 +138,7 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         if (py68_statement_current(parser) != NULL &&
             py68_statement_current(parser)->kind == PY68_TOKEN_DOT)
             return py68_statement_error(parser, py68_statement_current(parser),
-                "relative imports are not supported by Python68K Language Level 0.5");
+                "relative imports are not supported by Python68K Language Level 0.6");
         module_token = py68_statement_current(parser);
         if (module_token == NULL || module_token->kind != PY68_TOKEN_NAME)
             return py68_statement_error(parser, module_token,
@@ -150,7 +150,7 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         if (py68_statement_current(parser) != NULL &&
             py68_statement_current(parser)->kind == PY68_TOKEN_STAR)
             return py68_statement_error(parser, py68_statement_current(parser),
-                "star import is not supported by Python68K Language Level 0.5");
+                "star import is not supported by Python68K Language Level 0.6");
         status = py68_statement_new(parser, PY68_AST_IMPORT_FROM, token, &node);
         if (status != PY68_STATUS_OK) return status;
         node->as.import_from.module_offset = module_token->location.offset;

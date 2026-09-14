@@ -1,0 +1,54 @@
+=== list basic ===
+[0, 1, 2, 3]
+[0, 1, 4, 9, 16]
+=== empty iterable ===
+[]
+[]
+=== filter ===
+[1, 2, 3, 4, 5]
+[]
+[0, 4, 8]
+=== nested for ===
+[0, 1, 10, 11, 20, 21]
+[0, 20]
+=== nested listcomp ===
+[0]
+[0, 1]
+[0, 1, 2]
+=== iterate list ===
+[11, 21, 31]
+=== module name leak ===
+[0, 1, 2]
+2
+=== function target is local ===
+[0, 1, 2, 3]
+3
+99
+=== unbound local from comprehension ===
+unbound
+[0, 1]
+=== outer name in elt ===
+[5, 6, 7]
+=== set comprehension ===
+True
+0
+True
+True
+=== dict comprehension ===
+0
+9
+4
+0
+2
+6
+3
+0
+2
+4
+=== literals still parse ===
+[1, 2, 3]
+True
+2
+=== as call argument ===
+5
+[0, 1, 2]

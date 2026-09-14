@@ -181,6 +181,152 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
                                           const Py68SymbolAnalysis *analysis,
                                           const Py68FunctionSymbols *function);
 
+static Py68Status py68_compile_iterable(Py68Allocator *allocator,
+                                        const Py68Source *source,
+                                        Py68AstNode *iterable, Py68Code *code,
+                                        Py68Error *error,
+                                        const Py68SymbolAnalysis *analysis,
+                                        const Py68FunctionSymbols *function)
+{
+    Py68Status status;
+    if (iterable != NULL && iterable->kind == PY68_AST_CALL &&
+        iterable->as.call.callee != NULL &&
+        iterable->as.call.callee->kind == PY68_AST_NAME &&
+        iterable->as.call.callee->as.name.length == 5 &&
+        memcmp(source->data + iterable->as.call.callee->as.name.offset,
+               "range", 5) == 0) {
+        Py68U16 arg_count = iterable->as.call.arguments.count;
+        Py68U16 arg_idx;
+        if (arg_count < 1 || arg_count > 3) {
+            py68_compile_error(error, source, iterable->location,
+                               "range expects 1 to 3 arguments");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        for (arg_idx = 0; arg_idx < arg_count; ++arg_idx) {
+            status = py68_compile_expression(
+                allocator, source,
+                iterable->as.call.arguments.items[arg_idx],
+                code, error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return py68_emit_u8_op(allocator, code, OP_RANGE_INIT,
+                               (Py68U8)arg_count);
+    }
+    status = py68_compile_expression(allocator, source, iterable, code, error,
+                                     analysis, function);
+    if (status != PY68_STATUS_OK) return status;
+    return py68_emit_u8_op(allocator, code, OP_RANGE_INIT, 1);
+}
+
+static Py68Status py68_compile_comp_for(Py68Allocator *allocator,
+                                        const Py68Source *source,
+                                        Py68AstList *generators, Py68U16 index,
+                                        Py68AstNode *elt, Py68AstNode *value,
+                                        Py68U8 append_opcode, Py68Code *code,
+                                        Py68Error *error,
+                                        const Py68SymbolAnalysis *analysis,
+                                        const Py68FunctionSymbols *function)
+{
+    Py68AstNode *clause;
+    Py68U32 range_next_op;
+    Py68U32 end_operand;
+    Py68U32 back_operand;
+    Py68U32 filter_operand;
+    Py68U16 filter_index;
+    Py68U8 append_depth;
+    Py68Status status;
+
+    if (index >= generators->count) return PY68_STATUS_INTERNAL_ERROR;
+    clause = generators->items[index];
+    status = py68_compile_iterable(allocator, source,
+                                   clause->as.comprehension_for.iterable,
+                                   code, error, analysis, function);
+    if (status != PY68_STATUS_OK) return status;
+    range_next_op = code->bytecode_length;
+    status = py68_emit_jump(allocator, code, OP_RANGE_NEXT, &end_operand);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_emit_store_name(allocator, source, function, code,
+                                  clause->as.comprehension_for.name_offset,
+                                  clause->as.comprehension_for.name_length);
+    if (status != PY68_STATUS_OK) return status;
+    for (filter_index = 0;
+         filter_index < clause->as.comprehension_for.ifs.count;
+         ++filter_index) {
+        status = py68_compile_expression(
+            allocator, source,
+            clause->as.comprehension_for.ifs.items[filter_index],
+            code, error, analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_emit_jump(allocator, code, OP_JUMP_IF_FALSE,
+                                &filter_operand);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_patch_jump(code, filter_operand, range_next_op);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    if ((Py68U16)(index + 1) < generators->count) {
+        status = py68_compile_comp_for(allocator, source, generators,
+                                       (Py68U16)(index + 1), elt, value,
+                                       append_opcode, code, error, analysis,
+                                       function);
+        if (status != PY68_STATUS_OK) return status;
+    } else if (append_opcode == OP_MAP_ADD) {
+        if ((Py68U16)(generators->count + 2) > 255U) {
+            py68_compile_error(error, source, clause->location,
+                               "comprehension is too deeply nested");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        status = py68_compile_expression(allocator, source, elt, code, error,
+                                         analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_compile_expression(allocator, source, value, code, error,
+                                         analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        append_depth = (Py68U8)(generators->count + 2);
+        status = py68_emit_u8_op(allocator, code, OP_MAP_ADD, append_depth);
+        if (status != PY68_STATUS_OK) return status;
+    } else {
+        if ((Py68U16)(generators->count + 1) > 255U) {
+            py68_compile_error(error, source, clause->location,
+                               "comprehension is too deeply nested");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        status = py68_compile_expression(allocator, source, elt, code, error,
+                                         analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        append_depth = (Py68U8)(generators->count + 1);
+        status = py68_emit_u8_op(allocator, code, append_opcode, append_depth);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    status = py68_emit_jump(allocator, code, OP_JUMP, &back_operand);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_patch_jump(code, back_operand, range_next_op);
+    if (status != PY68_STATUS_OK) return status;
+    return py68_patch_jump(code, end_operand, code->bytecode_length);
+}
+
+static Py68Status py68_compile_comprehension(Py68Allocator *allocator,
+                                             const Py68Source *source,
+                                             Py68AstNode *node, Py68U8 build_op,
+                                             Py68U8 append_op, Py68Code *code,
+                                             Py68Error *error,
+                                             const Py68SymbolAnalysis *analysis,
+                                             const Py68FunctionSymbols *function)
+{
+    Py68Status status;
+    if (node->as.comprehension.generators.count == 0) {
+        py68_compile_error(error, source, node->location,
+                           "comprehension is missing a for clause");
+        return PY68_STATUS_SOURCE_ERROR;
+    }
+    status = py68_emit_u16_op(allocator, code, build_op, 0);
+    if (status != PY68_STATUS_OK) return status;
+    return py68_compile_comp_for(allocator, source,
+                                 &node->as.comprehension.generators, 0,
+                                 node->as.comprehension.elt,
+                                 node->as.comprehension.value, append_op,
+                                 code, error, analysis, function);
+}
+
 static Py68Status py68_compile_finally_chain(Py68Allocator *allocator,
                                              const Py68Source *source,
                                              Py68Code *code, Py68Error *error,
@@ -352,37 +498,9 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             Py68U32 end_operand;
             Py68LoopContext for_loop;
             Py68AstNode *iterable = statement->as.for_statement.iterable;
-            if (iterable != NULL && iterable->kind == PY68_AST_CALL &&
-                iterable->as.call.callee != NULL &&
-                iterable->as.call.callee->kind == PY68_AST_NAME &&
-                iterable->as.call.callee->as.name.length == 5 &&
-                memcmp(source->data + iterable->as.call.callee->as.name.offset,
-                       "range", 5) == 0) {
-                Py68U16 arg_count = iterable->as.call.arguments.count;
-                Py68U16 arg_idx;
-                if (arg_count < 1 || arg_count > 3) {
-                    py68_compile_error(error, source, iterable->location,
-                                       "range expects 1 to 3 arguments");
-                    return PY68_STATUS_SOURCE_ERROR;
-                }
-                for (arg_idx = 0; arg_idx < arg_count; ++arg_idx) {
-                    status = py68_compile_expression(
-                        allocator, source,
-                        iterable->as.call.arguments.items[arg_idx],
-                        code, error, analysis, function);
-                    if (status != PY68_STATUS_OK) return status;
-                }
-                status = py68_emit_u8_op(allocator, code, OP_RANGE_INIT,
-                                        (Py68U8)arg_count);
-                if (status != PY68_STATUS_OK) return status;
-            } else {
-                status = py68_compile_expression(allocator, source, iterable,
-                                                  code, error, analysis,
-                                                  function);
-                if (status != PY68_STATUS_OK) return status;
-                status = py68_emit_u8_op(allocator, code, OP_RANGE_INIT, 1);
-                if (status != PY68_STATUS_OK) return status;
-            }
+            status = py68_compile_iterable(allocator, source, iterable, code,
+                                           error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
             range_next_op = code->bytecode_length;
             py68_loop_context_initialize(&for_loop, range_next_op, 1);
             status = py68_emit_jump(allocator, code, OP_RANGE_NEXT, &end_operand);
@@ -1018,6 +1136,18 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
             if (status != PY68_STATUS_OK) return status;
         }
         return py68_emit_op(allocator, code, OP_LOAD_SLICE);
+    case PY68_AST_LIST_COMP:
+        return py68_compile_comprehension(allocator, source, node, OP_BUILD_LIST,
+                                          OP_LIST_APPEND, code, error,
+                                          analysis, function);
+    case PY68_AST_SET_COMP:
+        return py68_compile_comprehension(allocator, source, node, OP_BUILD_SET,
+                                          OP_SET_ADD, code, error, analysis,
+                                          function);
+    case PY68_AST_DICT_COMP:
+        return py68_compile_comprehension(allocator, source, node, OP_BUILD_DICT,
+                                          OP_MAP_ADD, code, error, analysis,
+                                          function);
     default:
         py68_compile_error(error, source, node->location,
                            "unsupported expression for compiler");

@@ -503,6 +503,52 @@ int main(void)
         passed &= allocator.stats.current_bytes == 0;
     }
 
+    {
+        const char *comp_text =
+            "xs = [x * x for x in range(5) if x != 2]\n"
+            "total = 0\n"
+            "for item in xs:\n"
+            "    total = total + item\n";
+        Py68Value total_val;
+        Py68Value last_x;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "comp_test.py", (const Py68U8 *)comp_text,
+            (Py68U32)strlen(comp_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"total", 5,
+                                       &total_val) == PY68_STATUS_OK;
+        passed &= total_val.type == PY68_VALUE_INT &&
+                  total_val.as.integer == 26;
+        py68_value_release(&runtime, total_val);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"x", 1,
+                                       &last_x) == PY68_STATUS_OK;
+        passed &= last_x.type == PY68_VALUE_INT && last_x.as.integer == 4;
+        py68_value_release(&runtime, last_x);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
     if (passed) { puts("PASS: compiler tests"); return 0; }
     return 1;
 }
