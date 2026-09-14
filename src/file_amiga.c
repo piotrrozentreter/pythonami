@@ -4,6 +4,7 @@
 #include "py68k_runtime.h"
 
 #include <proto/dos.h>
+#include <proto/exec.h>
 #include <dos/dos.h>
 #include <dos/dosextens.h>
 
@@ -233,7 +234,9 @@ static Py68U32 py68_c_strlen(const char *text)
 Py68Status py68_platform_var_get(Py68Runtime *runtime, const char *name,
                                  char **value_out, Py68U32 *length_out)
 {
-    /* Resolve DOS assign "name:" via Lock + NameFromLock (Amiga-first). */
+    /* Resolve DOS assign "name:" via Lock + NameFromLock (Amiga-first).
+     * Suppress DOS requesters: Lock("missing:") otherwise pops
+     * "Please insert volume ..." instead of failing with lock == 0. */
     char query[260];
     char pathbuf[512];
     Py68U32 name_len;
@@ -241,6 +244,8 @@ Py68Status py68_platform_var_get(Py68Runtime *runtime, const char *name,
     char *copy;
     Py68U32 length;
     LONG ok;
+    struct Process *process;
+    APTR old_window;
 
     if (runtime == NULL || name == NULL || value_out == NULL ||
         length_out == NULL)
@@ -250,7 +255,15 @@ Py68Status py68_platform_var_get(Py68Runtime *runtime, const char *name,
     memcpy(query, name, name_len);
     query[name_len] = ':';
     query[name_len + 1] = '\0';
+    process = (struct Process *)FindTask(NULL);
+    old_window = NULL;
+    if (process != NULL) {
+        old_window = process->pr_WindowPtr;
+        process->pr_WindowPtr = (APTR)-1L;
+    }
     lock = Lock(query, ACCESS_READ);
+    if (process != NULL)
+        process->pr_WindowPtr = old_window;
     if (lock == 0) {
         *value_out = NULL;
         *length_out = 0;
