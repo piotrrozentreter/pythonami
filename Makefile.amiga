@@ -19,7 +19,7 @@ EXT_DEMO_OBJS := $(EXT_DEMO_DIR)/demo_add_header.o \
 	$(EXT_DEMO_DIR)/demo_add_asm.o
 EXT_CPPFLAGS := -Iinclude -I$(VBCC_INCLUDE) -DPY68K_AMIGA=1
 VASMFLAGS := -Fhunk -m68000 -quiet
-# No startup.o / vc.lib — pure LoadSeg plugin hunks (D-0004 / D-0026).
+# No startup.o / vc.lib — pure LoadSeg plugin hunks (D-0004 / D-0027).
 VLINKFLAGS := -bamigahunk -s
 
 .PHONY: amiga-debug amiga-release amiga-ext ext-demo_add clean

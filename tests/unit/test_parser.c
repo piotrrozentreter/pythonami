@@ -83,6 +83,61 @@ int main(void)
     passed &= check(allocator.stats.current_bytes == 0,
                     "postfix parser releases all allocations");
 
+    {
+        const char *comp_text = "[x * 2 for x in items if x]";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "comp.py",
+            (const Py68U8 *)comp_text, (Py68U32)strlen(comp_text)) ==
+            PY68_STATUS_OK, "comprehension source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "comprehension tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "list comprehension parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_LIST_COMP,
+                        "root is list comprehension");
+        passed &= check(node->as.comprehension.generators.count == 1,
+                        "one generator clause");
+        passed &= check(node->as.comprehension.generators.items[0]
+                            ->as.comprehension_for.ifs.count == 1,
+                        "one if filter is attached to the for clause");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "comprehension parser releases all allocations");
+    }
+
+    {
+        const char *gen_text = "(x for x in items)";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "gen.py",
+            (const Py68U8 *)gen_text, (Py68U32)strlen(gen_text)) ==
+            PY68_STATUS_OK, "generator-expression source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "generator-expression tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) != PY68_STATUS_OK,
+                        "generator expressions are rejected");
+        passed &= check(strstr(error.message, "generator expressions") != NULL,
+                        "generator-expression diagnostic is targeted");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "rejected generator expression releases allocations");
+    }
+
     if (passed) {
         puts("PASS: expression parser tests");
         return 0;

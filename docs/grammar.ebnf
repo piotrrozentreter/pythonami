@@ -1,3 +1,23 @@
 # Grammar
 
-The normative Language Level 0.1 grammar is currently maintained in the project brief. A synchronized standalone grammar will be populated with the tokenizer/parser phase.
+The Language Level 0.1–0.5 grammar remains described in the implementation brief
+and the parser sources. Language Level 0.6 adds the comprehension forms below.
+Targets are a single `NAME`, matching `for` statements. `star_expr`, async,
+and generator expressions are not part of this increment.
+
+```ebnf
+list_display     ::= "[" [starred_list | comprehension] "]"
+set_display      ::= "{" starred_list | comprehension "}"
+dict_display     ::= "{" "}" | "{" (key_datum_list | dict_comprehension) "}"
+
+comprehension    ::= expression comp_for
+dict_comprehension ::= expression ":" expression comp_for
+
+comp_for         ::= "for" NAME "in" expression [comp_iter]
+comp_iter        ::= comp_for | comp_if
+comp_if          ::= "if" expression [comp_iter]
+```
+
+`{x for x in it}` is a set comprehension; `{k: v for k in it}` is a dict
+comprehension; `{}` remains an empty dict. `(x for x in it)` is rejected with a
+targeted diagnostic. Comprehension names bind in the enclosing scope (D-0026).

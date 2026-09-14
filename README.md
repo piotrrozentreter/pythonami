@@ -1,6 +1,6 @@
 # Python68K
 
-**Version 0.5.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
+**Version 0.6.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
 
 Python68K is a deliberately restricted, Python-compatible language and runtime for classic **Motorola 68000** Amiga systems (AmigaOS 2.x+), with a modern **Linux/host** build for development and testing.
 
@@ -10,7 +10,7 @@ Executable name: `pythonami`
 
 ---
 
-## Features (Language Level 0.1–0.5)
+## Features (Language Level 0.1–0.6)
 
 ### Values and operators
 - Scalars: integers (signed 32-bit, checked overflow), IEEE-754 binary32 `float` (soft-float, no NaN/Inf), `True` / `False`, `None`
@@ -31,6 +31,9 @@ Executable name: `pythonami`
 - Tuples: parenthesized `(a, b)`, `(a,)`, `()`
 - Dicts: `{k: v}`, subscript get/set, `.get` / `.keys` / `.values` / `.items` / `.pop`
 - Sets: `{a, b}`, `set()`, `.add` / `.remove` / `.discard`
+- Comprehensions (0.6): `[expr for x in iterable if cond]`, nested `for`,
+  `{expr for ...}`, `{k: v for ...}`. Targets bind like `for` (no nested scope).
+  Generator expressions `(x for ...)` are rejected.
 - Strings: literals, concat, index, slice, `len`
 - Limited attributes (`obj.name` → bound method or module export)
 - `range(stop)`, `range(start, stop)`, `range(start, stop, step)`
@@ -81,8 +84,8 @@ see `docs/amiga-extensions.md`. Host has no `load_library`.
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback
 
-### Not in 0.5.0
-Classes, Unicode, bytes, comprehensions, closures, nested `def`, method-style `open()`, seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
+### Not in 0.6.0
+Classes, Unicode, bytes, generator expressions, closures, nested `def`, method-style `open()`, seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
 
 ---
 

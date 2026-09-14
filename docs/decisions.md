@@ -1,6 +1,6 @@
 # Decisions
 
-## D-0026: Amiga LoadSeg extension plugins (not OpenLibrary)
+## D-0027: Amiga LoadSeg extension plugins (not OpenLibrary)
 
 - Context: Authors want vbcc/vasm performance helpers callable from pythonami without rebuilding the interpreter. Classic AmigaOS `.library` (Resident/LibInit/LVOs) is heavy for this use case; host `dlopen` is out of scope.
 - Decision: Amiga-only builtin `load_library(path)` uses `LoadSeg` on a relocatable Hunk file (`*.py68k`). First hunk payload after the seglist next-pointer is a `Py68ExtHeader` (`'PY68'`, ABI 1, export table). Each export becomes a `Py68NativeFunction` on a returned module. `UnLoadSeg` runs when the module is destroyed (after clearing globals). Public ABI is `include/py68k_ext.h`. Plugins must not link `startup.o` / `vc.lib` / NDK `amiga.lib`.
@@ -202,3 +202,10 @@
 - Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`) except where list/tuple/`for` already covers use. `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
 - Alternatives considered: Opaque translation-table object; alias `ascii` to `repr`.
 - Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work.
+
+## D-0026: Comprehensions bind in the enclosing scope
+
+- Context: Python 3 list/set/dict comprehensions run in a nested function scope so loop targets do not leak. Python68K does not implement nested `def`, closures, or cell variables.
+- Decision: Compile `[elt for x in it if cond]`, `{elt for ...}`, and `{k: v for ...}` inline in the current code object using `BUILD_LIST`/`BUILD_SET`/`BUILD_DICT` plus the existing `RANGE_INIT`/`RANGE_NEXT` loop, then `LIST_APPEND`/`SET_ADD`/`MAP_ADD`. The target `x` is a normal `for` assignment: a function local if the comprehension appears in a function, otherwise a module global. Nested `for` clauses and zero or more `if` filters per clause are supported. Generator expressions `(elt for ...)` are a targeted syntax error.
+- Alternatives considered: Desugar to an anonymous nested function (requires closures); emit only list comprehensions and reject set/dict forms; keep the comprehension result in a compiler-generated temp name.
+- Consequences: `xs = [n for n in range(3)]; print(n)` prints `2`, matching `for`. A comprehension target assigned anywhere in a function makes that name local throughout the function (unbound reads raise `NameError`). Empty `{}` remains an empty dict; `{x for x in it}` is a set comprehension and `{k: v for ...}` is a dict comprehension, so they do not collide with `{k: v}` / `{a, b}` literals (D-0020).

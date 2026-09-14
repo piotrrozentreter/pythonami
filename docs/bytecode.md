@@ -12,6 +12,14 @@ Additional Level 0.3–0.5 opcodes (stable numbers; existing 0.1/0.2 opcodes unc
 - `OP_CHECK_EXCEPT` (0x46) — s16 jump-if-no-match; stack is exception, matcher
 - `OP_IMPORT_NAME` (0x44), `OP_IMPORT_FROM` (0x45) — u16 name-table index
 
+Language Level 0.6 comprehension opcodes (new numbers; existing opcodes unchanged):
+
+- `OP_LIST_APPEND` (0x2F) — `u8` depth; append TOS to the list `depth` slots down, then pop TOS
+- `OP_SET_ADD` (0x34) — `u8` depth; add TOS to the set `depth` slots down, then pop TOS
+- `OP_MAP_ADD` (0x35) — `u8` depth; store `TOS1[key]=TOS[value]` into the dict `depth` slots down, then pop both
+
+A one-clause list comprehension leaves `[list, iterator, element]` on the stack and emits `LIST_APPEND 2`. Nested `for` clauses increase the depth by one iterator each. Dict comprehensions emit `MAP_ADD` with depth `generator_count + 2`.
+
 Local variables use `OP_LOAD_LOCAL`/`OP_STORE_LOCAL` with a `u8` slot operand, verified against `code->local_count`. Reading a local before it has been assigned yields a runtime error rather than a stale/garbage value, because unassigned slots are initialized to the `PY68_VALUE_UNBOUND` sentinel by the frame setup code.
 
 Function objects are represented in bytecode as nested code objects: a `Py68Code` may own an array of nested `Py68Code` structures, each referenced from the constant pool as `PY68_CONSTANT_CODE`. `OP_MAKE_FUNCTION` takes a `u16` constant-pool index operand; the verifier checks that the referenced constant is `PY68_CONSTANT_CODE` and that it indexes a valid nested code object before the VM is allowed to execute the instruction. At runtime, `OP_MAKE_FUNCTION` builds a `Py68Function` object bound to the current runtime, which is then callable through the existing `OP_CALL` dispatch alongside native functions.

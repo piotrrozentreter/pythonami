@@ -16,7 +16,7 @@
 
 #include <string.h>
 
-#define PY68K_VERSION "Python68K 0.5.0\n"
+#define PY68K_VERSION "Python68K 0.6.0\n"
 #define PY68K_HELP \
     "Usage: pythonami [--debug] [-V|--help] [-c cmd | script.py]\n"
 

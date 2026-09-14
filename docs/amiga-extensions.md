@@ -3,7 +3,7 @@
 Python68K on Amiga can load relocatable Hunk plugins (convention: `*.py68k`) with
 `LoadSeg` and expose their exports as callables on a module-like object.
 
-Host builds do **not** provide `load_library`. This is Amiga-only (D-0026).
+Host builds do **not** provide `load_library`. This is Amiga-only (D-0027).
 
 ## Python usage
 
@@ -58,7 +58,7 @@ Callback contract (same as builtins):
 - Scalar helpers: `py68_ext_value_none`, `py68_ext_value_bool`, `py68_ext_value_int`.
 
 Compile against the public headers only. Do **not** link `pythonami`,
-`startup.o`, `vc.lib`, or NDK `amiga.lib` into the plugin (D-0004 / D-0026).
+`startup.o`, `vc.lib`, or NDK `amiga.lib` into the plugin (D-0004 / D-0027).
 
 ## Building the sample (`demo_add`)
 
