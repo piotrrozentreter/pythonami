@@ -2,6 +2,7 @@
 
 #include "py68k_parser.h"
 #include "py68k_float.h"
+#include "py68k_tokenizer.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -172,6 +173,453 @@ static int py68_precedence(Py68TokenKind kind)
     return 0;
 }
 
+static void py68_ast_rebase_offsets(Py68AstNode *node, Py68U32 base)
+{
+    Py68U16 index;
+    if (node == NULL) return;
+    node->location.offset += base;
+    switch ((Py68AstKind)node->kind) {
+    case PY68_AST_STRING:
+        node->as.string_literal.offset += base;
+        break;
+    case PY68_AST_NAME:
+        node->as.name.offset += base;
+        break;
+    case PY68_AST_UNARY:
+        py68_ast_rebase_offsets(node->as.unary.operand, base);
+        break;
+    case PY68_AST_BINARY:
+        py68_ast_rebase_offsets(node->as.binary.left, base);
+        py68_ast_rebase_offsets(node->as.binary.right, base);
+        break;
+    case PY68_AST_IF_EXP:
+        py68_ast_rebase_offsets(node->as.if_exp.body, base);
+        py68_ast_rebase_offsets(node->as.if_exp.condition, base);
+        py68_ast_rebase_offsets(node->as.if_exp.else_body, base);
+        break;
+    case PY68_AST_CALL:
+        py68_ast_rebase_offsets(node->as.call.callee, base);
+        for (index = 0; index < node->as.call.arguments.count; ++index) {
+            py68_ast_rebase_offsets(node->as.call.arguments.items[index],
+                                    base);
+        }
+        break;
+    case PY68_AST_INDEX:
+        py68_ast_rebase_offsets(node->as.index.container, base);
+        py68_ast_rebase_offsets(node->as.index.index, base);
+        break;
+    case PY68_AST_SLICE:
+        py68_ast_rebase_offsets(node->as.slice.container, base);
+        py68_ast_rebase_offsets(node->as.slice.start, base);
+        py68_ast_rebase_offsets(node->as.slice.end, base);
+        break;
+    case PY68_AST_ATTRIBUTE:
+        node->as.attribute.name_offset += base;
+        py68_ast_rebase_offsets(node->as.attribute.value, base);
+        break;
+    case PY68_AST_LIST:
+    case PY68_AST_TUPLE:
+    case PY68_AST_SET:
+        for (index = 0; index < node->as.list_literal.elements.count;
+             ++index) {
+            py68_ast_rebase_offsets(
+                node->as.list_literal.elements.items[index], base);
+        }
+        break;
+    case PY68_AST_DICT:
+        for (index = 0; index < node->as.dict_literal.keys.count; ++index) {
+            py68_ast_rebase_offsets(node->as.dict_literal.keys.items[index],
+                                    base);
+            py68_ast_rebase_offsets(node->as.dict_literal.values.items[index],
+                                    base);
+        }
+        break;
+    case PY68_AST_LIST_COMP:
+    case PY68_AST_SET_COMP:
+    case PY68_AST_DICT_COMP:
+        py68_ast_rebase_offsets(node->as.comprehension.elt, base);
+        py68_ast_rebase_offsets(node->as.comprehension.value, base);
+        for (index = 0; index < node->as.comprehension.generators.count;
+             ++index) {
+            py68_ast_rebase_offsets(
+                node->as.comprehension.generators.items[index], base);
+        }
+        break;
+    case PY68_AST_COMP_FOR: {
+        Py68U16 filter_index;
+        node->as.comprehension_for.name_offset += base;
+        py68_ast_rebase_offsets(node->as.comprehension_for.iterable, base);
+        for (filter_index = 0;
+             filter_index < node->as.comprehension_for.ifs.count;
+             ++filter_index) {
+            py68_ast_rebase_offsets(
+                node->as.comprehension_for.ifs.items[filter_index], base);
+        }
+        break;
+    }
+    case PY68_AST_JOINED_STR:
+        for (index = 0; index < node->as.joined_str.parts.count; ++index) {
+            py68_ast_rebase_offsets(node->as.joined_str.parts.items[index],
+                                    base);
+        }
+        break;
+    case PY68_AST_FORMATTED_VALUE:
+        py68_ast_rebase_offsets(node->as.formatted_value.value, base);
+        py68_ast_rebase_offsets(node->as.formatted_value.format_spec, base);
+        break;
+    default:
+        break;
+    }
+}
+
+static Py68Status py68_fstring_append_literal(Py68ExpressionParser *parser,
+                                              Py68AstNode *joined,
+                                              Py68Location token_location,
+                                              Py68U32 offset,
+                                              Py68U16 length)
+{
+    Py68AstNode *literal;
+    Py68Status status;
+    Py68Location location;
+
+    if (length == 0) return PY68_STATUS_OK;
+    location = token_location;
+    location.offset = offset;
+    location.length = length;
+    status = py68_ast_arena_new(parser->arena, PY68_AST_STRING, location,
+                                &literal);
+    if (status != PY68_STATUS_OK) return status;
+    literal->as.string_literal.offset = offset;
+    literal->as.string_literal.length = length;
+    literal->as.string_literal.quote_flags = (Py68U16)'"';
+    return py68_ast_list_append(parser->arena, &joined->as.joined_str.parts,
+                                literal);
+}
+
+static Py68Status py68_parse_fstring_expression(
+    Py68ExpressionParser *parser, Py68U32 expr_start, Py68U16 expr_len,
+    Py68AstNode **expr_out)
+{
+    Py68Source expr_source;
+    Py68TokenArray expr_tokens;
+    Py68ExpressionParser expr_parser;
+    Py68AstNode *expr_node;
+    Py68Status status;
+    Py68U32 index;
+    Py68Token *end_token;
+    const Py68U8 *data = parser->source->data;
+
+    /* Trim spaces so a leading blank does not become an INDENT token. */
+    while (expr_len > 0 &&
+           (data[expr_start] == (Py68U8)' ' ||
+            data[expr_start] == (Py68U8)'\t')) {
+        ++expr_start;
+        --expr_len;
+    }
+    while (expr_len > 0 &&
+           (data[expr_start + expr_len - 1] == (Py68U8)' ' ||
+            data[expr_start + expr_len - 1] == (Py68U8)'\t')) {
+        --expr_len;
+    }
+
+    if (expr_len == 0) {
+        Py68Location location;
+        location.offset = expr_start;
+        location.line = 0;
+        location.column = 0;
+        location.length = 0;
+        py68_parser_error(parser, location, "empty expression in f-string");
+        return PY68_STATUS_SOURCE_ERROR;
+    }
+
+    expr_source.filename = parser->source->filename;
+    expr_source.data = parser->source->data + expr_start;
+    expr_source.length = expr_len;
+    py68_token_array_initialize(&expr_tokens);
+    status = py68_tokenize(parser->allocator, &expr_source, &expr_tokens,
+                           parser->error);
+    if (status != PY68_STATUS_OK) {
+        py68_token_array_destroy(parser->allocator, &expr_tokens);
+        return status;
+    }
+    for (index = 0; index < expr_tokens.count; ++index) {
+        if (expr_tokens.items[index].kind == PY68_TOKEN_FSTRING) {
+            Py68Location location = expr_tokens.items[index].location;
+            location.offset += expr_start;
+            py68_parser_error(parser, location,
+                              "nested f-strings are not supported");
+            py68_token_array_destroy(parser->allocator, &expr_tokens);
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+    }
+    expr_parser.allocator = parser->allocator;
+    expr_parser.source = &expr_source;
+    expr_parser.tokens = &expr_tokens;
+    expr_parser.position = 0;
+    expr_parser.arena = parser->arena;
+    expr_parser.error = parser->error;
+    status = py68_parse_expression(&expr_parser, &expr_node);
+    if (status != PY68_STATUS_OK) {
+        py68_token_array_destroy(parser->allocator, &expr_tokens);
+        return status;
+    }
+    while (expr_parser.position < expr_tokens.count &&
+           expr_tokens.items[expr_parser.position].kind ==
+               PY68_TOKEN_NEWLINE) {
+        ++expr_parser.position;
+    }
+    end_token = expr_parser.position < expr_tokens.count
+                ? &expr_tokens.items[expr_parser.position]
+                : NULL;
+    if (end_token == NULL || end_token->kind != PY68_TOKEN_EOF) {
+        Py68Location location;
+        if (end_token != NULL) {
+            location = end_token->location;
+            location.offset += expr_start;
+        } else {
+            location.offset = expr_start + expr_len;
+            location.line = 0;
+            location.column = 0;
+            location.length = 0;
+        }
+        py68_parser_error(parser, location,
+                          "invalid expression in f-string");
+        py68_token_array_destroy(parser->allocator, &expr_tokens);
+        return PY68_STATUS_SOURCE_ERROR;
+    }
+    py68_ast_rebase_offsets(expr_node, expr_start);
+    py68_token_array_destroy(parser->allocator, &expr_tokens);
+    *expr_out = expr_node;
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_parse_fstring(Py68ExpressionParser *parser,
+                                     Py68Token *token,
+                                     Py68AstNode **node_out)
+{
+    Py68AstNode *joined;
+    Py68AstNode *formatted;
+    Py68AstNode *expr_node;
+    Py68AstNode *format_spec;
+    Py68Status status;
+    Py68U32 body_start;
+    Py68U32 body_end;
+    Py68U32 index;
+    Py68U32 literal_start;
+    Py68U16 conversion;
+    const Py68U8 *data;
+
+    status = py68_ast_arena_new(parser->arena, PY68_AST_JOINED_STR,
+                                token->location, &joined);
+    if (status != PY68_STATUS_OK) return status;
+    py68_ast_list_initialize(&joined->as.joined_str.parts);
+
+    /* Token is f"..." — body starts after f and opening quote. */
+    body_start = token->location.offset + 2;
+    body_end = token->location.offset + token->location.length - 1;
+    data = parser->source->data;
+    index = body_start;
+    literal_start = body_start;
+
+    while (index < body_end) {
+        if (data[index] == (Py68U8)'{' && index + 1 < body_end &&
+            data[index + 1] == (Py68U8)'{') {
+            status = py68_fstring_append_literal(
+                parser, joined, token->location, literal_start,
+                (Py68U16)(index - literal_start));
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_fstring_append_literal(
+                parser, joined, token->location, index, 1);
+            if (status != PY68_STATUS_OK) return status;
+            index += 2;
+            literal_start = index;
+            continue;
+        }
+        if (data[index] == (Py68U8)'}' && index + 1 < body_end &&
+            data[index + 1] == (Py68U8)'}') {
+            status = py68_fstring_append_literal(
+                parser, joined, token->location, literal_start,
+                (Py68U16)(index - literal_start));
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_fstring_append_literal(
+                parser, joined, token->location, index, 1);
+            if (status != PY68_STATUS_OK) return status;
+            index += 2;
+            literal_start = index;
+            continue;
+        }
+        if (data[index] == (Py68U8)'}') {
+            Py68Location location = token->location;
+            location.offset = index;
+            location.length = 1;
+            py68_parser_error(parser, location,
+                              "single '}' is not allowed in f-string");
+            return PY68_STATUS_SOURCE_ERROR;
+        }
+        if (data[index] == (Py68U8)'{') {
+            Py68U32 expr_start;
+            Py68U32 scan;
+            Py68U32 depth;
+            Py68U32 expr_end;
+            Py68U32 close;
+
+            status = py68_fstring_append_literal(
+                parser, joined, token->location, literal_start,
+                (Py68U16)(index - literal_start));
+            if (status != PY68_STATUS_OK) return status;
+
+            expr_start = index + 1;
+            scan = expr_start;
+            depth = 0;
+            conversion = 0;
+            format_spec = NULL;
+            expr_end = 0;
+            close = 0;
+
+            while (scan < body_end) {
+                if (data[scan] == (Py68U8)'{') {
+                    ++depth;
+                    ++scan;
+                    continue;
+                }
+                if (data[scan] == (Py68U8)'}') {
+                    if (depth == 0) {
+                        if (expr_end == 0) expr_end = scan;
+                        close = scan;
+                        break;
+                    }
+                    --depth;
+                    ++scan;
+                    continue;
+                }
+                if (depth == 0 && data[scan] == (Py68U8)'!' &&
+                    expr_end == 0) {
+                    expr_end = scan;
+                    if (scan + 1 >= body_end) {
+                        Py68Location location = token->location;
+                        location.offset = scan;
+                        location.length = 1;
+                        py68_parser_error(parser, location,
+                                          "invalid conversion in f-string");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                    if (data[scan + 1] == (Py68U8)'s' ||
+                        data[scan + 1] == (Py68U8)'r' ||
+                        data[scan + 1] == (Py68U8)'a') {
+                        conversion = (Py68U16)data[scan + 1];
+                        scan += 2;
+                        if (scan < body_end && data[scan] == (Py68U8)':') {
+                            /* fall through to format-spec handling below */
+                        } else if (scan < body_end &&
+                                   data[scan] == (Py68U8)'}') {
+                            close = scan;
+                            break;
+                        } else {
+                            Py68Location location = token->location;
+                            location.offset = scan;
+                            location.length = 1;
+                            py68_parser_error(
+                                parser, location,
+                                "invalid conversion in f-string");
+                            return PY68_STATUS_SOURCE_ERROR;
+                        }
+                    } else {
+                        Py68Location location = token->location;
+                        location.offset = scan;
+                        location.length = 1;
+                        py68_parser_error(parser, location,
+                                          "invalid conversion in f-string");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                }
+                if (depth == 0 && data[scan] == (Py68U8)':' &&
+                    (expr_end == 0 || conversion != 0)) {
+                    Py68U32 spec_start;
+                    if (expr_end == 0) expr_end = scan;
+                    spec_start = scan + 1;
+                    ++scan;
+                    while (scan < body_end && data[scan] != (Py68U8)'}') {
+                        if (data[scan] == (Py68U8)'{') {
+                            Py68Location location = token->location;
+                            location.offset = scan;
+                            location.length = 1;
+                            py68_parser_error(
+                                parser, location,
+                                "nested format specs are not supported");
+                            return PY68_STATUS_SOURCE_ERROR;
+                        }
+                        ++scan;
+                    }
+                    if (scan >= body_end) {
+                        Py68Location location = token->location;
+                        location.offset = index;
+                        location.length = 1;
+                        py68_parser_error(parser, location,
+                                          "unclosed '{' in f-string");
+                        return PY68_STATUS_SOURCE_ERROR;
+                    }
+                    status = py68_ast_arena_new(
+                        parser->arena, PY68_AST_STRING, token->location,
+                        &format_spec);
+                    if (status != PY68_STATUS_OK) return status;
+                    format_spec->as.string_literal.offset = spec_start;
+                    format_spec->as.string_literal.length =
+                        (Py68U16)(scan - spec_start);
+                    format_spec->as.string_literal.quote_flags =
+                        (Py68U16)'"';
+                    format_spec->location.offset = spec_start;
+                    format_spec->location.length =
+                        (Py68U16)(scan - spec_start);
+                    close = scan;
+                    break;
+                }
+                ++scan;
+            }
+
+            if (close == 0) {
+                Py68Location location = token->location;
+                location.offset = index;
+                location.length = 1;
+                py68_parser_error(parser, location,
+                                  "unclosed '{' in f-string");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            if (expr_end == 0) expr_end = close;
+
+            status = py68_parse_fstring_expression(
+                parser, expr_start, (Py68U16)(expr_end - expr_start),
+                &expr_node);
+            if (status != PY68_STATUS_OK) return status;
+
+            status = py68_ast_arena_new(parser->arena,
+                                        PY68_AST_FORMATTED_VALUE,
+                                        token->location, &formatted);
+            if (status != PY68_STATUS_OK) return status;
+            formatted->as.formatted_value.value = expr_node;
+            formatted->as.formatted_value.conversion = conversion;
+            formatted->as.formatted_value.format_spec = format_spec;
+            status = py68_ast_list_append(parser->arena,
+                                          &joined->as.joined_str.parts,
+                                          formatted);
+            if (status != PY68_STATUS_OK) return status;
+
+            index = close + 1;
+            literal_start = index;
+            continue;
+        }
+        ++index;
+    }
+
+    status = py68_fstring_append_literal(
+        parser, joined, token->location, literal_start,
+        (Py68U16)(body_end - literal_start));
+    if (status != PY68_STATUS_OK) return status;
+
+    ++parser->position;
+    *node_out = joined;
+    return PY68_STATUS_OK;
+}
+
 static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
                                      Py68AstNode **node_out)
 {
@@ -234,6 +682,9 @@ static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
         ++parser->position;
         *node_out = node;
         return status;
+    }
+    if (token->kind == PY68_TOKEN_FSTRING) {
+        return py68_parse_fstring(parser, token, node_out);
     }
     if (token->kind == PY68_TOKEN_NAME) {
         status = py68_ast_arena_new(parser->arena, PY68_AST_NAME,

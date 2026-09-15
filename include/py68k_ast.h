@@ -30,6 +30,8 @@ typedef enum Py68AstKind {
     PY68_AST_INTEGER,
     PY68_AST_FLOAT,
     PY68_AST_STRING,
+    PY68_AST_JOINED_STR,
+    PY68_AST_FORMATTED_VALUE,
     PY68_AST_BOOL,
     PY68_AST_NONE,
     PY68_AST_NAME,
@@ -99,6 +101,10 @@ struct Py68AstNode {
         struct { Py68U32 bits; } float_literal;
         struct { Py68U32 offset; Py68U16 length; Py68U16 quote_flags; }
             string_literal;
+        struct { Py68AstList parts; } joined_str;
+        struct { Py68AstNode *value; Py68U16 conversion; /* 0, 's','r','a' */
+                 Py68AstNode *format_spec; /* PY68_AST_STRING or NULL */ }
+            formatted_value;
         struct { Py68U32 offset; Py68U16 length; } name;
         struct { Py68U16 value; } boolean_literal;
         struct { Py68U16 operator_kind; Py68AstNode *operand; } unary;
