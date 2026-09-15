@@ -37,6 +37,9 @@ static int py68_check(Py68ExpressionParser *parser, Py68TokenKind kind)
     return token != NULL && token->kind == kind;
 }
 
+static Py68Status py68_parse_or_test(Py68ExpressionParser *parser,
+                                     Py68AstNode **node_out);
+
 static Py68Status py68_parse_comprehension_fors(Py68ExpressionParser *parser,
                                                Py68AstList *generators)
 {
@@ -90,11 +93,13 @@ static Py68Status py68_parse_comprehension_fors(Py68ExpressionParser *parser,
                               "expected in after comprehension loop variable");
             return PY68_STATUS_SOURCE_ERROR;
         }
-        status = py68_parse_expression(parser, &iterable);
+        /* Iterable and filters are or_test, not full expressions, so a
+           following `if` is a comprehension filter rather than a ternary. */
+        status = py68_parse_or_test(parser, &iterable);
         if (status != PY68_STATUS_OK) return status;
         clause->as.comprehension_for.iterable = iterable;
         while (py68_accept(parser, PY68_TOKEN_IF)) {
-            status = py68_parse_expression(parser, &filter);
+            status = py68_parse_or_test(parser, &filter);
             if (status != PY68_STATUS_OK) return status;
             status = py68_ast_list_append(parser->arena,
                                           &clause->as.comprehension_for.ifs,
@@ -766,8 +771,54 @@ static Py68Status py68_parse_precedence(Py68ExpressionParser *parser,
     return PY68_STATUS_OK;
 }
 
+static Py68Status py68_parse_or_test(Py68ExpressionParser *parser,
+                                     Py68AstNode **node_out)
+{
+    return py68_parse_precedence(parser, 1, node_out);
+}
+
 Py68Status py68_parse_expression(Py68ExpressionParser *parser,
                                  Py68AstNode **node_out)
 {
-    return py68_parse_precedence(parser, 1, node_out);
+    Py68AstNode *body;
+    Py68AstNode *condition;
+    Py68AstNode *else_body;
+    Py68AstNode *node;
+    Py68Token *if_token;
+    Py68Token *token;
+    Py68Status status;
+
+    status = py68_parse_or_test(parser, &body);
+    if (status != PY68_STATUS_OK) return status;
+    if_token = py68_current(parser);
+    if (if_token == NULL || if_token->kind != PY68_TOKEN_IF) {
+        *node_out = body;
+        return PY68_STATUS_OK;
+    }
+    ++parser->position;
+    status = py68_parse_or_test(parser, &condition);
+    if (status != PY68_STATUS_OK) return status;
+    if (!py68_accept(parser, PY68_TOKEN_ELSE)) {
+        token = py68_current(parser);
+        py68_parser_error(parser,
+                          token != NULL ? token->location : if_token->location,
+                          "expected else in conditional expression");
+        return PY68_STATUS_SOURCE_ERROR;
+    }
+    /* Else-clause is a full expression so `a if c1 else b if c2 else c`
+       associates to the right, matching Python. */
+    status = py68_parse_expression(parser, &else_body);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_ast_arena_new(parser->arena, PY68_AST_IF_EXP,
+                                if_token->location, &node);
+    if (status != PY68_STATUS_OK) return status;
+    node->as.if_exp.body = body;
+    node->as.if_exp.condition = condition;
+    node->as.if_exp.else_body = else_body;
+    node->location.offset = body->location.offset;
+    node->location.length = (Py68U16)(else_body->location.offset +
+                                      else_body->location.length -
+                                      body->location.offset);
+    *node_out = node;
+    return PY68_STATUS_OK;
 }

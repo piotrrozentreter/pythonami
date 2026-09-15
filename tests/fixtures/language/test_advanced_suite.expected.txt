@@ -31,4 +31,10 @@ abcdef!
 3
 False
 1
+=== 8. Conditional expressions ===
+yes
+no
+b
+2
+[-1, 1, 2]
 === Advanced Suite Complete ===

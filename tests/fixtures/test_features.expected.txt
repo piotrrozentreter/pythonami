@@ -156,4 +156,11 @@ False
 1
 33
 1
+=== 29. Conditional expressions ===
+yes
+no
+c
+1
+[0, 1, -2, 3]
+2
 === Feature Test Complete ===

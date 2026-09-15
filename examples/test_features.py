@@ -308,4 +308,12 @@ except ValueError:
     unpack_err = 1
 print(unpack_err)
 
+print("=== 29. Conditional expressions ===")
+print("yes" if 1 else "no")
+print("yes" if 0 else "no")
+print("a" if 0 else "b" if 0 else "c")
+print(1 if 1 or 0 else 2)
+print([x if x % 2 else -x for x in range(4)])
+print(len("ab" if 1 else "abcd"))
+
 print("=== Feature Test Complete ===")

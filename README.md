@@ -20,9 +20,10 @@ Executable name: `pythonami`
 - Identity: `x is y` / `x is not y` (None/bool/int/float by type+payload; heap objects by pointer)
 - Unary: `+ - not`
 - Short-circuit `and` / `or` (value-preserving; empty containers are falsy)
+- Conditional expressions: `then if condition else else` (right-associative else-chains)
 
 ### Control flow
-- `if` / `elif` / `else`
+- `if` / `elif` / `else` (statements). Value-level `then if cond else else` is an expression (D-0040).
 - `while` … `else`, `for … in` range/list/tuple/dict/set/string … `else`
 - `for a, b in pairs:` unpacks each item (fixed name targets; D-0038)
 - Multiple assignment: `a, b = (1, 2)`, `a, b = [1, 2]`, `a, b = 1, 2`

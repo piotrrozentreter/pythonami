@@ -1,5 +1,27 @@
 # Decisions
 
+## D-0040: Conditional expressions via JUMP_IF_FALSE / JUMP
+
+- Context: Everyday Python `then if condition else else` was missing. `if` /
+	`else` existed only as statements; comprehension `if` filters are a
+	separate `or_test` production. Lambda is unsupported, so the Pratt `or`
+	ladder is the top of the expression grammar.
+- Decision: Parse `or_test ["if" or_test "else" expression]` as
+	`PY68_AST_IF_EXP`. The else-clause is a full expression, so nested
+	ternaries associate to the right. Compile by evaluating the condition,
+	`OP_JUMP_IF_FALSE` to the else branch (pops the condition), emitting the
+	then-expr, `OP_JUMP` past else, then the else-expr. No new opcode.
+	Comprehension iterables and `if` filters keep parsing `or_test` so
+	`[x for x in items if x]` is not consumed as a ternary. Statement
+	`if`/`elif`/`while` conditions still use the full expression parser, so
+	an unparenthesized ternary is accepted there (slightly more permissive
+	than CPython, which uses `namedexpr_test`).
+- Alternatives considered: A dedicated `OP_IF_EXP`; left-associative else
+	chains; allowing ternary `if` to steal comprehension filters (would break
+	Level 0.6 comprehensions).
+- Consequences: `a or b if c else d` is `(a or b) if c else d`. Missing `else`
+	is a syntax error. Both branches are compiled; only one runs.
+
 ## D-0039: Index/attr augmented assignment, ordering, and sorted
 
 - Context: `examples/wordcount.py` needs `d[k] += 1`, lexicographic ordering of

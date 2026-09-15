@@ -1,0 +1,47 @@
+=== true/false branches ===
+yes
+no
+yes
+no
+no
+yes
+no
+yes
+no
+1
+0
+=== nesting ===
+a
+b
+c
+c
+=== and/or/comparisons ===
+1
+2
+2
+1
+9
+8
+in
+out
+same
+2
+5
+9
+True
+=== calls/lists/comprehensions ===
+2
+[1, 2]
+[0, 1, -2, 3]
+[1, 2, 3]
+[1, 2]
+True
+=== only one branch ===
+1
+1
+4
+2
+=== assignment/return ===
+t
+yes
+no
