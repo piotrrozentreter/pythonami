@@ -6,6 +6,7 @@
 #include "py68k_tuple.h"
 #include "py68k_dict.h"
 #include "py68k_set.h"
+#include "py68k_range.h"
 #include "py68k_exception.h"
 #include "py68k_float.h"
 #include "py68k_native.h"
@@ -754,6 +755,58 @@ Py68Status py68_builtin_sum(Py68Runtime *runtime, Py68U16 argument_count,
     else
         *result = py68_value_int(int_total);
     return PY68_STATUS_OK;
+}
+
+Py68Status py68_builtin_iter(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result)
+{
+    Py68Range *range_obj;
+    Py68Status status;
+    if (argument_count != 1) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "iter expects one argument");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    status = py68_iterable_get_iter(runtime, arguments[0], &range_obj);
+    if (status == PY68_STATUS_SOURCE_ERROR) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "iter() argument must be iterable");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (status != PY68_STATUS_OK) return status;
+    *result = py68_value_from_object(&range_obj->base);
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_builtin_next(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result)
+{
+    Py68Range *range_obj;
+    Py68Status status;
+    int has_next = 0;
+    if (argument_count < 1 || argument_count > 2) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "next expects one or two arguments");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (arguments[0].type != PY68_VALUE_OBJECT ||
+        arguments[0].as.object == NULL ||
+        arguments[0].as.object->type != PY68_OBJECT_RANGE) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "next() argument must be an iterator");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    range_obj = (Py68Range *)arguments[0].as.object;
+    status = py68_range_next_value(runtime, range_obj, result, &has_next);
+    if (status != PY68_STATUS_OK) return status;
+    if (has_next) return PY68_STATUS_OK;
+    if (argument_count == 2) {
+        *result = arguments[1];
+        py68_value_retain(*result);
+        return PY68_STATUS_OK;
+    }
+    py68_builtin_error(runtime, PY68_ERROR_STOP_ITERATION, "StopIteration");
+    return PY68_STATUS_RUNTIME_ERROR;
 }
 
 Py68Status py68_builtin_exit(Py68Runtime *runtime, Py68U16 argument_count,

@@ -1,0 +1,16 @@
+=== literals ===
+hi
+
+{ok}
+a{b}c
+=== expressions ===
+x=42
+a3b
+Hello, Ada!
+=== conversions ===
+'A\nB'
+'A\nB'
+42
+=== format specs ===
+0042
+7

@@ -552,13 +552,13 @@ Notes: `encode` deferred (no `bytes`). `format` / `format_map` deferred as metho
 [x] all       [x] any       [x] ascii      [x] bool
 [ ] bytearray [ ] bytes     [x] chr        [ ] compile
 [ ] enumerate [ ] eval      [ ] exec       [x] format
-[x] input     [ ] iter      [x] len        [x] list
-[x] max       [x] min       [ ] next       [x] ord
+[x] input     [x] iter      [x] len        [x] list
+[x] max       [x] min       [x] next       [x] ord
 [x] print     [x] repr      [ ] reversed   [x] sorted
 [x] str       [x] tuple
 ```
 
-Notes: `bytes`/`bytearray`/`eval`/`exec`/`compile` deferred. Iterator helpers deferred; `for` already iterates strings. `format` is minimal int specs only. `maketrans` is also installed as a builtin (see above).
+Notes: `bytes`/`bytearray`/`eval`/`exec`/`compile` deferred. `iter`/`next` over `Py68Range` (D-0042); `enumerate`/`reversed` deferred. `format` is minimal int specs only. `maketrans` is also installed as a builtin (see above). Restricted f-strings in D-0043.
 
 ### Operators and language features
 
@@ -568,11 +568,11 @@ Notes: `bytes`/`bytearray`/`eval`/`exec`/`compile` deferred. Iterator helpers de
 [x] [start:stop] slicing (no step)  [x] in / not in
 [x] string iteration            [x] truth value
 [ ] adjacent literals           [x] escape sequences
-[ ] raw strings                 [ ] f-strings
+[ ] raw strings                 [x] f-strings (restricted; D-0043)
 [x] immutability errors
 ```
 
-Notes: Escapes decoded: `\\ \' \" \n \r \t \xHH`. Adjacent literals, raw strings, and f-strings remain deferred.
+Notes: Escapes decoded: `\\ \' \" \n \r \t \xHH`. Adjacent literals and raw strings remain deferred. Restricted f-strings: `f`/`F` prefix, `!s`/`!r`/`!a`, literal `:spec` matching `format()`, `{{`/`}}` (D-0043).
 Implemented via `OP_CONTAINS` / `OP_NOT_CONTAINS` and string conversion in `OP_RANGE_INIT` (D-0036).
 ---
 

@@ -125,6 +125,8 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "min", 2, 2, py68_builtin_min },
         { "max", 2, 2, py68_builtin_max },
         { "sum", 1, 2, py68_builtin_sum },
+        { "iter", 1, 1, py68_builtin_iter },
+        { "next", 1, 2, py68_builtin_next },
         { "sorted", 1, 1, py68_builtin_sorted },
         { "ord", 1, 1, py68_builtin_ord },
         { "chr", 1, 1, py68_builtin_chr },
@@ -219,7 +221,8 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
             { "NameError", PY68_ERROR_NAME },
             { "IOError", PY68_ERROR_IO },
             { "RecursionError", PY68_ERROR_RECURSION },
-            { "ImportError", PY68_ERROR_IMPORT }
+            { "ImportError", PY68_ERROR_IMPORT },
+            { "StopIteration", PY68_ERROR_STOP_ITERATION }
         };
         for (index = 0; index < sizeof(exceptions) / sizeof(exceptions[0]);
              ++index) {

@@ -1290,6 +1290,96 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         return py68_compile_comprehension(allocator, source, node, OP_BUILD_DICT,
                                           OP_MAP_ADD, code, error, analysis,
                                           function);
+    case PY68_AST_JOINED_STR: {
+        Py68U16 part_count = node->as.joined_str.parts.count;
+        if (part_count == 0) {
+            Py68Constant constant;
+            constant.kind = PY68_CONSTANT_STRING;
+            constant.flags = (Py68U16)'"';
+            constant.integer = 0;
+            constant.offset = 0;
+            constant.length = 0;
+            status = py68_code_add_constant(allocator, code, constant, &index);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_emit_u16_op(allocator, code, OP_LOAD_CONST, index);
+        }
+        for (index = 0; index < part_count; ++index) {
+            status = py68_compile_expression(
+                allocator, source, node->as.joined_str.parts.items[index],
+                code, error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            if (index > 0) {
+                status = py68_emit_op(allocator, code, OP_ADD);
+                if (status != PY68_STATUS_OK) return status;
+            }
+        }
+        return PY68_STATUS_OK;
+    }
+    case PY68_AST_FORMATTED_VALUE: {
+        Py68U16 name_index;
+        Py68U16 conversion = node->as.formatted_value.conversion;
+        Py68AstNode *format_spec = node->as.formatted_value.format_spec;
+        const char *converter;
+        Py68U16 converter_len;
+        if (conversion == (Py68U16)'r') {
+            converter = "repr";
+            converter_len = 4;
+        } else if (conversion == (Py68U16)'a') {
+            converter = "ascii";
+            converter_len = 5;
+        } else {
+            converter = "str";
+            converter_len = 3;
+        }
+        if (format_spec != NULL && conversion == 0) {
+            status = py68_code_add_interned_name(allocator, code, "format", 6,
+                                                 &name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_LOAD_GLOBAL,
+                                      name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(
+                allocator, source, node->as.formatted_value.value, code,
+                error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source, format_spec,
+                                             code, error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_CALL);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_code_emit_u8(allocator, code, 2);
+        }
+        status = py68_code_add_interned_name(allocator, code, converter,
+                                             converter_len, &name_index);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_emit_u16_op(allocator, code, OP_LOAD_GLOBAL, name_index);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_compile_expression(
+            allocator, source, node->as.formatted_value.value, code, error,
+            analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_emit_op(allocator, code, OP_CALL);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_code_emit_u8(allocator, code, 1);
+        if (status != PY68_STATUS_OK) return status;
+        if (format_spec != NULL) {
+            status = py68_code_add_interned_name(allocator, code, "format", 6,
+                                                 &name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_u16_op(allocator, code, OP_LOAD_GLOBAL,
+                                      name_index);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_ROT_TWO);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_compile_expression(allocator, source, format_spec,
+                                             code, error, analysis, function);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_CALL);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_code_emit_u8(allocator, code, 2);
+        }
+        return PY68_STATUS_OK;
+    }
     default:
         py68_compile_error(error, source, node->location,
                            "unsupported expression for compiler");

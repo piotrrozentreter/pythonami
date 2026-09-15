@@ -1,5 +1,37 @@
 # Decisions
 
+## D-0043: Restricted f-strings via JOINED_STR / FORMATTED_VALUE
+
+- Context: Scripts want interpolated strings. Full `str.format` / format-map /
+	nested f-strings / debug `=` conflict with Level constraints (no kwargs,
+	limited `format()`).
+- Decision: Accept `f`/`F`-prefixed one-line quotes as `PY68_TOKEN_FSTRING`.
+	Parse to `JOINED_STR` of literal `STRING` parts and `FORMATTED_VALUE`
+	`{expr[!s|!r|!a][:spec]}` with literal format specs matching builtin
+	`format()`. Compile without new opcodes: `str`/`repr`/`ascii`/`format`
+	calls plus `OP_ADD`. `{{`/`}}` are literal braces. Reject `fr`/`rf`/`b`/`u`
+	prefixes, nested f-strings, empty `{}`, and expressions in format specs.
+- Alternatives considered: `BUILD_STRING` opcode; full CPython f-string
+	tokenizer; defer until `str.format` methods exist.
+- Consequences: Updates D-0025 / D-0039 to allow this subset. Bare `f` remains
+	a normal name.
+
+## D-0042: `iter` / `next` over `Py68Range`; catchable `StopIteration`
+
+- Context: Scripts need CPython-style `iter`/`next` without classes or user
+	`__iter__`. `for` already converts containers to `PY68_OBJECT_RANGE` via
+	`RANGE_INIT`/`RANGE_NEXT`.
+- Decision: Expose that cursor as the iterator. `iter(x)` (arity 1) converts
+	list/tuple/str/dict/set (and retains an existing RANGE) through shared
+	`py68_iterable_get_iter`. `next(it[, default])` advances a RANGE; exhaustion
+	raises catchable `StopIteration` (`PY68_ERROR_STOP_ITERATION`, appended after
+	`INTERRUPT`) or returns `default`. `for` / comprehensions stay on
+	`RANGE_*` (no `GET_ITER`/`FOR_ITER`). Reject `iter(callable, sentinel)`.
+- Alternatives considered: New iterator heap type; rewire `for` to new opcodes;
+	exhaustion as `ValueError` only.
+- Consequences: `for x in iter(xs):` works because `RANGE_INIT` accepts RANGE.
+	`enumerate` / `reversed` remain deferred.
+
 ## D-0041: `sum(iterable[, start])` numeric builtin
 
 - Context: Scripts and examples use CPython's `sum` over lists/tuples. Python68K
@@ -53,7 +85,8 @@
 	same-type str/list/tuple lexicographic order; wire `< <= > >=` through it.
 	Expose `sorted(iterable)` returning a new list (stable insertion sort; no
 	`key`/`reverse`). Accept list, tuple, dict keys, set values, and string
-	characters. Keep f-strings deferred; wordcount uses string concatenation.
+	characters. Restricted f-strings are provided separately (D-0043); wordcount
+	still uses concatenation where convenient.
 - Alternatives considered: Rewrite wordcount to avoid `+=`/`sorted`; implement
 	full f-strings; add `DUP_TWO` instead of re-evaluating index targets.
 - Consequences: Updates D-0025 to allow `sorted` without general iterator
@@ -469,7 +502,7 @@
 ## D-0025: `maketrans` builtin; deferred encode/bytes/eval/format_map
 
 - Context: CPython exposes `str.maketrans` as a static method on the `str` type object. Python68K has no type objects. Full `str.format` / `format_map`, `bytes`/`bytearray`/`encode`, and `eval`/`exec`/`compile` conflict with Level 0.1 constraints (no kwargs, no bytes type, security).
-- Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`) except where list/tuple/`for` already covers use. `sorted(iterable)` is provided without `key`/`reverse` (D-0039). `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
+- Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs. General iterator builtins beyond `iter`/`next` (`enumerate`/`reversed`, `iter(callable, sentinel)`) remain deferred (D-0042). Restricted f-strings are provided in D-0043. `sorted(iterable)` is provided without `key`/`reverse` (D-0039). `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
 - Alternatives considered: Opaque translation-table object; alias `ascii` to `repr`.
 - Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work. `sum` is provided separately (D-0041).
 

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Restricted f-strings: `f"...{expr}...{expr!r}...{expr:04d}..."` with
+  `!s`/`!r`/`!a`, literal format specs matching `format()`, and `{{`/`}}`
+  escapes (D-0043). Nested f-strings, raw/bytes prefixes, and `str.format`
+  methods remain deferred.
+
+- Builtins `iter(x)` / `next(it[, default])` over the existing `Py68Range`
+  cursor used by `for`; catchable `StopIteration` (D-0042). `enumerate` /
+  `reversed` still deferred; `for` bytecode unchanged.
+
 - Builtin `sum(iterable[, start])` for list/tuple of numbers; optional numeric
   `start` defaults to `0`. Checked int overflow; float promotion matches `+`
   (D-0041).

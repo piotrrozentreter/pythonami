@@ -216,6 +216,43 @@ static int py68_is_valid_escape(Py68U8 character)
            character == (Py68U8)'x';
 }
 
+/* On entry, *position is at the opening quote. On success, *position is past
+   the closing quote. Returns 1 on success, 0 on unterminated/invalid content. */
+static int py68_scan_quoted_string(const Py68U8 *data, Py68U32 length,
+                                   Py68U32 *position, Py68U16 *column)
+{
+    Py68U8 quote = data[*position];
+    py68_advance(position, column);
+    while (*position < length && data[*position] != quote) {
+        if (data[*position] == (Py68U8)'\n' ||
+            data[*position] == (Py68U8)'\r') {
+            return 0;
+        }
+        if (data[*position] == (Py68U8)'\\') {
+            py68_advance(position, column);
+            if (*position == length ||
+                !py68_is_valid_escape(data[*position])) {
+                return 0;
+            }
+            if (data[*position] == (Py68U8)'x') {
+                py68_advance(position, column);
+                if (*position + 1 >= length ||
+                    !py68_is_hex_digit(data[*position]) ||
+                    !py68_is_hex_digit(data[*position + 1])) {
+                    return 0;
+                }
+                py68_advance(position, column);
+            }
+        }
+        py68_advance(position, column);
+    }
+    if (*position == length || data[*position] != quote) {
+        return 0;
+    }
+    py68_advance(position, column);
+    return 1;
+}
+
 static Py68Status py68_grow_bytes(Py68Allocator *allocator, void **items,
                                    Py68U32 *capacity, Py68U32 item_size)
 {
@@ -409,11 +446,77 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
         start_column = column;
         kind = PY68_TOKEN_EOF;
         if (py68_is_name_start(character)) {
-            while (position < source->length &&
-                   py68_is_name_continue(source->data[position])) {
-                py68_advance(&position, &column);
+            Py68U8 next;
+            Py68U8 next2;
+            int handled_string_prefix = 0;
+
+            if (position + 1 < source->length) {
+                next = source->data[position + 1];
+                if ((character == (Py68U8)'f' || character == (Py68U8)'F') &&
+                    (next == (Py68U8)'\'' || next == (Py68U8)'"')) {
+                    /* f"..." / f'...' — scan like a normal string. */
+                    py68_advance(&position, &column); /* past f/F */
+                    if (!py68_scan_quoted_string(source->data, source->length,
+                                                 &position, &column)) {
+                        location.offset = start;
+                        location.line = start_line;
+                        location.column = start_column;
+                        location.length = (Py68U16)(position - start);
+                        py68_set_token_error(
+                            error, PY68_ERROR_TOKEN, location, source,
+                            "unterminated or invalid string literal");
+                        status = PY68_STATUS_SOURCE_ERROR;
+                        break;
+                    }
+                    kind = PY68_TOKEN_FSTRING;
+                    handled_string_prefix = 1;
+                } else {
+                    int unsupported = 0;
+                    if ((character == (Py68U8)'f' ||
+                         character == (Py68U8)'F') &&
+                        (next == (Py68U8)'r' || next == (Py68U8)'R') &&
+                        position + 2 < source->length) {
+                        next2 = source->data[position + 2];
+                        if (next2 == (Py68U8)'\'' || next2 == (Py68U8)'"') {
+                            unsupported = 1;
+                        }
+                    } else if ((character == (Py68U8)'r' ||
+                                character == (Py68U8)'R') &&
+                               (next == (Py68U8)'f' ||
+                                next == (Py68U8)'F') &&
+                               position + 2 < source->length) {
+                        next2 = source->data[position + 2];
+                        if (next2 == (Py68U8)'\'' || next2 == (Py68U8)'"') {
+                            unsupported = 1;
+                        }
+                    } else if ((character == (Py68U8)'b' ||
+                                character == (Py68U8)'B' ||
+                                character == (Py68U8)'u' ||
+                                character == (Py68U8)'U') &&
+                               (next == (Py68U8)'\'' ||
+                                next == (Py68U8)'"')) {
+                        unsupported = 1;
+                    }
+                    if (unsupported) {
+                        location.offset = start;
+                        location.line = start_line;
+                        location.column = start_column;
+                        location.length = 1;
+                        py68_set_token_error(error, PY68_ERROR_TOKEN,
+                                             location, source,
+                                             "unsupported string prefix");
+                        status = PY68_STATUS_SOURCE_ERROR;
+                        break;
+                    }
+                }
             }
-            kind = py68_keyword(source->data, start, position - start);
+            if (!handled_string_prefix) {
+                while (position < source->length &&
+                       py68_is_name_continue(source->data[position])) {
+                    py68_advance(&position, &column);
+                }
+                kind = py68_keyword(source->data, start, position - start);
+            }
         } else if (py68_is_digit(character) ||
                    (character == (Py68U8)'.' && position + 1 < source->length &&
                     py68_is_digit(source->data[position + 1]))) {
@@ -491,34 +594,8 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
             }
         } else if (character == (Py68U8)'\'' ||
                    character == (Py68U8)'"') {
-            Py68U8 quote = character;
-            py68_advance(&position, &column);
-            while (position < source->length &&
-                   source->data[position] != quote) {
-                if (source->data[position] == (Py68U8)'\n' ||
-                    source->data[position] == (Py68U8)'\r') {
-                    break;
-                }
-                if (source->data[position] == (Py68U8)'\\') {
-                    py68_advance(&position, &column);
-                    if (position == source->length ||
-                        !py68_is_valid_escape(source->data[position])) {
-                        break;
-                    }
-                    if (source->data[position] == (Py68U8)'x') {
-                        py68_advance(&position, &column);
-                        if (position + 1 >= source->length ||
-                            !py68_is_hex_digit(source->data[position]) ||
-                            !py68_is_hex_digit(source->data[position + 1])) {
-                            break;
-                        }
-                        py68_advance(&position, &column);
-                    }
-                }
-                py68_advance(&position, &column);
-            }
-            if (position == source->length ||
-                source->data[position] != quote) {
+            if (!py68_scan_quoted_string(source->data, source->length,
+                                         &position, &column)) {
                 location.offset = start;
                 location.line = start_line;
                 location.column = start_column;
@@ -528,7 +605,6 @@ Py68Status py68_tokenize(Py68Allocator *allocator,
                 status = PY68_STATUS_SOURCE_ERROR;
                 break;
             }
-            py68_advance(&position, &column);
             kind = PY68_TOKEN_STRING;
         } else {
             Py68U32 width = 1;

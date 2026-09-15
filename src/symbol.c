@@ -318,6 +318,20 @@ static Py68Status py68_collect_expression(Py68Allocator *allocator,
     case PY68_AST_ATTRIBUTE:
         return py68_collect_expression(allocator, source, function,
                                        node->as.attribute.value);
+    case PY68_AST_JOINED_STR:
+        for (index = 0; index < node->as.joined_str.parts.count; ++index) {
+            status = py68_collect_expression(
+                allocator, source, function,
+                node->as.joined_str.parts.items[index]);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        return PY68_STATUS_OK;
+    case PY68_AST_FORMATTED_VALUE:
+        status = py68_collect_expression(allocator, source, function,
+                                         node->as.formatted_value.value);
+        if (status != PY68_STATUS_OK) return status;
+        return py68_collect_expression(allocator, source, function,
+                                       node->as.formatted_value.format_spec);
     case PY68_AST_LIST_COMP:
     case PY68_AST_SET_COMP:
     case PY68_AST_DICT_COMP: {
