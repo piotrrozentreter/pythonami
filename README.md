@@ -17,6 +17,7 @@ Executable name: `pythonami`
 - Arithmetic: `+ - * / // %` (`/` is true divide → float; `//` is floor-int)
 - Comparisons: `== != < <= > >=` (bool as 0/1; `None == None`; str/list/tuple equality)
 - Membership: `x in y` / `x not in y` (str substring; list/tuple equality scan; dict keys; set members)
+- Identity: `x is y` / `x is not y` (None/bool/int/float by type+payload; heap objects by pointer)
 - Unary: `+ - not`
 - Short-circuit `and` / `or` (value-preserving; empty containers are falsy)
 

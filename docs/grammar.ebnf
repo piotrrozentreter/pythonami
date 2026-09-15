@@ -8,7 +8,8 @@ and generator expressions are not part of this increment.
 Comparison operators include membership:
 
 ```ebnf
-comp_op          ::= "<" | ">" | "==" | ">=" | "<=" | "!=" | "in" | "not" "in"
+comp_op          ::= "<" | ">" | "==" | ">=" | "<=" | "!="
+                   | "in" | "not" "in" | "is" | "is" "not"
 ```
 
 ```ebnf

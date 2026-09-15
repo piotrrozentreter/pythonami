@@ -14,7 +14,7 @@ The opt-in `make -f Makefile.host check-mode-test` check validates `--check`: va
 
 `make test` now also runs `make language-test`, which executes Python68K scripts under `tests/language/` and `examples/` through `build/host/pythonami` and diffs stdout against fixtures in `tests/fixtures/` via `tests/integration/host/run_language_check.sh`. Coverage added:
 
-- `tests/language/operators/` — Python floor-div/mod for negatives, precedence, integer comparisons, short-circuit `and`/`or` with empty list/string falsiness, unary `not` (including empty containers), and membership `in` / `not in` (str/list/tuple/dict/set) plus `for`/comprehension over strings.
+- `tests/language/operators/` — Python floor-div/mod for negatives, precedence, integer comparisons, short-circuit `and`/`or` with empty list/string falsiness, unary `not` (including empty containers), membership `in` / `not in` (str/list/tuple/dict/set) plus `for`/comprehension over strings, and identity `is` / `is not` (None/bool/int immediates and distinct equal lists).
 - `tests/language/control_flow/` — `elif` ladders, `while`-`else` (complete and break-skip), `for`-`else`, `continue` in `for`/`while`, nested `for` loops.
 - `tests/language/functions/` — recursion (fibonacci/factorial/deep sum), local shadowing, reading globals from functions, `continue` inside functions, augassign on locals, multi-path `return`, implicit `None` return.
 - `tests/language/lists/` — concat, `list_append`/`list_pop`, nested index, list-building helpers, empty/`step`/`reverse` `range`, list slices with explicit bounds.

@@ -549,6 +549,82 @@ int main(void)
         passed &= runtime.allocator.stats.current_bytes == 0;
     }
 
+    {
+        const char *is_text =
+            "x = None\n"
+            "same_none = x is None\n"
+            "not_none = x is not None\n"
+            "a = [1, 2]\n"
+            "b = [1, 2]\n"
+            "alias = a\n"
+            "same_list = a is a\n"
+            "alias_ok = a is alias\n"
+            "distinct = a is b\n"
+            "equal = a == b\n"
+            "compound = 0 is not 1\n"
+            "grouped = 0 is (not 1)\n";
+        Py68Value flag;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "is_test.py", (const Py68U8 *)is_text,
+            (Py68U32)strlen(is_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"same_none", 9,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 1;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"not_none", 8,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 0;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"same_list", 9,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 1;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"alias_ok", 8,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 1;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"distinct", 8,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 0;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"equal", 5,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 1;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"compound", 8,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 1;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"grouped", 7,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_BOOL && flag.as.integer == 0;
+        py68_value_release(&runtime, flag);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
     if (passed) { puts("PASS: compiler tests"); return 0; }
     return 1;
 }

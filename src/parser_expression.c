@@ -159,6 +159,7 @@ static int py68_precedence(Py68TokenKind kind)
     if (kind == PY68_TOKEN_AND) return 2;
     if (kind >= PY68_TOKEN_EQUAL && kind <= PY68_TOKEN_GREATER_EQUAL) return 3;
     if (kind == PY68_TOKEN_IN || kind == PY68_TOKEN_NOT_IN) return 3;
+    if (kind == PY68_TOKEN_IS || kind == PY68_TOKEN_IS_NOT) return 3;
     if (kind == PY68_TOKEN_PLUS || kind == PY68_TOKEN_MINUS) return 4;
     if (kind == PY68_TOKEN_STAR || kind == PY68_TOKEN_SLASH ||
         kind == PY68_TOKEN_FLOOR_DIVIDE || kind == PY68_TOKEN_PERCENT)
@@ -682,8 +683,9 @@ static Py68Status py68_parse_precedence(Py68ExpressionParser *parser,
     Py68Status status;
 
     token = py68_current(parser);
-    /* Prefix `not` binds less tightly than comparisons so `not a in b` is
-       `not (a in b)`, matching Python. `a not in b` is handled as infix. */
+    /* Prefix `not` binds less tightly than comparisons so `not a in b` and
+       `not x is y` are `not (a in b)` / `not (x is y)`, matching Python.
+       `a not in b` and `x is not y` are compound infix operators. */
     if (token != NULL && token->kind == PY68_TOKEN_NOT && minimum <= 3) {
         next = NULL;
         if (parser->position + 1 < parser->tokens->count)
@@ -729,8 +731,18 @@ static Py68Status py68_parse_precedence(Py68ExpressionParser *parser,
                 break;
             }
         }
+        if (token->kind == PY68_TOKEN_IS) {
+            next = NULL;
+            if (parser->position + 1 < parser->tokens->count)
+                next = &parser->tokens->items[parser->position + 1];
+            if (next != NULL && next->kind == PY68_TOKEN_NOT) {
+                operator_kind = PY68_TOKEN_IS_NOT;
+                operator_prec = 3;
+            }
+        }
         if (operator_prec < minimum) break;
-        if (operator_kind == PY68_TOKEN_NOT_IN) {
+        if (operator_kind == PY68_TOKEN_NOT_IN ||
+            operator_kind == PY68_TOKEN_IS_NOT) {
             ++parser->position;
             ++parser->position;
         } else {

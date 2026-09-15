@@ -1,0 +1,36 @@
+=== None ===
+True
+False
+True
+False
+True
+=== bool ===
+True
+True
+False
+False
+True
+False
+True
+=== int ===
+True
+False
+True
+True
+False
+=== is not vs unary not ===
+True
+False
+=== lists ===
+True
+True
+True
+False
+True
+=== tuples ===
+True
+False
+True
+=== not (x is y) ===
+False
+True

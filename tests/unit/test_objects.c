@@ -29,6 +29,24 @@ int main(void)
     passed &= runtime.allocator.stats.current_bytes == 0;
     py68_runtime_shutdown(&runtime);
     passed &= runtime.allocator.stats.current_bytes == 0;
+
+    {
+        Py68Value none_a = py68_value_none();
+        Py68Value none_b = py68_value_none();
+        Py68Value true_a = py68_value_bool(1);
+        Py68Value true_b = py68_value_bool(1);
+        Py68Value false_v = py68_value_bool(0);
+        Py68Value one = py68_value_int(1);
+        Py68Value one_again = py68_value_int(1);
+        Py68Value two = py68_value_int(2);
+        passed &= py68_value_identical(none_a, none_b);
+        passed &= py68_value_identical(true_a, true_b);
+        passed &= !py68_value_identical(true_a, false_v);
+        passed &= !py68_value_identical(true_a, one);
+        passed &= py68_value_identical(one, one_again);
+        passed &= !py68_value_identical(one, two);
+    }
+
     if (passed) { puts("PASS: object and string tests"); return 0; }
     return 1;
 }

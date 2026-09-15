@@ -101,6 +101,13 @@ int main(void)
     passed &= check(tokens.items[0].kind == PY68_TOKEN_UNSUPPORTED_KEYWORD,
                     "unsupported keyword token is emitted");
     py68_token_array_destroy(&allocator, &tokens);
+    passed &= check(tokenize(&allocator, "x is not None\n", &tokens, &error),
+                    "is keyword tokenizes");
+    passed &= check(tokens.items[1].kind == PY68_TOKEN_IS, "is token");
+    passed &= check(tokens.items[2].kind == PY68_TOKEN_NOT,
+                    "not remains a separate token after is");
+    passed &= check(tokens.items[3].kind == PY68_TOKEN_NONE, "None token");
+    py68_token_array_destroy(&allocator, &tokens);
     passed &= check(tokenize(&allocator, "a.b + 1.5 / 2 // 3 {1}\n",
                              &tokens, &error),
                     "dot, float, slash, floor-div, and braces tokenize");

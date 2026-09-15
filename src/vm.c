@@ -350,6 +350,13 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
         py68_vm_pop(runtime, &left) != PY68_STATUS_OK) {
         return PY68_STATUS_RUNTIME_ERROR;
     }
+    if (opcode == OP_IS || opcode == OP_IS_NOT) {
+        integer = py68_value_identical(left, right);
+        if (opcode == OP_IS_NOT) integer = !integer;
+        py68_value_release(runtime, left);
+        py68_value_release(runtime, right);
+        return py68_vm_push(runtime, py68_value_bool((int)integer));
+    }
     if (opcode == OP_CONTAINS || opcode == OP_NOT_CONTAINS) {
         int found = 0;
         Py68Status status = PY68_STATUS_OK;
@@ -1155,6 +1162,7 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
         case OP_LESS:
         case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL:
         case OP_CONTAINS: case OP_NOT_CONTAINS:
+        case OP_IS: case OP_IS_NOT:
             status = py68_vm_binary(runtime, opcode); ip += 1; break;
         case OP_NEGATE:
             status = py68_vm_pop(runtime, &value);

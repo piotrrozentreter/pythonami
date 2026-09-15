@@ -15,14 +15,14 @@ Symbol analysis classifies names using local, module-global, builtin, and undefi
 
 ## Operators and comparisons
 
-Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare when types match). Short-circuit `and` / `or` are value-preserving.
+Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare when types match). Identity `is` / `is not` tests sameness, not equality: tagged immediates (None, bool, int, float) match by type and payload, so `x is None` follows Python and equal ints with the same bits are identical; heap objects match only when they are the same object (`[1] is [1]` is false). `is not` is a single operator (`x is not y` is not `x is (not y)`). Comparisons do not chain: `a is b is c` is `(a is b) is c`, matching `==`. Short-circuit `and` / `or` are value-preserving.
 
 ## Control flow
 
 - `if` / `elif` / `else`
 - `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings)
 - List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.
-- Comparisons: `== != < <= > >=`, membership `in` / `not in` (str substring; item in list/tuple; key in dict; member in set)
+- Comparisons: `== != < <= > >=`, membership `in` / `not in` (str substring; item in list/tuple; key in dict; member in set), identity `is` / `is not`
 - `break` / `continue` / `return` / `pass`
 - `try` / `except` / `except TypeError` / `except TypeError as e` / `finally`
 - `raise` and `raise TypeError("msg")`

@@ -12,6 +12,11 @@ Additional Level 0.3–0.5 opcodes (stable numbers; existing 0.1/0.2 opcodes unc
 - `OP_CHECK_EXCEPT` (0x46) — s16 jump-if-no-match; stack is exception, matcher
 - `OP_IMPORT_NAME` (0x44), `OP_IMPORT_FROM` (0x45) — u16 name-table index
 
+Identity and membership comparison opcodes (new numbers; existing opcodes unchanged):
+
+- `OP_IS` (0x16), `OP_IS_NOT` (0x17) — identity; tagged immediates compare type+payload, heap objects compare pointers (D-0037)
+- `OP_CONTAINS` (0x1E), `OP_NOT_CONTAINS` (0x1F) — membership (D-0036)
+
 Language Level 0.6 comprehension opcodes (new numbers; existing opcodes unchanged):
 
 - `OP_LIST_APPEND` (0x2F) — `u8` depth; append TOS to the list `depth` slots down, then pop TOS

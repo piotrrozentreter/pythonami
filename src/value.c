@@ -196,6 +196,18 @@ int py68_value_equal(Py68Runtime *runtime, Py68Value left, Py68Value right)
     return 0;
 }
 
+int py68_value_identical(Py68Value left, Py68Value right)
+{
+    if (left.type != right.type) return 0;
+    if (left.type == PY68_VALUE_NONE) return 1;
+    if (left.type == PY68_VALUE_BOOL || left.type == PY68_VALUE_INT ||
+        left.type == PY68_VALUE_FLOAT)
+        return left.as.integer == right.as.integer;
+    if (left.type == PY68_VALUE_OBJECT)
+        return left.as.object == right.as.object;
+    return 0;
+}
+
 void py68_value_retain(Py68Value value)
 {
     if (value.type == PY68_VALUE_OBJECT) py68_object_retain(value.as.object);
