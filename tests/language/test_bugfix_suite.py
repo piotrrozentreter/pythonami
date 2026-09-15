@@ -39,3 +39,21 @@ print(False == 0)
 print(True != False)
 print(True == False)
 print(False != 1)
+
+print("=== index augmented assignment ===")
+L = [10, 20, 30]
+L[1] += 5
+print(L[1])
+D = {}
+D["n"] = 1
+D["n"] += 2
+print(D["n"])
+
+print("=== ordering and sorted ===")
+print("a" < "b")
+print("b" < "a")
+print(("a", 2) < ("b", 1))
+print(("a", 1) < ("a", 2))
+print(sorted([3, 1, 2]))
+for letter, count in sorted({ "b": 2, "a": 1 }.items()):
+    print("'" + letter + "':", count)

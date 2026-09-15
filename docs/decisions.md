@@ -1,5 +1,26 @@
 # Decisions
 
+## D-0039: Index/attr augmented assignment, ordering, and sorted
+
+- Context: `examples/wordcount.py` needs `d[k] += 1`, lexicographic ordering of
+	strings/tuples for `sorted(dict.items())`, and a `sorted` builtin. Plain
+	name `+=` and `OP_STORE_INDEX` already existed (D-0010); ordering
+	comparisons for non-numerics raised `TypeError`; D-0025 deferred `sorted`.
+- Decision: After a leading expression, accept augmented-assignment operators
+	when the target is `NAME`, `INDEX`, or `ATTRIBUTE`. Compile index targets by
+	re-evaluating container and index around `OP_LOAD_INDEX` / binary op /
+	`OP_STORE_INDEX` (side effects run twice). Attribute targets use `OP_DUP` +
+	`LOAD_ATTR` / `STORE_ATTR`. Add `py68_value_compare` for int/bool/float and
+	same-type str/list/tuple lexicographic order; wire `< <= > >=` through it.
+	Expose `sorted(iterable)` returning a new list (stable insertion sort; no
+	`key`/`reverse`). Accept list, tuple, dict keys, set values, and string
+	characters. Keep f-strings deferred; wordcount uses string concatenation.
+- Alternatives considered: Rewrite wordcount to avoid `+=`/`sorted`; implement
+	full f-strings; add `DUP_TWO` instead of re-evaluating index targets.
+- Consequences: Updates D-0025 to allow `sorted` without general iterator
+	protocol builtins. Nested-container `print` remains limited to scalar list
+	items.
+
 ## D-0037: Identity comparison for tagged immediates vs heap objects
 
 - Context: Python `is` tests object identity. Python68K stores None, bool, int,
@@ -409,7 +430,7 @@
 ## D-0025: `maketrans` builtin; deferred encode/bytes/eval/format_map
 
 - Context: CPython exposes `str.maketrans` as a static method on the `str` type object. Python68K has no type objects. Full `str.format` / `format_map`, `bytes`/`bytearray`/`encode`, and `eval`/`exec`/`compile` conflict with Level 0.1 constraints (no kwargs, no bytes type, security).
-- Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`) except where list/tuple/`for` already covers use. `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
+- Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`) except where list/tuple/`for` already covers use. `sorted(iterable)` is provided without `key`/`reverse` (D-0039). `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
 - Alternatives considered: Opaque translation-table object; alias `ascii` to `repr`.
 - Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work.
 

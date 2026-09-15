@@ -452,23 +452,78 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             }
             break;
         case PY68_AST_AUGMENTED_ASSIGN: {
+            Py68AstNode *target = statement->as.augmented_assign.target;
             Py68U8 opcode = py68_augmented_opcode(
                 statement->as.augmented_assign.operator_kind);
-            status = py68_emit_load_name(
-                allocator, source, function, code,
-                statement->as.augmented_assign.target->as.name.offset,
-                statement->as.augmented_assign.target->as.name.length);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_compile_expression(
-                allocator, source, statement->as.augmented_assign.value,
-                code, error, analysis, function);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_op(allocator, code, opcode);
-            if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_store_name(
-                allocator, source, function, code,
-                statement->as.augmented_assign.target->as.name.offset,
-                statement->as.augmented_assign.target->as.name.length);
+            if (target != NULL && target->kind == PY68_AST_INDEX) {
+                status = py68_compile_expression(
+                    allocator, source, target->as.index.container,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, target->as.index.index,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, target->as.index.container,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, target->as.index.index,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, OP_LOAD_INDEX);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, statement->as.augmented_assign.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, opcode);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, OP_STORE_INDEX);
+            } else if (target != NULL && target->kind == PY68_AST_ATTRIBUTE) {
+                Py68U16 name_index;
+                status = py68_compile_expression(
+                    allocator, source, target->as.attribute.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, OP_DUP);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_code_add_name(allocator, code,
+                                            target->as.attribute.name_offset,
+                                            target->as.attribute.name_length,
+                                            &name_index);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_u16_op(allocator, code, OP_LOAD_ATTR,
+                                          name_index);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, statement->as.augmented_assign.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, opcode);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_u16_op(allocator, code, OP_STORE_ATTR,
+                                          name_index);
+            } else if (target != NULL && target->kind == PY68_AST_NAME) {
+                status = py68_emit_load_name(
+                    allocator, source, function, code,
+                    target->as.name.offset, target->as.name.length);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_expression(
+                    allocator, source, statement->as.augmented_assign.value,
+                    code, error, analysis, function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_op(allocator, code, opcode);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    target->as.name.offset, target->as.name.length);
+            } else {
+                py68_compile_error(error, source, statement->location,
+                                   "invalid augmented assignment target");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
             break;
         }
         case PY68_AST_EXPRESSION_STATEMENT:

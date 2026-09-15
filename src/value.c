@@ -196,6 +196,81 @@ int py68_value_equal(Py68Runtime *runtime, Py68Value left, Py68Value right)
     return 0;
 }
 
+static int py68_string_compare(Py68String *left, Py68String *right)
+{
+    Py68U32 min_length;
+    int cmp;
+    min_length = left->length < right->length ? left->length : right->length;
+    if (min_length > 0) {
+        cmp = memcmp(left->data, right->data, min_length);
+        if (cmp < 0) return -1;
+        if (cmp > 0) return 1;
+    }
+    if (left->length < right->length) return -1;
+    if (left->length > right->length) return 1;
+    return 0;
+}
+
+static int py68_sequence_compare(Py68Runtime *runtime, Py68Value *left_items,
+                                 Py68U32 left_count, Py68Value *right_items,
+                                 Py68U32 right_count, int *cmp_out)
+{
+    Py68U32 index;
+    Py68U32 shared;
+    shared = left_count < right_count ? left_count : right_count;
+    for (index = 0; index < shared; ++index) {
+        if (!py68_value_compare(runtime, left_items[index], right_items[index],
+                                cmp_out))
+            return 0;
+        if (*cmp_out != 0) return 1;
+    }
+    if (left_count < right_count) *cmp_out = -1;
+    else if (left_count > right_count) *cmp_out = 1;
+    else *cmp_out = 0;
+    return 1;
+}
+
+int py68_value_compare(Py68Runtime *runtime, Py68Value left, Py68Value right,
+                       int *cmp_out)
+{
+    if (cmp_out == NULL) return 0;
+    if (py68_value_is_number(left) && py68_value_is_number(right)) {
+        if (left.type == PY68_VALUE_FLOAT || right.type == PY68_VALUE_FLOAT) {
+            int cmp = py68_f32_compare(py68_value_float_bits_get(left),
+                                       py68_value_float_bits_get(right));
+            if (cmp == 2) return 0;
+            *cmp_out = cmp;
+            return 1;
+        }
+        if (left.as.integer < right.as.integer) *cmp_out = -1;
+        else if (left.as.integer > right.as.integer) *cmp_out = 1;
+        else *cmp_out = 0;
+        return 1;
+    }
+    if (left.type != PY68_VALUE_OBJECT || right.type != PY68_VALUE_OBJECT ||
+        left.as.object == NULL || right.as.object == NULL)
+        return 0;
+    if (left.as.object->type != right.as.object->type) return 0;
+    if (left.as.object->type == PY68_OBJECT_STRING) {
+        *cmp_out = py68_string_compare((Py68String *)left.as.object,
+                                       (Py68String *)right.as.object);
+        return 1;
+    }
+    if (left.as.object->type == PY68_OBJECT_LIST)
+        return py68_sequence_compare(
+            runtime, ((Py68List *)left.as.object)->items,
+            ((Py68List *)left.as.object)->count,
+            ((Py68List *)right.as.object)->items,
+            ((Py68List *)right.as.object)->count, cmp_out);
+    if (left.as.object->type == PY68_OBJECT_TUPLE)
+        return py68_sequence_compare(
+            runtime, ((Py68Tuple *)left.as.object)->items,
+            ((Py68Tuple *)left.as.object)->count,
+            ((Py68Tuple *)right.as.object)->items,
+            ((Py68Tuple *)right.as.object)->count, cmp_out);
+    return 0;
+}
+
 int py68_value_identical(Py68Value left, Py68Value right)
 {
     if (left.type != right.type) return 0;

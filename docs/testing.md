@@ -26,7 +26,7 @@ The opt-in `make -f Makefile.host check-mode-test` check validates `--check`: va
 
 A host bug in `OP_NOT` (truthiness evaluated after overwriting the value type, and missing release of object operands) was fixed so `not []` / `not ""` match Language Level 0.1 falsiness rules; language fixtures assert the corrected behavior.
 
-Subsequent host fixes covered by `tests/language/test_bugfix_suite.py` and `examples/test_features.py` sections 19–21: for-`break` emits `OP_POP` to discard the range iterator before joining the exit path; subscript assignment parses `INDEX` targets and executes `OP_STORE_INDEX`; `None`/`bool` equality follows D-0011. Decisions D-0009 through D-0011 record the designs. `tests/unit/test_compiler.c` also executes a for-`break` total accumulation case through verify+VM.
+Subsequent host fixes covered by `tests/language/test_bugfix_suite.py` and `examples/test_features.py` sections 19–21: for-`break` emits `OP_POP` to discard the range iterator before joining the exit path; subscript assignment parses `INDEX` targets and executes `OP_STORE_INDEX`; `None`/`bool` equality follows D-0011. Index/attr augmented assignment, lexicographic ordering for str/list/tuple, and `sorted(iterable)` are covered in the same bugfix suite (D-0039) and exercised by `examples/wordcount.py`. Decisions D-0009 through D-0011 and D-0039 record the designs. `tests/unit/test_compiler.c` also executes a for-`break` total accumulation case through verify+VM.
 
 ## 0.3–0.5 types, exceptions, and import coverage
 

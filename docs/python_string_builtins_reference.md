@@ -554,7 +554,7 @@ Notes: `encode` deferred (no `bytes`). `format` / `format_map` deferred as metho
 [ ] enumerate [ ] eval      [ ] exec       [x] format
 [x] input     [ ] iter      [x] len        [x] list
 [x] max       [x] min       [ ] next       [x] ord
-[x] print     [x] repr      [ ] reversed   [ ] sorted
+[x] print     [x] repr      [ ] reversed   [x] sorted
 [x] str       [x] tuple
 ```
 

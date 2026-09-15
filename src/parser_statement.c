@@ -42,6 +42,16 @@ static int py68_statement_accept(Py68StatementParser *parser,
     return 0;
 }
 
+static int py68_is_augassign_kind(Py68TokenKind kind)
+{
+    return kind == PY68_TOKEN_PLUS_ASSIGN ||
+           kind == PY68_TOKEN_MINUS_ASSIGN ||
+           kind == PY68_TOKEN_STAR_ASSIGN ||
+           kind == PY68_TOKEN_SLASH_ASSIGN ||
+           kind == PY68_TOKEN_FLOOR_DIVIDE_ASSIGN ||
+           kind == PY68_TOKEN_PERCENT_ASSIGN;
+}
+
 static Py68Status py68_statement_new(Py68StatementParser *parser,
                                      Py68AstKind kind, Py68Token *token,
                                      Py68AstNode **node_out)
@@ -822,6 +832,30 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         }
         return py68_statement_error(parser, py68_statement_current(parser),
                                     "invalid assignment target");
+    }
+    {
+        Py68Token *current = py68_statement_current(parser);
+        if (current != NULL && py68_is_augassign_kind(current->kind)) {
+            Py68TokenKind operator_kind = current->kind;
+            Py68AstNode *rhs;
+            if (value->kind != PY68_AST_NAME &&
+                value->kind != PY68_AST_INDEX &&
+                value->kind != PY68_AST_ATTRIBUTE) {
+                return py68_statement_error(parser, current,
+                    "invalid augmented assignment target");
+            }
+            ++parser->expression.position;
+            status = py68_parse_expression(&parser->expression, &rhs);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_statement_new(parser, PY68_AST_AUGMENTED_ASSIGN,
+                                        token, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.augmented_assign.operator_kind = (Py68U16)operator_kind;
+            node->as.augmented_assign.target = value;
+            node->as.augmented_assign.value = rhs;
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
     }
     status = py68_statement_new(parser, PY68_AST_EXPRESSION_STATEMENT,
                                 token, &node);

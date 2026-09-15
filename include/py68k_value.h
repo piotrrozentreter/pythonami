@@ -40,6 +40,10 @@ int py68_value_is_number(Py68Value value);
 int py68_value_truthy(Py68Value value);
 int py68_value_equal(struct Py68Runtime *runtime, Py68Value left,
                      Py68Value right);
+/* Returns 1 and writes -1/0/1 to *cmp_out, or 0 if the values are not
+   orderable together (caller should raise TypeError). */
+int py68_value_compare(struct Py68Runtime *runtime, Py68Value left,
+                       Py68Value right, int *cmp_out);
 int py68_value_identical(Py68Value left, Py68Value right);
 int py68_value_hash(struct Py68Runtime *runtime, Py68Value value,
                     Py68U32 *hash_out);

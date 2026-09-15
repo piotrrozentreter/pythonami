@@ -16,13 +16,13 @@ Symbol analysis classifies names using local, module-global, builtin, and undefi
 
 ## Operators and comparisons
 
-Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare when types match). Identity `is` / `is not` tests sameness, not equality: tagged immediates (None, bool, int, float) match by type and payload, so `x is None` follows Python and equal ints with the same bits are identical; heap objects match only when they are the same object (`[1] is [1]` is false). `is not` is a single operator (`x is not y` is not `x is (not y)`). Comparisons do not chain: `a is b is c` is `(a is b) is c`, matching `==`. Short-circuit `and` / `or` are value-preserving.
+Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare lexicographically when types match; unsupported orderings raise `TypeError`). Identity `is` / `is not` tests sameness, not equality: tagged immediates (None, bool, int, float) match by type and payload, so `x is None` follows Python and equal ints with the same bits are identical; heap objects match only when they are the same object (`[1] is [1]` is false). `is not` is a single operator (`x is not y` is not `x is (not y)`). Comparisons do not chain: `a is b is c` is `(a is b) is c`, matching `==`. Short-circuit `and` / `or` are value-preserving.
 
 ## Control flow
 
 - `if` / `elif` / `else`
 - `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings). `for a, b in pairs:` unpacks each item (D-0038).
-- Assignment: `NAME = expr`, index/attribute stores, and fixed-count unpacking `a, b = seq` (list, tuple, or string). Assignment RHS may be an unparenthesized expression list (`a, b = 1, 2`). Starred and nested unpacking are not supported.
+- Assignment: `NAME = expr`, index/attribute stores, augmented assignment on names/index/attributes (`name += expr`, `L[i] += expr`), and fixed-count unpacking `a, b = seq` (list, tuple, or string). Assignment RHS may be an unparenthesized expression list (`a, b = 1, 2`). Starred and nested unpacking are not supported.
 - List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.
 - Comparisons: `== != < <= > >=`, membership `in` / `not in` (str substring; item in list/tuple; key in dict; member in set), identity `is` / `is not`
 - `break` / `continue` / `return` / `pass`
@@ -52,7 +52,7 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 ## Builtins
 
-`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`, and `load_library(path)` for LoadSeg `*.py68k` plugins (see `docs/amiga-extensions.md`).
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `sorted`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`, and `load_library(path)` for LoadSeg `*.py68k` plugins (see `docs/amiga-extensions.md`).
 
 `ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`.
 
@@ -77,4 +77,4 @@ multitasking, so no program has to yield for other programs to run.
 
 ## Still not implemented
 
-Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, starred unpacking (`a, *rest`, `*args`/`**kwargs`), nested unpacking (`(a, b), c = …`), relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.
+Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, starred unpacking (`a, *rest`, `*args`/`**kwargs`), nested unpacking (`(a, b), c = …`), relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, f-strings, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`), and Language Level freeze after owner emulator/hardware verification.

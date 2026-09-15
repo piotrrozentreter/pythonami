@@ -124,6 +124,7 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "abs", 1, 1, py68_builtin_abs },
         { "min", 2, 2, py68_builtin_min },
         { "max", 2, 2, py68_builtin_max },
+        { "sorted", 1, 1, py68_builtin_sorted },
         { "ord", 1, 1, py68_builtin_ord },
         { "chr", 1, 1, py68_builtin_chr },
         { "repr", 1, 1, py68_builtin_repr },

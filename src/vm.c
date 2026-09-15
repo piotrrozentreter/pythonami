@@ -550,6 +550,27 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
         result.as.integer = integer;
         return py68_vm_push(runtime, result);
     }
+    if (opcode == OP_LESS || opcode == OP_LESS_EQUAL ||
+        opcode == OP_GREATER || opcode == OP_GREATER_EQUAL) {
+        int cmp = 0;
+        if (!py68_value_compare(runtime, left, right, &cmp)) {
+            py68_value_release(runtime, left);
+            py68_value_release(runtime, right);
+            py68_vm_error(runtime, PY68_ERROR_TYPE,
+                          "unsupported operand types for ordering comparison");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        py68_value_release(runtime, left);
+        py68_value_release(runtime, right);
+        if (opcode == OP_LESS) integer = cmp < 0;
+        else if (opcode == OP_LESS_EQUAL) integer = cmp <= 0;
+        else if (opcode == OP_GREATER) integer = cmp > 0;
+        else integer = cmp >= 0;
+        result.type = PY68_VM_BOOL;
+        result.reserved = 0;
+        result.as.integer = integer;
+        return py68_vm_push(runtime, result);
+    }
     if (opcode == OP_TRUE_DIVIDE ||
         left.type == PY68_VALUE_FLOAT || right.type == PY68_VALUE_FLOAT) {
         Py68U32 left_n;

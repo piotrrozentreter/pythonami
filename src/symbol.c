@@ -383,11 +383,17 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
                                              statement->as.assign.value);
             break;
         case PY68_AST_AUGMENTED_ASSIGN:
-            if (statement->as.augmented_assign.target != NULL) {
+            if (statement->as.augmented_assign.target != NULL &&
+                statement->as.augmented_assign.target->kind == PY68_AST_NAME) {
                 status = py68_add_local(
                     allocator, source, function,
                     statement->as.augmented_assign.target->as.name.offset,
                     statement->as.augmented_assign.target->as.name.length);
+                if (status != PY68_STATUS_OK) return status;
+            } else if (statement->as.augmented_assign.target != NULL) {
+                status = py68_collect_expression(
+                    allocator, source, function,
+                    statement->as.augmented_assign.target);
                 if (status != PY68_STATUS_OK) return status;
             }
             status = py68_collect_expression(allocator, source, function,
@@ -587,9 +593,12 @@ static Py68Status py68_analyze_statement(Py68Allocator *allocator,
     }
     if (statement->kind == PY68_AST_AUGMENTED_ASSIGN &&
         statement->as.augmented_assign.target != NULL) {
-        return py68_add_global(allocator, source, analysis,
-                               statement->as.augmented_assign.target->as.name.offset,
-                               statement->as.augmented_assign.target->as.name.length);
+        if (statement->as.augmented_assign.target->kind == PY68_AST_NAME)
+            return py68_add_global(
+                allocator, source, analysis,
+                statement->as.augmented_assign.target->as.name.offset,
+                statement->as.augmented_assign.target->as.name.length);
+        return PY68_STATUS_OK;
     }
     if (statement->kind == PY68_AST_IMPORT) {
         if (statement->as.import_statement.as_length != 0)

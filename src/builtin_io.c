@@ -9,6 +9,7 @@
 #include "py68k_exception.h"
 #include "py68k_float.h"
 #include "py68k_native.h"
+#include "py68k_value.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -718,6 +719,96 @@ static Py68Status py68_copy_sequence(Py68Runtime *runtime, Py68Value value,
         return PY68_STATUS_SOURCE_ERROR;
     }
     *list_out = list;
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_sorted_materialize(Py68Runtime *runtime, Py68Value value,
+                                          Py68List **list_out)
+{
+    Py68List *list;
+    Py68Status status;
+    Py68U32 index;
+    if (value.type != PY68_VALUE_OBJECT || value.as.object == NULL) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sorted() argument must be iterable");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (value.as.object->type == PY68_OBJECT_LIST ||
+        value.as.object->type == PY68_OBJECT_TUPLE) {
+        status = py68_copy_sequence(runtime, value, &list);
+        if (status != PY68_STATUS_OK) {
+            py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                               "sorted() argument must be iterable");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        *list_out = list;
+        return PY68_STATUS_OK;
+    }
+    if (value.as.object->type == PY68_OBJECT_DICT)
+        return py68_dict_keys(runtime, (Py68Dict *)value.as.object, list_out);
+    if (value.as.object->type == PY68_OBJECT_SET)
+        return py68_set_values(runtime, (Py68Set *)value.as.object, list_out);
+    if (value.as.object->type == PY68_OBJECT_STRING) {
+        Py68String *string = (Py68String *)value.as.object;
+        status = py68_list_new(runtime, &list);
+        if (status != PY68_STATUS_OK) return status;
+        for (index = 0; index < string->length; ++index) {
+            Py68String *character;
+            Py68Value character_value;
+            status = py68_string_get_char(runtime, string, (Py68I32)index,
+                                          &character);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+            character_value = py68_value_from_object(&character->base);
+            status = py68_list_append_move(runtime, list, &character_value);
+            if (status != PY68_STATUS_OK) {
+                py68_value_release(runtime, character_value);
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+        }
+        *list_out = list;
+        return PY68_STATUS_OK;
+    }
+    py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                       "sorted() argument must be iterable");
+    return PY68_STATUS_RUNTIME_ERROR;
+}
+
+Py68Status py68_builtin_sorted(Py68Runtime *runtime, Py68U16 argument_count,
+                               Py68Value *arguments, Py68Value *result)
+{
+    Py68List *list;
+    Py68U32 index;
+    Py68Status status;
+    if (argument_count != 1) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sorted() takes exactly one argument");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    status = py68_sorted_materialize(runtime, arguments[0], &list);
+    if (status != PY68_STATUS_OK) return status;
+    for (index = 1; index < list->count; ++index) {
+        Py68Value key = list->items[index];
+        Py68U32 insert = index;
+        while (insert > 0) {
+            int cmp = 0;
+            if (!py68_value_compare(runtime, list->items[insert - 1], key,
+                                    &cmp)) {
+                py68_object_release(runtime, &list->base);
+                py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                    "unsupported operand types for ordering comparison");
+                return PY68_STATUS_RUNTIME_ERROR;
+            }
+            if (cmp <= 0) break;
+            list->items[insert] = list->items[insert - 1];
+            --insert;
+        }
+        list->items[insert] = key;
+    }
+    *result = py68_value_from_object(&list->base);
     return PY68_STATUS_OK;
 }
 

@@ -36,6 +36,8 @@ Py68Status py68_builtin_min(Py68Runtime *runtime, Py68U16 argument_count,
                             Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_max(Py68Runtime *runtime, Py68U16 argument_count,
                             Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_sorted(Py68Runtime *runtime, Py68U16 argument_count,
+                               Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_exit(Py68Runtime *runtime, Py68U16 argument_count,
                              Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_system(Py68Runtime *runtime, Py68U16 argument_count,
