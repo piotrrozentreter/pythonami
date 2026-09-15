@@ -1033,6 +1033,8 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         case PY68_TOKEN_GREATER_EQUAL: return py68_emit_op(allocator, code, OP_GREATER_EQUAL);
         case PY68_TOKEN_IN: return py68_emit_op(allocator, code, OP_CONTAINS);
         case PY68_TOKEN_NOT_IN: return py68_emit_op(allocator, code, OP_NOT_CONTAINS);
+        case PY68_TOKEN_IS: return py68_emit_op(allocator, code, OP_IS);
+        case PY68_TOKEN_IS_NOT: return py68_emit_op(allocator, code, OP_IS_NOT);
         default: return PY68_STATUS_SOURCE_ERROR;
         }
     }

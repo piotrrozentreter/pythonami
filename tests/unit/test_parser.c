@@ -164,6 +164,84 @@ int main(void)
     }
 
     {
+        const char *is_text = "a is b";
+        const char *is_not_text = "a is not b";
+        const char *not_is_text = "not a is b";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "is.py",
+            (const Py68U8 *)is_text, (Py68U32)strlen(is_text)) ==
+            PY68_STATUS_OK, "identity source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "identity tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "a is b parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_BINARY &&
+                        node->as.binary.operator_kind == PY68_TOKEN_IS,
+                        "is is binary comparison");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "identity parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "isnot.py",
+            (const Py68U8 *)is_not_text, (Py68U32)strlen(is_not_text)) ==
+            PY68_STATUS_OK, "is-not source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "is-not tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "a is not b parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_BINARY &&
+                        node->as.binary.operator_kind == PY68_TOKEN_IS_NOT,
+                        "is not is compound binary comparison");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "is-not parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "notis.py",
+            (const Py68U8 *)not_is_text, (Py68U32)strlen(not_is_text)) ==
+            PY68_STATUS_OK, "not-is source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "not-is tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "not a is b parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_UNARY &&
+                        node->as.unary.operator_kind == PY68_TOKEN_NOT &&
+                        node->as.unary.operand != NULL &&
+                        node->as.unary.operand->kind == PY68_AST_BINARY &&
+                        node->as.unary.operand->as.binary.operator_kind ==
+                            PY68_TOKEN_IS,
+                        "not a is b is not (a is b)");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "not-is parser releases all allocations");
+    }
+
+    {
         const char *gen_text = "(x for x in items)";
         py68_allocator_initialize(&allocator);
         passed &= check(py68_source_initialize(&allocator, &source, "gen.py",

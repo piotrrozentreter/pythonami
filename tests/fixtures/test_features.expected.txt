@@ -136,4 +136,14 @@ AB
 True
 4
 [0, 1, 1, 2]
+=== 27. Identity is / is not ===
+True
+False
+True
+False
+True
+False
+True
+True
+False
 === Feature Test Complete ===

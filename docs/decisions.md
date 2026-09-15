@@ -1,5 +1,30 @@
 # Decisions
 
+## D-0037: Identity comparison for tagged immediates vs heap objects
+
+- Context: Python `is` tests object identity. Python68K stores None, bool, int,
+	and float as tagged immediate `Py68Value`s with no heap object, while
+	str/list/tuple/dict/set/function/module/file are reference-counted heap
+	objects. Membership recently reserved opcodes 0x1E/0x1F.
+- Decision: Parse `is` and compound `is`+`not` as comparison-precedence binary
+	operators (`PY68_AST_BINARY`, with parser-only `PY68_TOKEN_IS_NOT`). Emit
+	`OP_IS` (0x16) and `OP_IS_NOT` (0x17). Identity is the same `Py68ValueType`
+	plus: None values are identical to each other; bool/int/float match when
+	the 32-bit payload matches; heap objects match when the pointers are equal.
+	`is not` is one operator, so `x is not y` is not `x is (not y)`. Prefix
+	`not` still binds less tightly than comparisons (`not x is None` ≡
+	`not (x is None)`). Chaining is left-associative like `==` (`a is b is c`
+	≡ `(a is b) is c`).
+- Alternatives considered: Heap-box all scalars so only pointer identity exists
+	(expensive on 68000); intern only None (would make `1 is 1` false unlike
+	the tagged model); reuse `OP_EQUAL` with a flag.
+- Consequences: `x is None` / `x is not None` match Python. `True is 1` is false
+	while `True == 1` remains true (D-0011). Equal ints/bools/floats with the
+	same payload are identical even when CPython would not intern large ints
+	or floats. Two equal lists, tuples, or strings are not identical unless
+	they are the same object; each `LOAD_CONST` string allocates a new heap
+	string.
+
 ## D-0036: Membership operators and string iteration
 
 - Context: `PY68_TOKEN_IN` existed for `for`/`comprehension` only. Scripts such as

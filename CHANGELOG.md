@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Identity operators `is` / `is not` (`OP_IS` / `OP_IS_NOT`). Immediate
+  None/bool/int/float values compare by type and payload; heap objects compare
+  by pointer (D-0037). `is not` is one comparison operator, not `is` plus unary
+  `not`.
 - Membership operators `in` / `not in` (`OP_CONTAINS` / `OP_NOT_CONTAINS`) for
   str substring, list/tuple equality scan, dict keys, and set members.
 - `for` / comprehensions iterate strings as successive one-character strings.

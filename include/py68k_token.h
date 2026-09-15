@@ -51,6 +51,9 @@ typedef enum Py68TokenKind {
     PY68_TOKEN_IN,
     /* Parser-only compound comparison; tokenizer never emits this. */
     PY68_TOKEN_NOT_IN,
+    PY68_TOKEN_IS,
+    /* Parser-only compound comparison; tokenizer never emits this. */
+    PY68_TOKEN_IS_NOT,
     PY68_TOKEN_DEF,
     PY68_TOKEN_RETURN,
     PY68_TOKEN_BREAK,

@@ -40,6 +40,7 @@ int py68_value_is_number(Py68Value value);
 int py68_value_truthy(Py68Value value);
 int py68_value_equal(struct Py68Runtime *runtime, Py68Value left,
                      Py68Value right);
+int py68_value_identical(Py68Value left, Py68Value right);
 int py68_value_hash(struct Py68Runtime *runtime, Py68Value value,
                     Py68U32 *hash_out);
 int py68_value_hashable(Py68Value value);

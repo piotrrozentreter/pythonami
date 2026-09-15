@@ -270,4 +270,17 @@ squares = {n: n * n for n in range(3)}
 print(squares[2])
 print([a + b for a in range(2) for b in range(2)])
 
+print("=== 27. Identity is / is not ===")
+print(None is None)
+print(1 is None)
+print(True is True)
+print(True is 1)
+left = [1, 2]
+right = [1, 2]
+print(left == right)
+print(left is right)
+print(left is not right)
+print(0 is not 1)
+print(0 is (not 1))
+
 print("=== Feature Test Complete ===")
