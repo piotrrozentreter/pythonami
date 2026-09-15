@@ -158,6 +158,97 @@ static Py68Status py68_vm_pop(Py68Runtime *runtime, Py68Value *value)
     return PY68_STATUS_OK;
 }
 
+static Py68Status py68_vm_unpack(Py68Runtime *runtime, Py68U16 count)
+{
+    Py68Value sequence;
+    Py68Value item;
+    Py68U32 actual = 0;
+    Py68U16 index;
+    Py68U16 pushed = 0;
+    Py68Status status;
+    int is_list = 0;
+    int is_tuple = 0;
+    int is_string = 0;
+    Py68List *list = NULL;
+    Py68Tuple *tuple = NULL;
+    Py68String *string = NULL;
+    Py68String *character;
+
+    status = py68_vm_pop(runtime, &sequence);
+    if (status != PY68_STATUS_OK) return status;
+    if (sequence.type == PY68_VALUE_OBJECT && sequence.as.object != NULL) {
+        if (sequence.as.object->type == PY68_OBJECT_LIST) {
+            list = (Py68List *)sequence.as.object;
+            actual = list->count;
+            is_list = 1;
+        } else if (sequence.as.object->type == PY68_OBJECT_TUPLE) {
+            tuple = (Py68Tuple *)sequence.as.object;
+            actual = tuple->count;
+            is_tuple = 1;
+        } else if (sequence.as.object->type == PY68_OBJECT_STRING) {
+            string = (Py68String *)sequence.as.object;
+            actual = string->length;
+            is_string = 1;
+        }
+    }
+    if (!is_list && !is_tuple && !is_string) {
+        py68_value_release(runtime, sequence);
+        py68_vm_error(runtime, PY68_ERROR_TYPE, "cannot unpack non-sequence");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (actual != (Py68U32)count) {
+        py68_value_release(runtime, sequence);
+        if (actual < (Py68U32)count)
+            py68_vm_error(runtime, PY68_ERROR_VALUE,
+                          "not enough values to unpack");
+        else
+            py68_vm_error(runtime, PY68_ERROR_VALUE,
+                          "too many values to unpack");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    index = count;
+    while (index != 0) {
+        --index;
+        if (is_list) {
+            status = py68_list_get_copy(runtime, list, (Py68I32)index, &item);
+        } else if (is_tuple) {
+            status = py68_tuple_get_copy(runtime, tuple, (Py68I32)index, &item);
+        } else {
+            status = py68_string_get_char(runtime, string, (Py68I32)index,
+                                          &character);
+            if (status == PY68_STATUS_OK)
+                item = py68_value_from_object(&character->base);
+        }
+        if (status != PY68_STATUS_OK) {
+            while (pushed != 0) {
+                --runtime->value_stack_count;
+                py68_value_release(
+                    runtime, runtime->value_stack[runtime->value_stack_count]);
+                --pushed;
+            }
+            py68_value_release(runtime, sequence);
+            if (runtime->error.active == 0)
+                py68_vm_error(runtime, PY68_ERROR_MEMORY, "unpack failed");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        status = py68_vm_push(runtime, item);
+        if (status != PY68_STATUS_OK) {
+            py68_value_release(runtime, item);
+            while (pushed != 0) {
+                --runtime->value_stack_count;
+                py68_value_release(
+                    runtime, runtime->value_stack[runtime->value_stack_count]);
+                --pushed;
+            }
+            py68_value_release(runtime, sequence);
+            return status;
+        }
+        ++pushed;
+    }
+    py68_value_release(runtime, sequence);
+    return PY68_STATUS_OK;
+}
+
 static int py68_vm_truth(Py68Value value)
 {
     return py68_value_truthy(value);
@@ -758,6 +849,14 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 py68_value_release(runtime, value);
             ip += 1;
             break;
+        case OP_UNPACK: {
+            Py68U16 unpack_count =
+                (Py68U16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                          current_code->bytecode[ip + 2]);
+            status = py68_vm_unpack(runtime, unpack_count);
+            ip += 3;
+            break;
+        }
         case OP_STORE_INDEX: {
             Py68Value value_val, index_val, container_val;
             status = py68_vm_pop(runtime, &value_val);

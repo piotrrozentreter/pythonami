@@ -25,6 +25,31 @@
 	they are the same object; each `LOAD_CONST` string allocates a new heap
 	string.
 
+## D-0038: Fixed-count unpacking and assignment expression lists
+
+- Context: Language Level 0.1 assignment targets were a single name or index
+	store; `for` targets were a single `NAME`. Everyday Python `a, b = (1, 2)`
+	was listed as unsupported. D-0015 kept tuples parenthesized because a bare
+	`a, b` collides with call and assignment parsing in expression position.
+- Decision: Add `OP_UNPACK` (0x0F, `u16` count). The instruction pops one
+	list, tuple, or string and pushes `count` items right-to-left so the first
+	item is TOS; stores then run left-to-right. Wrong length is `ValueError`
+	(`not enough values to unpack` / `too many values to unpack`); a
+	non-sequence is `TypeError`. Assignment RHS is an expression list: a comma
+	builds a tuple, so `a, b = 1, 2` and `x = 1, 2` work. Unparenthesized
+	name lists are assignment and `for` targets only (`a, b = …`,
+	`for a, b in …`, and parenthesized `(a, b)` as those targets).
+	Comprehension `for` targets remain a single `NAME`. Nested unpack
+	(`(a, b), c`), starred unpack, and unpack into subscript/attribute
+	targets stay unsupported.
+- Alternatives considered: Desugar to indexed loads without a new opcode
+	(worse errors, extra bounds checks); extend D-0015 to unparenthesized
+	tuples in every expression position (`return a, b`), which still collides
+	with argument lists.
+- Consequences: D-0015 still applies outside assignment: `return a, b` remains
+	a syntax error. Opcode 0x0F is assigned; changing it requires a
+	bytecode-format version bump.
+
 ## D-0036: Membership operators and string iteration
 
 - Context: `PY68_TOKEN_IN` existed for `for`/`comprehension` only. Scripts such as
@@ -307,6 +332,8 @@
 - Decision: Accept only parenthesized tuples: `()`, `(a,)`, `(a, b)`. A single `(expr)` remains grouping.
 - Alternatives considered: Full Python tuple display including unparenthesized targets.
 - Consequences: `return a, b` is a syntax error; write `return (a, b)`.
+  Assignment and `for` targets later gained unparenthesized name lists
+  without changing this expression-display rule (D-0038).
 
 ## D-0016: Hashable keys and cyclic containers
 

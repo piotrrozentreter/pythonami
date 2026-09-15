@@ -161,6 +161,48 @@ static Py68Status py68_emit_store_name(Py68Allocator *allocator,
     return py68_emit_u16_op(allocator, code, OP_STORE_GLOBAL, name_index);
 }
 
+static int py68_unpack_target_names(Py68AstNode *target)
+{
+    Py68U16 index;
+    Py68AstNode *element;
+    if (target == NULL || target->kind != PY68_AST_TUPLE) return 0;
+    if (target->as.list_literal.elements.count == 0) return 0;
+    for (index = 0; index < target->as.list_literal.elements.count; ++index) {
+        element = target->as.list_literal.elements.items[index];
+        if (element == NULL || element->kind != PY68_AST_NAME) return 0;
+    }
+    return 1;
+}
+
+static Py68Status py68_compile_unpack_stores(Py68Allocator *allocator,
+                                             const Py68Source *source,
+                                             const Py68FunctionSymbols *function,
+                                             Py68Code *code, Py68Error *error,
+                                             Py68AstNode *target)
+{
+    Py68U16 count;
+    Py68U16 index;
+    Py68AstNode *name;
+    Py68Status status;
+    if (!py68_unpack_target_names(target)) {
+        if (target != NULL)
+            py68_compile_error(error, source, target->location,
+                               "invalid unpack target");
+        return PY68_STATUS_SOURCE_ERROR;
+    }
+    count = target->as.list_literal.elements.count;
+    status = py68_emit_u16_op(allocator, code, OP_UNPACK, count);
+    if (status != PY68_STATUS_OK) return status;
+    for (index = 0; index < count; ++index) {
+        name = target->as.list_literal.elements.items[index];
+        status = py68_emit_store_name(allocator, source, function, code,
+                                      name->as.name.offset,
+                                      name->as.name.length);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
 static Py68U8 py68_augmented_opcode(Py68U16 operator_kind)
 {
     switch ((Py68TokenKind)operator_kind) {
@@ -387,6 +429,16 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                     code, error, analysis, function);
                 if (status != PY68_STATUS_OK) return status;
                 status = py68_emit_op(allocator, code, OP_STORE_INDEX);
+            } else if (statement->as.assign.target != NULL &&
+                       statement->as.assign.target->kind == PY68_AST_TUPLE) {
+                status = py68_compile_expression(allocator, source,
+                                                 statement->as.assign.value,
+                                                 code, error, analysis,
+                                                 function);
+                if (status != PY68_STATUS_OK) return status;
+                status = py68_compile_unpack_stores(
+                    allocator, source, function, code, error,
+                    statement->as.assign.target);
             } else {
                 status = py68_compile_expression(allocator, source,
                                                  statement->as.assign.value,
@@ -505,9 +557,16 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             py68_loop_context_initialize(&for_loop, range_next_op, 1);
             status = py68_emit_jump(allocator, code, OP_RANGE_NEXT, &end_operand);
             if (status != PY68_STATUS_OK) return status;
-            status = py68_emit_store_name(allocator, source, function, code,
-                                          statement->as.for_statement.name_offset,
-                                          statement->as.for_statement.name_length);
+            if (statement->as.for_statement.target != NULL) {
+                status = py68_compile_unpack_stores(
+                    allocator, source, function, code, error,
+                    statement->as.for_statement.target);
+            } else {
+                status = py68_emit_store_name(
+                    allocator, source, function, code,
+                    statement->as.for_statement.name_offset,
+                    statement->as.for_statement.name_length);
+            }
             if (status != PY68_STATUS_OK) return status;
             status = py68_compile_statements(allocator, source,
                                              &statement->as.for_statement.body,

@@ -24,13 +24,16 @@ Executable name: `pythonami`
 ### Control flow
 - `if` / `elif` / `else`
 - `while` … `else`, `for … in` range/list/tuple/dict/set/string … `else`
+- `for a, b in pairs:` unpacks each item (fixed name targets; D-0038)
+- Multiple assignment: `a, b = (1, 2)`, `a, b = [1, 2]`, `a, b = 1, 2`
 - `break` / `continue` (including `break` inside `for`)
 - `try` / `except` / `except Type as e` / `finally` / `raise`
 - `with fopen(...) as f`
 
 ### Data
 - Lists: literals, index get/set, concat, slice, `list_append` / `list_pop` and `.append` / `.pop`
-- Tuples: parenthesized `(a, b)`, `(a,)`, `()`
+- Tuples: parenthesized `(a, b)`, `(a,)`, `()`; assignment also allows
+  unparenthesized `a, b = 1, 2` and `x = 1, 2` (D-0038)
 - Dicts: `{k: v}`, subscript get/set, `.get` / `.keys` / `.values` / `.items` / `.pop`
 - Sets: `{a, b}`, `set()`, `.add` / `.remove` / `.discard`
 - Comprehensions (0.6): `[expr for x in iterable if cond]`, nested `for`,
