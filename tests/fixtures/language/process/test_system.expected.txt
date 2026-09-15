@@ -1,0 +1,5 @@
+PY68K_SYSTEM_OK
+PY68K_SYSTEM_AGAIN
+0
+0
+type-error

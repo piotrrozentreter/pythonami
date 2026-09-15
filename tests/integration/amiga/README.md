@@ -38,6 +38,37 @@ delete T:py68k-stderr
 
 The host counterpart is `make -f Makefile.host stdio-redirection-test`.
 
+## DOS command execution fixture
+
+The shared host/Amiga language fixture is
+`tests/language/process/test_system.py`. After building `pythonami`, run it
+from the directory containing the executable and the repository tree:
+
+```text
+pythonami tests/language/process/test_system.py >T:py68k-system-out
+echo $RC
+type T:py68k-system-out
+```
+
+Expected `$RC` is `0`, and `T:py68k-system-out` contains:
+
+```text
+PY68K_SYSTEM_OK
+0
+PY68K_SYSTEM_AGAIN
+0
+type-error
+```
+
+The two `echo` lines are emitted by AmigaDOS itself. The following `0` values
+are the direct return codes from `os.system()`. The second import verifies
+that the built-in `os` module is returned from the import cache. Remove the
+temporary output after the check:
+
+```text
+delete T:py68k-system-out
+```
+
 ## LoadSeg `load_library` fixture
 
 Build the interpreter and sample plugin on a machine with vbcc/vasm/vlink:
