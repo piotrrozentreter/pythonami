@@ -127,6 +127,12 @@
 - [x] list_append
 - [x] list_pop
 - [x] exit
+- [x] time
+- [x] sleep
+- [x] ctime
+- [x] localtime
+- [x] strftime
+- [x] perf_counter
 
 ## Phase 12 - AmigaDOS Integration
 - [x] Script execution

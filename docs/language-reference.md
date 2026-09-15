@@ -53,6 +53,16 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 `ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`.
 
+Time builtins are `time()` (epoch seconds as binary32 `float`), `sleep(seconds)`,
+`ctime([seconds])`, `localtime([seconds])`, `strftime(format, [localtime])`,
+and `perf_counter()` (a monotonic elapsed-time `float`). `localtime` returns a
+`struct_time` with `tm_year`, `tm_mon`, `tm_mday`, `tm_hour`, `tm_min`,
+`tm_sec`, `tm_wday`, `tm_yday`, and `tm_isdst` attributes. Calendar fields
+follow the host or Amiga platform timezone rules; clock precision follows the
+available platform clock.
+`time_tick()` returns a signed 32-bit millisecond tick suitable for seeding
+short-lived pseudo-random examples without converting a large epoch float.
+
 ## Still not implemented
 
 Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.

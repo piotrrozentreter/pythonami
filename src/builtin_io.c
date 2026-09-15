@@ -38,10 +38,18 @@ static Py68Status py68_print_int(Py68Runtime *runtime, Py68I32 integer)
 static Py68Status py68_print_float(Py68Runtime *runtime, Py68Value value)
 {
     char buffer[32];
+    Py68I32 whole;
     Py68U32 written = py68_f32_format(py68_value_float_bits_get(value),
                                       buffer, (Py68U32)sizeof(buffer));
-    if (written == 0 && buffer[0] == '\0')
+    if (written == 0) {
+        buffer[0] = '\0';
+        if (py68_f32_to_i32_trunc(py68_value_float_bits_get(value), &whole)) {
+            Py68Status status = py68_print_int(runtime, whole);
+            if (status != PY68_STATUS_OK) return status;
+            return py68_platform_write_stdout(runtime, ".0", 2);
+        }
         return PY68_STATUS_RUNTIME_ERROR;
+    }
     return py68_platform_write_stdout(runtime, buffer, written);
 }
 

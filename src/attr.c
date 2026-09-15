@@ -11,6 +11,7 @@
 #include "py68k_set.h"
 #include "py68k_string.h"
 #include "py68k_string_methods.h"
+#include "py68k_time.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -439,6 +440,18 @@ Py68Status py68_attr_load(Py68Runtime *runtime, Py68Value object,
         if (py68_attr_name_is(name, name_length, "__exit__"))
             return py68_attr_bind(runtime, object, "__exit__", 1, 4,
                                   py68_attr_file_exit, result);
+    } else if (type == PY68_OBJECT_STRUCT_TIME) {
+        static const char *names[9] = { "tm_year", "tm_mon", "tm_mday",
+            "tm_hour", "tm_min", "tm_sec", "tm_wday", "tm_yday",
+            "tm_isdst" };
+        Py68U16 index;
+        for (index = 0; index < 9; ++index) {
+            if (py68_attr_name_is(name, name_length, names[index])) {
+                *result = py68_value_int(
+                    ((Py68StructTime *)object.as.object)->fields[index]);
+                return PY68_STATUS_OK;
+            }
+        }
     }
     return py68_attr_error(runtime, PY68_ERROR_TYPE, "unknown attribute");
 }

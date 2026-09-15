@@ -3,7 +3,15 @@
 #include "py68k_platform.h"
 #include "py68k_runtime.h"
 
+#include <time.h>
 #include <stdio.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <sys/time.h>
+#include <unistd.h>
+#endif
 
 Py68Status py68_platform_initialize(Py68Runtime *runtime)
 {
@@ -42,6 +50,70 @@ Py68Status py68_platform_write_stderr(Py68Runtime *runtime,
 void py68_platform_flush_stdout(void)
 {
     fflush(stdout);
+}
+
+Py68Status py68_platform_time_epoch(Py68Runtime *runtime, Py68U32 *seconds,
+                                    Py68U32 *microseconds)
+{
+    time_t value;
+    (void)runtime;
+    value = time(NULL);
+    if (value == (time_t)-1) return PY68_STATUS_RUNTIME_ERROR;
+    *seconds = (Py68U32)value;
+    *microseconds = 0;
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_time_monotonic(Py68Runtime *runtime,
+                                        Py68U32 *seconds,
+                                        Py68U32 *microseconds)
+{
+#if defined(_WIN32)
+    DWORD value;
+    (void)runtime;
+    value = GetTickCount();
+    *seconds = (Py68U32)(value / 1000UL);
+    *microseconds = (Py68U32)(value % 1000UL) * 1000UL;
+#else
+    struct timeval value;
+    (void)runtime;
+    if (gettimeofday(&value, NULL) != 0) return PY68_STATUS_RUNTIME_ERROR;
+    *seconds = (Py68U32)value.tv_sec;
+    *microseconds = (Py68U32)value.tv_usec;
+#endif
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_time_tick(Py68Runtime *runtime,
+                                   Py68U32 *milliseconds)
+{
+#if defined(_WIN32)
+    (void)runtime;
+    *milliseconds = (Py68U32)(GetTickCount() & 0x7FFFFFFFUL);
+#else
+    struct timeval value;
+    (void)runtime;
+    if (gettimeofday(&value, NULL) != 0) return PY68_STATUS_RUNTIME_ERROR;
+    *milliseconds = ((Py68U32)value.tv_sec * 1000UL +
+                     (Py68U32)value.tv_usec / 1000UL) & 0x7FFFFFFFUL;
+#endif
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
+                                Py68U32 microseconds)
+{
+    Py68U32 total = seconds > 4294UL ? 0xFFFFFFFFUL : seconds * 1000000UL;
+    (void)runtime;
+    if (total != 0xFFFFFFFFUL) total += microseconds;
+    if (total == 0xFFFFFFFFUL) return PY68_STATUS_RUNTIME_ERROR;
+#if defined(_WIN32)
+    Sleep((DWORD)((total + 999UL) / 1000UL));
+    return PY68_STATUS_OK;
+#else
+    if (usleep((unsigned int)total) != 0) return PY68_STATUS_RUNTIME_ERROR;
+    return PY68_STATUS_OK;
+#endif
 }
 
 Py68Status py68_platform_read_stdin_line(Py68Runtime *runtime, Py68U8 **data,

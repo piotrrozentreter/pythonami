@@ -1,5 +1,36 @@
 # Decisions
 
+## D-0030: Time API and struct_time representation
+
+- Context: The requested time subset needs calendar fields while the language
+	has no general user-defined object type.
+- Decision: Install `time`, `sleep`, `ctime`, `localtime`, `strftime`, and
+	`perf_counter` as native functions. `localtime` returns a dedicated
+	reference-counted `struct_time` object exposing the nine documented `tm_*`
+	attributes. Epoch and performance-clock values use the existing software
+	binary32 value representation; calendar conversion and formatting use the
+	platform C time services.
+- Alternatives considered: Return an unnamed tuple, add a general attribute
+	dictionary, or expose only formatted strings.
+- Consequences: `localtime().tm_year` and `strftime(format, localtime())` are
+	supported without expanding the user object model. Host monotonic timing is
+	backed by the host clock service and Amiga timing by `DateStamp`; sub-second
+	precision follows each platform's available clock resolution.
+
+## D-0031: Bounded millisecond seed tick
+
+- Context: Seeding the random example with `int(time())` repeats whenever two
+	processes start in the same epoch second. Scaling the epoch float by 1000
+	would exceed the signed 32-bit language integer range.
+- Decision: Expose `time_tick()` as a signed 31-bit millisecond value. Host
+	implementations use the host elapsed/system clock and Amiga uses the
+	millisecond value derived from DOS `DateStamp()`, masked to `0x7fffffff`.
+- Alternatives considered: Keep second-resolution seeds, use a large integer
+	timestamp, or add a platform-specific random source.
+- Consequences: Short-lived examples receive varying seeds without requiring
+	64-bit integers or floating-point conversion. The tick wraps periodically,
+	so it is suitable for seeding and not a persistent timestamp.
+
 ## D-0027: Amiga LoadSeg extension plugins (not OpenLibrary)
 
 - Context: Authors want vbcc/vasm performance helpers callable from pythonami without rebuilding the interpreter. Classic AmigaOS `.library` (Resident/LibInit/LVOs) is heavy for this use case; host `dlopen` is out of scope.
