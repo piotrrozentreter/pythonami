@@ -138,6 +138,7 @@
 - [x] Script execution
 - [x] -c execution
 - [ ] argv support
+- [x] Synchronous `os.system` command execution
 - [x] File APIs
 - [x] Environment APIs
 - [x] Exit-code mapping

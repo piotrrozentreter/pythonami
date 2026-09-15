@@ -126,6 +126,18 @@ Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
     return PY68_STATUS_OK;
 }
 
+Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
+                                Py68I32 *return_code)
+{
+    LONG status;
+    (void)runtime;
+    if (command == NULL || return_code == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    status = Execute((STRPTR)command, 0, 0);
+    if (status == -1) return PY68_STATUS_RUNTIME_ERROR;
+    *return_code = (Py68I32)status;
+    return PY68_STATUS_OK;
+}
+
 Py68Status py68_platform_read_stdin_line(Py68Runtime *runtime, Py68U8 **data,
                                          Py68U32 *length)
 {

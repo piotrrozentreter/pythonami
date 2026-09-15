@@ -1,5 +1,24 @@
 # Decisions
 
+## D-0032: Synchronous os.system as the first DOS process API
+
+- Context: The DOS command execution proposal requires a process backend, but
+	output capture and asynchronous lifetime management need handles, cleanup,
+	and child-I/O semantics that do not yet exist in the platform interface.
+- Decision: Implement only `os.system(command)` initially. Validate a single,
+	non-empty string and reject embedded NUL bytes, execute synchronously with
+	inherited standard handles, and return the native command status directly.
+	Launch failure is mapped to an I/O runtime error. The Amiga implementation
+	uses `Execute`; the host implementation uses its synchronous command
+	primitive. `subprocess` and `Popen` remain explicitly unsupported.
+- Alternatives considered: Emulate `subprocess` synchronously, silently
+	ignore capture/timeout parameters, or expose shell execution as a direct
+	process API before the backend can enforce that distinction.
+- Consequences: The smallest useful API is available without claiming
+	`shell=False`, capture, timeout, environment, or process-handle semantics.
+	A later increment must add a native request/result contract and tests for
+	temporary-file capture before expanding the public API.
+
 ## D-0030: Time API and struct_time representation
 
 - Context: The requested time subset needs calendar fields while the language

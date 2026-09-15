@@ -2,9 +2,11 @@
 
 #include "py68k_import.h"
 #include "py68k_ast_arena.h"
+#include "py68k_builtin.h"
 #include "py68k_compiler.h"
 #include "py68k_list.h"
 #include "py68k_module.h"
+#include "py68k_native.h"
 #include "py68k_parser.h"
 #include "py68k_platform.h"
 #include "py68k_runtime.h"
@@ -82,6 +84,36 @@ static Py68Status py68_import_cache_add(Py68Runtime *runtime,
     }
     runtime->import_modules[runtime->import_count++] = &module->base;
     py68_object_retain(&module->base);
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_os_install(Py68Runtime *runtime, Py68Value *result)
+{
+    Py68Module *module;
+    Py68NativeFunction *function = NULL;
+    Py68Status status;
+
+    status = py68_module_new(runtime, "os", "os", &module);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_native_new(runtime, "system", 1, 1,
+                             py68_builtin_system, &function);
+    if (status == PY68_STATUS_OK)
+        status = py68_module_set(runtime, module, (const Py68U8 *)"system", 6,
+                                 py68_value_from_object(&function->base));
+    if (function != NULL)
+        py68_object_release(runtime, &function->base);
+    if (status != PY68_STATUS_OK) {
+        py68_object_release(runtime, &module->base);
+        return status;
+    }
+    status = py68_import_cache_add(runtime, module);
+    if (status != PY68_STATUS_OK) {
+        py68_object_release(runtime, &module->base);
+        return status;
+    }
+    *result = py68_value_from_object(&module->base);
+    py68_value_retain(*result);
+    py68_object_release(runtime, &module->base);
     return PY68_STATUS_OK;
 }
 
@@ -262,6 +294,8 @@ Py68Status py68_import_name(Py68Runtime *runtime, const Py68U8 *name,
         py68_value_retain(*result);
         return PY68_STATUS_OK;
     }
+    if (name_length == 2 && memcmp(name, "os", 2) == 0)
+        return py68_os_install(runtime, result);
     if (!py68_build_py_name(file_name, name, name_length)) {
         py68_import_error(runtime, PY68_ERROR_IMPORT,
                           "relative imports are not supported");

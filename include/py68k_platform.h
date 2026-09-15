@@ -33,6 +33,9 @@ Py68Status py68_platform_time_monotonic(Py68Runtime *runtime,
 Py68Status py68_platform_time_tick(Py68Runtime *runtime, Py68U32 *milliseconds);
 Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
                                Py68U32 microseconds);
+/* Execute a synchronous DOS command using inherited standard handles. */
+Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
+                                 Py68I32 *return_code);
 /* Read one line from console stdin (Input()/stdin). Strips trailing CR/LF.
    Empty line at EOF with no data returns PY68_STATUS_SOURCE_ERROR (EOF).
    Buffer is PY68_MEM_TEMP sized length+1. */
