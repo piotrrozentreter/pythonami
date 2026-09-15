@@ -106,6 +106,30 @@ int main(void)
     py68_object_release(&runtime, &file->base);
     py68_object_release(&runtime, &s_mode->base);
 
+    expect(py68_string_new_copy(&runtime, "r", 1, &s_mode) == PY68_STATUS_OK,
+           "mode r all", &passed);
+    args[0] = py68_value_from_object(&s_path->base);
+    args[1] = py68_value_from_object(&s_mode->base);
+    expect(py68_builtin_fopen(&runtime, 2, args, &result) == PY68_STATUS_OK,
+           "fopen r all", &passed);
+    file = (Py68File *)result.as.object;
+    args[0] = py68_value_from_object(&file->base);
+    args[1] = py68_value_int(2147483647);
+    expect(py68_builtin_fread(&runtime, 2, args, &result) == PY68_STATUS_OK,
+           "fread large count", &passed);
+    expect(result.type == PY68_VALUE_OBJECT &&
+               ((Py68String *)result.as.object)->length == 12 &&
+               memcmp(((Py68String *)result.as.object)->data, "hello\nworld\n",
+                      12) == 0,
+           "fread large count content", &passed);
+    py68_value_release(&runtime, result);
+    args[0] = py68_value_from_object(&file->base);
+    expect(py68_builtin_fclose(&runtime, 1, args, &result) == PY68_STATUS_OK,
+           "fclose all", &passed);
+    py68_value_release(&runtime, result);
+    py68_object_release(&runtime, &file->base);
+    py68_object_release(&runtime, &s_mode->base);
+
     args[0] = py68_value_from_object(&s_path->base);
     expect(py68_builtin_exists(&runtime, 1, args, &result) == PY68_STATUS_OK &&
                result.type == PY68_VALUE_BOOL && result.as.integer == 1,

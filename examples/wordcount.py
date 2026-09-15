@@ -1,12 +1,18 @@
 # Read a file, count vowels and unique letter types (case-insensitive).
+# Relative paths use the process current directory (where pythonami was started).
 
 def main():
     filename = input("Enter the filename to read: ")
 
     try:
         with fopen(filename, 'r') as f:
+            # Large count means "up to EOF"; runtime sizes the buffer from the
+            # remaining file length (not the count), so this is Amiga-safe.
             text = fread(f, 2147483647)
     except IOError:
+        print("Error reading the file.")
+        return
+    except ValueError:
         print("Error reading the file.")
         return
 

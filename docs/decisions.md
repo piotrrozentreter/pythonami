@@ -258,9 +258,9 @@
 ## D-0012: Language Level 0.2 file and env/assign builtins
 
 - Context: Phase 6 requires AmigaDOS file and environment access. Language Level 0.1 has no attribute access or `with`, so Python-style file objects with methods are unavailable. Amiga “environment” for this project means DOS assigns, not `ENV:` GetVar.
-- Decision: Expose function builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` with modes `r`/`w`/`a`/`rb`/`wb`/`ab`. Binary and text both use string payloads (no `bytes` type). Host installs `getenv`/`setenv`/`unsetenv`; Amiga installs `assign_get`/`assign_add`/`assign_remove` on the same platform_var_* layer (`AssignPath`, `AssignLock(name,0)`, `Lock("name:")`+`NameFromLock`). Platform I/O stays in `file_host.c` / `file_amiga.c`; `PY68_OBJECT_FILE` closes on final release.
-- Alternatives considered: method-style `open()`, Amiga `GetVar`/`SetVar`, full CPython mode matrix (`+`, `x`).
-- Consequences: Scripts targeting Amiga should call `assign_*`. Host tests exercise file APIs and POSIX env. Emulator/hardware assign behavior remains owner-verified.
+- Decision: Expose function builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` with modes `r`/`w`/`a`/`rb`/`wb`/`ab`. Binary and text both use string payloads (no `bytes` type). Host installs `getenv`/`setenv`/`unsetenv`; Amiga installs `assign_get`/`assign_add`/`assign_remove` on the same platform_var_* layer (`AssignPath`, `AssignLock(name,0)`, `Lock("name:")`+`NameFromLock`). Platform I/O stays in `file_host.c` / `file_amiga.c`; `PY68_OBJECT_FILE` closes on final release. `fread(handle, count)` allocates `min(count, remaining)` via Seek/ftell, not `count` bytes upfront, so large “read all” counts are Amiga-safe. Relative `fopen` paths use the process current directory.
+- Alternatives considered: method-style `open()`, Amiga `GetVar`/`SetVar`, full CPython mode matrix (`+`, `x`); pre-allocate `count+1` for every `fread`.
+- Consequences: Scripts targeting Amiga should call `assign_*`. Host tests exercise file APIs and POSIX env. Emulator/hardware assign behavior remains owner-verified. Non-seekable handles are unsupported for sized `fread`.
 
 ## D-0013: True divide `/` vs floor divide `//`
 

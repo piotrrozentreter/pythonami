@@ -93,23 +93,55 @@ Py68Status py68_platform_file_read(Py68Runtime *runtime,
 {
     BPTR file = py68_unbox_bptr(handle);
     Py68U8 *buffer;
+    LONG cur;
+    LONG end;
+    LONG remaining;
+    Py68U32 to_read;
     LONG got;
     if (file == 0 || data == NULL || length == NULL)
         return PY68_STATUS_INTERNAL_ERROR;
-    if (max_count > 2147483647UL) return PY68_STATUS_MEMORY_ERROR;
-    buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
-                                  max_count + 1);
-    if (buffer == NULL) return PY68_STATUS_MEMORY_ERROR;
     if (max_count == 0) {
+        buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP, 1);
+        if (buffer == NULL) return PY68_STATUS_MEMORY_ERROR;
         buffer[0] = 0;
         *data = buffer;
         *length = 0;
         return PY68_STATUS_OK;
     }
-    got = Read(file, buffer, (LONG)max_count);
+    /* Size from remaining bytes so large fread counts do not pre-allocate
+     * max_count (e.g. 2GiB "read all") on Amiga. */
+    cur = Seek(file, 0, OFFSET_CURRENT);
+    if (cur < 0) return PY68_STATUS_RUNTIME_ERROR;
+    Seek(file, 0, OFFSET_END);
+    end = Seek(file, 0, OFFSET_CURRENT);
+    Seek(file, cur, OFFSET_BEGINNING);
+    if (end < 0 || end < cur) return PY68_STATUS_RUNTIME_ERROR;
+    remaining = end - cur;
+    to_read = (Py68U32)remaining;
+    if (to_read > max_count) to_read = max_count;
+    buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
+                                  to_read + 1);
+    if (buffer == NULL) return PY68_STATUS_MEMORY_ERROR;
+    if (to_read == 0) {
+        buffer[0] = 0;
+        *data = buffer;
+        *length = 0;
+        return PY68_STATUS_OK;
+    }
+    got = Read(file, buffer, (LONG)to_read);
     if (got < 0) {
-        py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, max_count + 1);
+        py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, to_read + 1);
         return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if ((Py68U32)got != to_read) {
+        Py68U8 *shrunk = (Py68U8 *)py68_realloc(
+            &runtime->allocator, PY68_MEM_TEMP, buffer, to_read + 1,
+            (Py68U32)got + 1);
+        if (shrunk == NULL) {
+            py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, to_read + 1);
+            return PY68_STATUS_MEMORY_ERROR;
+        }
+        buffer = shrunk;
     }
     buffer[got] = 0;
     *data = buffer;

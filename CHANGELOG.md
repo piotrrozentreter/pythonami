@@ -6,6 +6,8 @@
   str substring, list/tuple equality scan, dict keys, and set members.
 - `for` / comprehensions iterate strings as successive one-character strings.
 - Example `examples/wordcount.py` fixed for Level APIs (`IOError`, `fread`).
+- `fread` allocates from remaining file size (Seek/ftell), not the full count,
+  so large “read all” counts work on Amiga without multi-GiB pre-allocation.
 
 - Amiga LoadSeg extensions: `load_library(path)` loads `*.py68k` plugins with a
   public export ABI (`include/py68k_ext.h`); sample `ext/demo_add` (vbcc C +
