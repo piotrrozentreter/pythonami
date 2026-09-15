@@ -1,10 +1,13 @@
 /* 2026 by Piotr Rozentreter (Rozsoft) */
 
+#define _DEFAULT_SOURCE
+
 #include "py68k_platform.h"
 #include "py68k_runtime.h"
 
-#include <time.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 #if defined(_WIN32)
 #include <windows.h>
