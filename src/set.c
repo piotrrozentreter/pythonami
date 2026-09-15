@@ -183,3 +183,16 @@ int py68_set_equal(Py68Runtime *runtime, Py68Set *left, Py68Set *right)
     }
     return 1;
 }
+
+Py68Status py68_set_contains(Py68Runtime *runtime, Py68Set *set,
+                             Py68Value value, int *found)
+{
+    Py68U32 hash;
+    Py68U32 slot;
+    if (!py68_value_hashable(value) || !py68_value_hash(runtime, value, &hash))
+        return PY68_STATUS_SOURCE_ERROR;
+    if (py68_set_lookup(runtime, set, value, hash, &slot, found) !=
+        PY68_STATUS_OK)
+        return PY68_STATUS_INTERNAL_ERROR;
+    return PY68_STATUS_OK;
+}

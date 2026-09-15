@@ -284,3 +284,16 @@ int py68_dict_equal(Py68Runtime *runtime, Py68Dict *left, Py68Dict *right)
     }
     return 1;
 }
+
+Py68Status py68_dict_has_key(Py68Runtime *runtime, Py68Dict *dict,
+                             Py68Value key, int *found)
+{
+    Py68U32 hash;
+    Py68U32 slot;
+    if (!py68_value_hashable(key) || !py68_value_hash(runtime, key, &hash))
+        return PY68_STATUS_SOURCE_ERROR;
+    if (py68_dict_lookup(runtime, dict, key, hash, &slot, found) !=
+        PY68_STATUS_OK)
+        return PY68_STATUS_INTERNAL_ERROR;
+    return PY68_STATUS_OK;
+}

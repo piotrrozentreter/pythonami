@@ -58,7 +58,8 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     case OP_ADD: case OP_SUBTRACT: case OP_MULTIPLY: case OP_FLOOR_DIVIDE:
     case OP_MODULO: case OP_TRUE_DIVIDE: case OP_EQUAL: case OP_NOT_EQUAL:
     case OP_LESS:
-    case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL: return &binary;
+    case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL:
+    case OP_CONTAINS: case OP_NOT_CONTAINS: return &binary;
     case OP_JUMP: return &jump; case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE:
         return &jump_pop;
     case OP_JUMP_IF_FALSE_OR_POP: case OP_JUMP_IF_TRUE_OR_POP:

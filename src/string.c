@@ -170,3 +170,15 @@ Py68Status py68_string_slice(Py68Runtime *runtime, Py68String *string,
     return py68_string_new_copy(runtime, string->data + (Py68U32)slice_start,
                                 (Py68U32)(slice_end - slice_start), result);
 }
+
+int py68_string_contains(Py68String *haystack, Py68String *needle)
+{
+    Py68U32 pos;
+    if (needle->length == 0) return 1;
+    if (needle->length > haystack->length) return 0;
+    for (pos = 0; pos + needle->length <= haystack->length; ++pos) {
+        if (memcmp(haystack->data + pos, needle->data, needle->length) == 0)
+            return 1;
+    }
+    return 0;
+}

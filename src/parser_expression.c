@@ -158,6 +158,7 @@ static int py68_precedence(Py68TokenKind kind)
     if (kind == PY68_TOKEN_OR) return 1;
     if (kind == PY68_TOKEN_AND) return 2;
     if (kind >= PY68_TOKEN_EQUAL && kind <= PY68_TOKEN_GREATER_EQUAL) return 3;
+    if (kind == PY68_TOKEN_IN || kind == PY68_TOKEN_NOT_IN) return 3;
     if (kind == PY68_TOKEN_PLUS || kind == PY68_TOKEN_MINUS) return 4;
     if (kind == PY68_TOKEN_STAR || kind == PY68_TOKEN_SLASH ||
         kind == PY68_TOKEN_FLOOR_DIVIDE || kind == PY68_TOKEN_PERCENT)
@@ -525,8 +526,7 @@ static Py68Status py68_parse_unary(Py68ExpressionParser *parser,
     Py68Status status;
 
     if (token != NULL && (token->kind == PY68_TOKEN_PLUS ||
-                          token->kind == PY68_TOKEN_MINUS ||
-                          token->kind == PY68_TOKEN_NOT)) {
+                          token->kind == PY68_TOKEN_MINUS)) {
         ++parser->position;
         status = py68_parse_unary(parser, &operand);
         if (status != PY68_STATUS_OK) return status;
@@ -676,21 +676,72 @@ static Py68Status py68_parse_precedence(Py68ExpressionParser *parser,
     Py68AstNode *right;
     Py68AstNode *binary;
     Py68Token *token;
-    Py68Status status = py68_parse_unary(parser, &left);
+    Py68Token *next;
+    Py68TokenKind operator_kind;
+    int operator_prec;
+    Py68Status status;
 
-    if (status != PY68_STATUS_OK) return status;
+    token = py68_current(parser);
+    /* Prefix `not` binds less tightly than comparisons so `not a in b` is
+       `not (a in b)`, matching Python. `a not in b` is handled as infix. */
+    if (token != NULL && token->kind == PY68_TOKEN_NOT && minimum <= 3) {
+        next = NULL;
+        if (parser->position + 1 < parser->tokens->count)
+            next = &parser->tokens->items[parser->position + 1];
+        if (next == NULL || next->kind != PY68_TOKEN_IN) {
+            Py68AstNode *node;
+            Py68AstNode *operand;
+            Py68Location not_location = token->location;
+            ++parser->position;
+            status = py68_parse_precedence(parser, 3, &operand);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_ast_arena_new(parser->arena, PY68_AST_UNARY,
+                                        not_location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.unary.operator_kind = PY68_TOKEN_NOT;
+            node->as.unary.operand = operand;
+            node->location.length = (Py68U16)(operand->location.offset +
+                                              operand->location.length -
+                                              not_location.offset);
+            left = node;
+        } else {
+            status = py68_parse_unary(parser, &left);
+            if (status != PY68_STATUS_OK) return status;
+        }
+    } else {
+        status = py68_parse_unary(parser, &left);
+        if (status != PY68_STATUS_OK) return status;
+    }
+
     for (;;) {
         token = py68_current(parser);
-        if (token == NULL || py68_precedence(token->kind) < minimum) break;
-        ++parser->position;
-        status = py68_parse_precedence(parser,
-                                       py68_precedence(token->kind) + 1,
-                                       &right);
+        if (token == NULL) break;
+        operator_kind = (Py68TokenKind)token->kind;
+        operator_prec = py68_precedence(operator_kind);
+        if (token->kind == PY68_TOKEN_NOT) {
+            next = NULL;
+            if (parser->position + 1 < parser->tokens->count)
+                next = &parser->tokens->items[parser->position + 1];
+            if (next != NULL && next->kind == PY68_TOKEN_IN) {
+                operator_kind = PY68_TOKEN_NOT_IN;
+                operator_prec = 3;
+            } else {
+                break;
+            }
+        }
+        if (operator_prec < minimum) break;
+        if (operator_kind == PY68_TOKEN_NOT_IN) {
+            ++parser->position;
+            ++parser->position;
+        } else {
+            ++parser->position;
+        }
+        status = py68_parse_precedence(parser, operator_prec + 1, &right);
         if (status != PY68_STATUS_OK) return status;
         status = py68_ast_arena_new(parser->arena, PY68_AST_BINARY,
                                     token->location, &binary);
         if (status != PY68_STATUS_OK) return status;
-        binary->as.binary.operator_kind = token->kind;
+        binary->as.binary.operator_kind = (Py68U16)operator_kind;
         binary->as.binary.left = left;
         binary->as.binary.right = right;
         binary->location.offset = left->location.offset;

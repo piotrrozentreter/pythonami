@@ -217,3 +217,12 @@ Py68Status py68_list_slice(Py68Runtime *runtime, Py68List *list,
     *result = sliced;
     return PY68_STATUS_OK;
 }
+
+int py68_list_has_item(Py68Runtime *runtime, Py68List *list, Py68Value value)
+{
+    Py68U32 index;
+    for (index = 0; index < list->count; ++index) {
+        if (py68_value_equal(runtime, list->items[index], value)) return 1;
+    }
+    return 0;
+}

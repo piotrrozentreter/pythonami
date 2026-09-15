@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Membership operators `in` / `not in` (`OP_CONTAINS` / `OP_NOT_CONTAINS`) for
+  str substring, list/tuple equality scan, dict keys, and set members.
+- `for` / comprehensions iterate strings as successive one-character strings.
+- Example `examples/wordcount.py` fixed for Level APIs (`IOError`, `fread`).
+
 - Amiga LoadSeg extensions: `load_library(path)` loads `*.py68k` plugins with a
   public export ABI (`include/py68k_ext.h`); sample `ext/demo_add` (vbcc C +
   vasm) via `make amiga-ext` (D-0027).

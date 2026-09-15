@@ -153,3 +153,12 @@ int py68_tuple_hash(Py68Runtime *runtime, Py68Tuple *tuple, Py68U32 *hash_out)
     *hash_out = hash;
     return 1;
 }
+
+int py68_tuple_has_item(Py68Runtime *runtime, Py68Tuple *tuple, Py68Value value)
+{
+    Py68U32 index;
+    for (index = 0; index < tuple->count; ++index) {
+        if (py68_value_equal(runtime, tuple->items[index], value)) return 1;
+    }
+    return 0;
+}

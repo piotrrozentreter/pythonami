@@ -32,5 +32,8 @@ Py68Status py68_set_discard(struct Py68Runtime *runtime, Py68Set *set,
 Py68Status py68_set_values(struct Py68Runtime *runtime, Py68Set *set,
                            struct Py68List **result);
 int py68_set_equal(struct Py68Runtime *runtime, Py68Set *left, Py68Set *right);
+/* Returns 1 if value is present, 0 if absent. Unhashable → SOURCE_ERROR. */
+Py68Status py68_set_contains(struct Py68Runtime *runtime, Py68Set *set,
+                             Py68Value value, int *found);
 
 #endif

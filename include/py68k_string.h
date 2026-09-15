@@ -32,5 +32,7 @@ Py68Status py68_string_slice(struct Py68Runtime *runtime,
                              Py68String *string, Py68I32 start, Py68I32 end,
                              int start_omitted, int end_omitted,
                              Py68String **result);
+/* Substring search; empty needle is always found (Python membership). */
+int py68_string_contains(Py68String *haystack, Py68String *needle);
 
 #endif

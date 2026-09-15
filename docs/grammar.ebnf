@@ -5,6 +5,12 @@ and the parser sources. Language Level 0.6 adds the comprehension forms below.
 Targets are a single `NAME`, matching `for` statements. `star_expr`, async,
 and generator expressions are not part of this increment.
 
+Comparison operators include membership:
+
+```ebnf
+comp_op          ::= "<" | ">" | "==" | ">=" | "<=" | "!=" | "in" | "not" "in"
+```
+
 ```ebnf
 list_display     ::= "[" [starred_list | comprehension] "]"
 set_display      ::= "{" starred_list | comprehension "}"
@@ -21,3 +27,4 @@ comp_if          ::= "if" expression [comp_iter]
 `{x for x in it}` is a set comprehension; `{k: v for k in it}` is a dict
 comprehension; `{}` remains an empty dict. `(x for x in it)` is rejected with a
 targeted diagnostic. Comprehension names bind in the enclosing scope (D-0026).
+String iterables yield one-character strings.

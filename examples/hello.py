@@ -1,1 +1,1 @@
-# Source execution begins in a later phase.
+print("Hello from Python68K")

@@ -38,5 +38,8 @@ Py68Status py68_dict_items(struct Py68Runtime *runtime, Py68Dict *dict,
                            struct Py68List **result);
 int py68_dict_equal(struct Py68Runtime *runtime, Py68Dict *left,
                     Py68Dict *right);
+/* Returns 1 if key is present, 0 if absent. Unhashable key → SOURCE_ERROR. */
+Py68Status py68_dict_has_key(struct Py68Runtime *runtime, Py68Dict *dict,
+                             Py68Value key, int *found);
 
 #endif

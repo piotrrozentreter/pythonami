@@ -16,12 +16,13 @@ Executable name: `pythonami`
 - Scalars: integers (signed 32-bit, checked overflow), IEEE-754 binary32 `float` (soft-float, no NaN/Inf), `True` / `False`, `None`
 - Arithmetic: `+ - * / // %` (`/` is true divide → float; `//` is floor-int)
 - Comparisons: `== != < <= > >=` (bool as 0/1; `None == None`; str/list/tuple equality)
+- Membership: `x in y` / `x not in y` (str substring; list/tuple equality scan; dict keys; set members)
 - Unary: `+ - not`
 - Short-circuit `and` / `or` (value-preserving; empty containers are falsy)
 
 ### Control flow
 - `if` / `elif` / `else`
-- `while` … `else`, `for … in` range/list/tuple/dict/set … `else`
+- `while` … `else`, `for … in` range/list/tuple/dict/set/string … `else`
 - `break` / `continue` (including `break` inside `for`)
 - `try` / `except` / `except Type as e` / `finally` / `raise`
 - `with fopen(...) as f`
@@ -85,7 +86,7 @@ see `docs/amiga-extensions.md`. Host has no `load_library`.
 - Error reporting with frame traceback
 
 ### Not in 0.6.0
-Classes, Unicode, bytes, generator expressions, closures, nested `def`, method-style `open()`, seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
+Classes, Unicode, bytes, generator expressions, closures, nested `def`, method-style `open()` / `file.read()` / keyword `encoding=` / `FileNotFoundError` (post-0.6 option 1; `fopen` remains), seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
 
 ---
 

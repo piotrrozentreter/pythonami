@@ -273,6 +273,32 @@ static Py68Status py68_vm_iterable_range(Py68Runtime *runtime, Py68Value value,
         py68_object_release(runtime, &list->base);
         return status;
     }
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_STRING) {
+        Py68String *string = (Py68String *)value.as.object;
+        Py68List *list;
+        Py68U32 index;
+        Py68Status status = py68_list_new(runtime, &list);
+        if (status != PY68_STATUS_OK) return status;
+        for (index = 0; index < string->length; ++index) {
+            Py68String *ch;
+            status = py68_string_new_copy(runtime, string->data + index, 1, &ch);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+            status = py68_list_append_copy(
+                runtime, list, py68_value_from_object(&ch->base));
+            py68_object_release(runtime, &ch->base);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+        }
+        status = py68_range_new_list(runtime, list, range_obj);
+        py68_object_release(runtime, &list->base);
+        return status;
+    }
     return PY68_STATUS_SOURCE_ERROR;
 }
 
@@ -323,6 +349,61 @@ static Py68Status py68_vm_binary(Py68Runtime *runtime, Py68U8 opcode)
     if (py68_vm_pop(runtime, &right) != PY68_STATUS_OK ||
         py68_vm_pop(runtime, &left) != PY68_STATUS_OK) {
         return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (opcode == OP_CONTAINS || opcode == OP_NOT_CONTAINS) {
+        int found = 0;
+        Py68Status status = PY68_STATUS_OK;
+        if (right.type == PY68_VALUE_OBJECT && right.as.object != NULL &&
+            right.as.object->type == PY68_OBJECT_STRING) {
+            if (left.type != PY68_VALUE_OBJECT || left.as.object == NULL ||
+                left.as.object->type != PY68_OBJECT_STRING) {
+                py68_value_release(runtime, left);
+                py68_value_release(runtime, right);
+                py68_vm_error(runtime, PY68_ERROR_TYPE,
+                              "'in' requires string as left operand");
+                return PY68_STATUS_RUNTIME_ERROR;
+            }
+            found = py68_string_contains((Py68String *)right.as.object,
+                                         (Py68String *)left.as.object);
+        } else if (right.type == PY68_VALUE_OBJECT && right.as.object != NULL &&
+                   right.as.object->type == PY68_OBJECT_LIST) {
+            found = py68_list_has_item(runtime, (Py68List *)right.as.object,
+                                       left);
+        } else if (right.type == PY68_VALUE_OBJECT && right.as.object != NULL &&
+                   right.as.object->type == PY68_OBJECT_TUPLE) {
+            found = py68_tuple_has_item(runtime, (Py68Tuple *)right.as.object,
+                                        left);
+        } else if (right.type == PY68_VALUE_OBJECT && right.as.object != NULL &&
+                   right.as.object->type == PY68_OBJECT_DICT) {
+            status = py68_dict_has_key(runtime, (Py68Dict *)right.as.object,
+                                       left, &found);
+            if (status != PY68_STATUS_OK) {
+                py68_value_release(runtime, left);
+                py68_value_release(runtime, right);
+                py68_vm_error(runtime, PY68_ERROR_TYPE, "unhashable type");
+                return PY68_STATUS_RUNTIME_ERROR;
+            }
+        } else if (right.type == PY68_VALUE_OBJECT && right.as.object != NULL &&
+                   right.as.object->type == PY68_OBJECT_SET) {
+            status = py68_set_contains(runtime, (Py68Set *)right.as.object,
+                                       left, &found);
+            if (status != PY68_STATUS_OK) {
+                py68_value_release(runtime, left);
+                py68_value_release(runtime, right);
+                py68_vm_error(runtime, PY68_ERROR_TYPE, "unhashable type");
+                return PY68_STATUS_RUNTIME_ERROR;
+            }
+        } else {
+            py68_value_release(runtime, left);
+            py68_value_release(runtime, right);
+            py68_vm_error(runtime, PY68_ERROR_TYPE,
+                          "argument of type is not iterable");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        if (opcode == OP_NOT_CONTAINS) found = !found;
+        py68_value_release(runtime, left);
+        py68_value_release(runtime, right);
+        return py68_vm_push(runtime, py68_value_bool(found));
     }
     if (opcode == OP_ADD && left.type == PY68_VALUE_OBJECT &&
         right.type == PY68_VALUE_OBJECT && left.as.object != NULL &&
@@ -802,6 +883,12 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                         ip += 2;
                         break;
                     }
+                    if (convert == PY68_STATUS_MEMORY_ERROR) {
+                        py68_value_release(runtime, arg0);
+                        status = convert;
+                        ip = current_code->bytecode_length;
+                        break;
+                    }
                 }
                 if (arg0.type != PY68_VALUE_INT) {
                     py68_value_release(runtime, arg0);
@@ -1067,6 +1154,7 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
         case OP_MODULO: case OP_TRUE_DIVIDE: case OP_EQUAL: case OP_NOT_EQUAL:
         case OP_LESS:
         case OP_LESS_EQUAL: case OP_GREATER: case OP_GREATER_EQUAL:
+        case OP_CONTAINS: case OP_NOT_CONTAINS:
             status = py68_vm_binary(runtime, opcode); ip += 1; break;
         case OP_NEGATE:
             status = py68_vm_pop(runtime, &value);

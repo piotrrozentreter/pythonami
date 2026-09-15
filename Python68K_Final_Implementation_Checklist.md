@@ -172,3 +172,6 @@
 - [ ] No FPU required
 - [ ] Documentation complete
 - [ ] Language Level 0.1 frozen
+
+## Future / post-0.6
+- [ ] CPython-style `open` (option 1): `open()` + `file.read()`/`write()`/`close()`, limited keyword args for `encoding='utf-8'` (accept/ignore), `FileNotFoundError`, keep `fopen` as alias; driver: `examples/wordcount.py`

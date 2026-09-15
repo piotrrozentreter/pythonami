@@ -1,0 +1,31 @@
+=== str in str ===
+True
+False
+True
+True
+False
+False
+=== list / tuple ===
+True
+False
+False
+True
+True
+=== dict / set ===
+True
+False
+False
+True
+True
+=== if / while / expr ===
+if-in-ok
+0
+True
+=== for over string ===
+a
+b
+ab
+=== comprehension over string ===
+x
+y
+2

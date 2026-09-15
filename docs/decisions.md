@@ -1,5 +1,23 @@
 # Decisions
 
+## D-0036: Membership operators and string iteration
+
+- Context: `PY68_TOKEN_IN` existed for `for`/`comprehension` only. Scripts such as
+	`examples/wordcount.py` need comparison `in` / `not in` and `for char in text`.
+- Decision: Parse `in` and compound `not`+`in` as comparison-precedence binary
+	operators (`PY68_AST_BINARY`, with parser-only `PY68_TOKEN_NOT_IN`). Emit
+	`OP_CONTAINS` (0x1E) and `OP_NOT_CONTAINS` (0x1F). Semantics: str/str
+	substring (empty needle is true); list/tuple equality scan; dict key
+	presence; set membership; other containers raise `TypeError`. Extend
+	`OP_RANGE_INIT` iterable conversion so strings become a range over
+	one-character strings. Adjust prefix `not` so it binds less tightly than
+	comparisons (`not a in b` ≡ `not (a in b)`).
+- Alternatives considered: Desugar `not in` to `CONTAINS`+`NOT`; reject string
+	iteration until a dedicated iterator type exists.
+- Consequences: Membership and string `for`/comprehensions match the documented
+	Python 3 subset. Opcode numbers 0x1E/0x1F are now assigned; changing them
+	requires a bytecode-format version bump.
+
 ## D-0034: Temporary-file output capture for `os.popen`
 
 - Context: D-0032 deferred output capture pending a native request/result

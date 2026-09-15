@@ -114,6 +114,56 @@ int main(void)
     }
 
     {
+        const char *in_text = "a in b";
+        const char *not_in_text = "a not in b";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "in.py",
+            (const Py68U8 *)in_text, (Py68U32)strlen(in_text)) ==
+            PY68_STATUS_OK, "membership source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "membership tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "a in b parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_BINARY &&
+                        node->as.binary.operator_kind == PY68_TOKEN_IN,
+                        "in is binary comparison");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "membership parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "notin.py",
+            (const Py68U8 *)not_in_text, (Py68U32)strlen(not_in_text)) ==
+            PY68_STATUS_OK, "not-in source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "not-in tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "a not in b parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_BINARY &&
+                        node->as.binary.operator_kind == PY68_TOKEN_NOT_IN,
+                        "not in is compound binary comparison");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "not-in parser releases all allocations");
+    }
+
+    {
         const char *gen_text = "(x for x in items)";
         py68_allocator_initialize(&allocator);
         passed &= check(py68_source_initialize(&allocator, &source, "gen.py",

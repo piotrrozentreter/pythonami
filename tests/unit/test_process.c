@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 
 int main(void)
 {
@@ -22,7 +25,15 @@ int main(void)
     result = py68_value_none();
     passed &= py68_builtin_system(&runtime, 1, &argument, &result) ==
               PY68_STATUS_OK;
-    passed &= result.type == PY68_VALUE_INT && result.as.integer == 7;
+    /* D-0032 / compatibility: return native command status (POSIX wait
+     * encoding on Unix hosts; plain exit code on Windows). */
+    passed &= result.type == PY68_VALUE_INT;
+#if defined(_WIN32)
+    passed &= result.as.integer == 7;
+#else
+    passed &= WIFEXITED(result.as.integer) &&
+              WEXITSTATUS(result.as.integer) == 7;
+#endif
     py68_object_release(&runtime, &command->base);
     py68_error_clear(&runtime.error);
 

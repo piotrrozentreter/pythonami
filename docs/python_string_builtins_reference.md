@@ -573,6 +573,7 @@ Notes: `bytes`/`bytearray`/`eval`/`exec`/`compile` deferred. Iterator helpers de
 ```
 
 Notes: Escapes decoded: `\\ \' \" \n \r \t \xHH`. Adjacent literals, raw strings, and f-strings remain deferred.
+Implemented via `OP_CONTAINS` / `OP_NOT_CONTAINS` and string conversion in `OP_RANGE_INIT` (D-0036).
 ---
 
 ## Scope and official references

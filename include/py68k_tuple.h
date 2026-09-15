@@ -29,5 +29,7 @@ int py68_tuple_equal(struct Py68Runtime *runtime, Py68Tuple *left,
                      Py68Tuple *right);
 int py68_tuple_hash(struct Py68Runtime *runtime, Py68Tuple *tuple,
                     Py68U32 *hash_out);
+int py68_tuple_has_item(struct Py68Runtime *runtime, Py68Tuple *tuple,
+                        Py68Value value);
 
 #endif
