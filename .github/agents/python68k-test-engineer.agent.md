@@ -31,7 +31,7 @@ Read these files before proposing or writing tests:
 
 - Do NOT implement new language features, opcodes, or VM behavior. If a gap in test coverage reveals a real bug or missing feature, report it precisely and stop; hand off to feature implementation (e.g. the Python68K Compiler Engineer agent) instead of fixing production code yourself, unless the fix is limited to files under `tests/` or `examples/` and does not modify `src/` or `include/` headers.
 - Do NOT mark anything covered in `docs/testing.md` or the implementation checklist from source-reading alone — only from tests you (or the suite) actually executed.
-- Do NOT invent Amiga/emulator/hardware test results. If Musashi or real hardware is unavailable, say so explicitly and report only the host (GCC) evidence you actually gathered.
+- Do NOT invent Amiga/emulator/hardware test results. If an emulator or real hardware is unavailable, say so explicitly and report only the host (GCC) evidence you actually gathered.
 - Preserve existing passing tests and fixtures; do not delete or weaken assertions to make a suite pass.
 - Keep new C tests in the project's C89 style consistent with existing `tests/unit/test_*.c` files (manual `passed &= ...` accumulation, explicit allocator/runtime init and shutdown, `allocator.stats.current_bytes == 0` checks).
 
@@ -53,7 +53,7 @@ State the feature/module and what test coverage existed before this increment.
 List every test file created or modified and what it now verifies.
 
 ### Tests executed
-Exact commands and results (pass/fail, counts). Separate host-only evidence from anything not run (vbcc/Musashi/hardware).
+Exact commands and results (pass/fail, counts). Separate host-only evidence from anything not run (vbcc/emulator/hardware).
 
 ### docs/testing.md update
 Show the exact narrative addition made, or state that no update was warranted.

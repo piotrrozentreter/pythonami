@@ -76,8 +76,7 @@ Cross-target test strategy:
 
 - Use `vbccm68k` for Motorola 68000 compiler-level and object-generation checks, with the configured `-cpu=68000 -fpu=0` options.
 - Use `vbcci386` or GCC for a current Intel/Linux host build when the code is compatible; GCC remains the primary strict-warning and sanitizer runner.
-- Use Musashi (`https://github.com/kstenerud/Musashi`) for instruction-level 680x0 emulation when an integration checkout or harness is available.
-- Do not claim emulator or hardware execution from compiler or host results alone; report unavailable Musashi checkouts and hardware explicitly.
+- Do not claim emulator or hardware execution from compiler or host results alone; report unavailable configurations explicitly.
 - Amiga NDK 3.2 is available at `/run/media/piotr/BACKUP/Rozen/Programy/Amiga/NDK3.2`; use its `Include_H` for reference when needed, but do not mix `lib/amiga.lib` into vbcc `+aos68k` links. The vbcc target tree owns the C runtime and link libraries.
 - For `+aos68k` C builds, vbcc `startup.o` owns the Workbench `WBenchMsg` handshake; do not add or call a second `wbstartup.s` wrapper.
 

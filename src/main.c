@@ -16,6 +16,17 @@
 
 #include <string.h>
 
+#ifdef PY68K_AMIGA
+/* vbcc/SAS-C startup convention (targets/m68k-amigaos lib/startup.o): a
+   global `long __stack` requests this process stack size in bytes instead
+   of inheriting the caller's (often 4 KiB) stack. Recursive-descent
+   tokenizing/parsing/compiling plus nested `import`-triggered re-entry into
+   py68_vm_execute_module stack several such call chains on the C stack; the
+   default stack silently corrupts memory that only faults later, after a
+   script has already produced correct output (see docs/decisions.md). */
+long __stack = 65536L;
+#endif
+
 #define PY68K_VERSION "Python68K 0.6.0\n"
 #define PY68K_HELP \
     "Usage: pythonami [--debug] [-V|--help] [-c cmd | script.py]\n"

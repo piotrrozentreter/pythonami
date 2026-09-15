@@ -174,6 +174,10 @@ Normative design briefs (for implementers): `Python68K_Full_Agent_Implementation
 
 ---
 
-## License / copyright
+## License
 
-Copyright © 2026 Piotr Rozentreter (Rozsoft). All rights reserved unless otherwise noted in the repository.
+MIT License.
+
+Copyright © 2026 Piotr Rozentreter (Rozsoft).
+
+See LICENSE for the full license text.

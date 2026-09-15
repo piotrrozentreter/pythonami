@@ -7,6 +7,35 @@
 - Alternatives considered: Real AmigaOS `.library` via `OpenLibrary`; extending `import` to auto-load natives; host ELF `dlopen`.
 - Consequences: Scripts keep the library module alive while calling exports; escaped native refs after unload are undefined. `import` remains `.py`-only. Sample + vasm workflow live under `ext/demo_add/` and `make amiga-ext`.
 
+## D-0029: Amiga `__stack` process stack size
+
+- Context: `examples/test_random.py` (`import random`, which itself does `import
+	randgen`) ran to completion with correct printed output on Amiga, then the
+	process crashed with a Guru Meditation after the script finished. Nothing in
+	`Makefile.amiga` or `src/main.c` ever requested a process stack size, so the
+	binary inherited whatever stack the launching Shell/Workbench icon provided
+	(often as little as 4 KiB). Recursive-descent tokenizing, parsing, and
+	compiling, plus a nested `import` re-entering `py68_vm_execute_module` on
+	the C call stack (once per imported module, stacked on top of the outer
+	module's own still-active frame), can exceed a small default stack; the
+	resulting corruption of adjacent memory only faults later, when the
+	corrupted C stack frames unwind during cleanup — after the script's own
+	output has already been written.
+- Decision: Define `long __stack = 65536L;` in `src/main.c` under
+	`#ifdef PY68K_AMIGA`. vbcc's `+aos68k` `lib/startup.o` recognizes this
+	SAS/C-style global and allocates a process stack of that size instead of
+	inheriting the caller's, independent of any CLI `Stack` override behavior.
+	Host builds are unaffected (`PY68K_AMIGA` is only defined for the Amiga
+	build).
+- Alternatives considered: Convert nested `import` execution to an explicit
+	worklist instead of C recursion (larger refactor, deferred); require callers
+	to raise the CLI `Stack` before running `pythonami` (undiscoverable,
+	not enforceable from Workbench).
+- Consequences: `examples/test_random.py` and other multi-level `import`
+	chains need real Amiga/emulator re-verification with a freshly rebuilt
+	binary. `__stack` size may need future tuning
+	if deeper import chains or recursion are added.
+
 ## D-0022: Opt-in top-level debug statistics
 
 - Context: The CLI needs deterministic execution statistics without changing normal script output or exit status.
@@ -47,9 +76,9 @@
 ## D-0002: Cross-target validation strategy
 
 - Context: Python68K must be checked both on the Motorola 68000 target and on a current Linux Intel host without confusing compilation evidence with execution evidence.
-- Decision: Use `vbccm68k` for 68000 compiler/object checks, `vbcci386` or GCC for Intel-host compatibility checks, and Musashi for 680x0 emulation when the repository and harness are available.
+- Decision: Use `vbccm68k` for 68000 compiler/object checks and `vbcci386` or GCC for Intel-host compatibility checks. Report emulator and hardware execution separately from compiler and host results.
 - Alternatives considered: Treat the Amiga Hunk build as sufficient, or rely only on GCC and desktop tests.
-- Consequences: Host sanitizers remain fast and authoritative for portable-core defects; target and emulator results are reported separately, and no hardware compatibility claim is made without actual execution evidence.
+- Consequences: Host sanitizers remain fast and authoritative for portable-core defects; target, emulator, and hardware results are reported separately, and no compatibility claim is made without actual execution evidence.
 
 ## D-0003: Workbench startup ownership
 
