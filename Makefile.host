@@ -193,6 +193,7 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_precedence_argv.py tests/fixtures/language/import/test_import_precedence_argv.expected.txt arg-one arg-two
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/random/test_random.py tests/fixtures/language/random/test_random.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/test_time.py tests/fixtures/language/test_time.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/process/test_system.py tests/fixtures/language/process/test_system.expected.txt
 	@printf 'Alice\n' | $(HOST_PROGRAM) tests/language/test_input.py > build/host/test_input_lang.out
 	@tr -d '\r' < tests/fixtures/language/test_input.expected.txt > build/host/test_input_expected.normalized
 	@tr -d '\r' < build/host/test_input_lang.out > build/host/test_input_lang.normalized
