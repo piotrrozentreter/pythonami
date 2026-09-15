@@ -14,6 +14,7 @@
 #include "py68k_attr.h"
 #include "py68k_exception.h"
 #include "py68k_module.h"
+#include "py68k_time.h"
 #include "py68k_native.h"
 #include "py68k_platform.h"
 
@@ -123,6 +124,9 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
         py68_platform_unload_seg(seg);
         py68_free(&runtime->allocator, PY68_MEM_MODULE, module,
                   sizeof(Py68Module));
+    } else if (object->type == PY68_OBJECT_STRUCT_TIME) {
+        py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
+                  sizeof(Py68StructTime));
     } else {
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
                   (Py68U32)sizeof(Py68Object));

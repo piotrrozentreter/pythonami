@@ -141,6 +141,13 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "exists", 1, 1, py68_builtin_exists },
         { "remove", 1, 1, py68_builtin_remove },
         { "rename", 2, 2, py68_builtin_rename }
+        ,{ "time", 0, 0, py68_builtin_time }
+        ,{ "sleep", 1, 1, py68_builtin_sleep }
+        ,{ "ctime", 0, 1, py68_builtin_ctime }
+        ,{ "localtime", 0, 1, py68_builtin_localtime }
+        ,{ "strftime", 1, 2, py68_builtin_strftime }
+        ,{ "perf_counter", 0, 0, py68_builtin_perf_counter }
+        ,{ "time_tick", 0, 0, py68_builtin_time_tick }
     };
 #if defined(PY68K_AMIGA)
     static const Py68BuiltinDefinition platform_vars[] = {

@@ -1,11 +1,90 @@
 # Decisions
 
+## D-0032: Synchronous os.system as the first DOS process API
+
+- Context: The DOS command execution proposal requires a process backend, but
+	output capture and asynchronous lifetime management need handles, cleanup,
+	and child-I/O semantics that do not yet exist in the platform interface.
+- Decision: Implement only `os.system(command)` initially. Validate a single,
+	non-empty string and reject embedded NUL bytes, execute synchronously with
+	inherited standard handles, and return the native command status directly.
+	Launch failure is mapped to an I/O runtime error. The Amiga implementation
+	uses `Execute`; the host implementation uses its synchronous command
+	primitive. `subprocess` and `Popen` remain explicitly unsupported.
+- Alternatives considered: Emulate `subprocess` synchronously, silently
+	ignore capture/timeout parameters, or expose shell execution as a direct
+	process API before the backend can enforce that distinction.
+- Consequences: The smallest useful API is available without claiming
+	`shell=False`, capture, timeout, environment, or process-handle semantics.
+	A later increment must add a native request/result contract and tests for
+	temporary-file capture before expanding the public API.
+
+## D-0030: Time API and struct_time representation
+
+- Context: The requested time subset needs calendar fields while the language
+	has no general user-defined object type.
+- Decision: Install `time`, `sleep`, `ctime`, `localtime`, `strftime`, and
+	`perf_counter` as native functions. `localtime` returns a dedicated
+	reference-counted `struct_time` object exposing the nine documented `tm_*`
+	attributes. Epoch and performance-clock values use the existing software
+	binary32 value representation; calendar conversion and formatting use the
+	platform C time services.
+- Alternatives considered: Return an unnamed tuple, add a general attribute
+	dictionary, or expose only formatted strings.
+- Consequences: `localtime().tm_year` and `strftime(format, localtime())` are
+	supported without expanding the user object model. Host monotonic timing is
+	backed by the host clock service and Amiga timing by `DateStamp`; sub-second
+	precision follows each platform's available clock resolution.
+
+## D-0031: Bounded millisecond seed tick
+
+- Context: Seeding the random example with `int(time())` repeats whenever two
+	processes start in the same epoch second. Scaling the epoch float by 1000
+	would exceed the signed 32-bit language integer range.
+- Decision: Expose `time_tick()` as a signed 31-bit millisecond value. Host
+	implementations use the host elapsed/system clock and Amiga uses the
+	millisecond value derived from DOS `DateStamp()`, masked to `0x7fffffff`.
+- Alternatives considered: Keep second-resolution seeds, use a large integer
+	timestamp, or add a platform-specific random source.
+- Consequences: Short-lived examples receive varying seeds without requiring
+	64-bit integers or floating-point conversion. The tick wraps periodically,
+	so it is suitable for seeding and not a persistent timestamp.
+
 ## D-0027: Amiga LoadSeg extension plugins (not OpenLibrary)
 
 - Context: Authors want vbcc/vasm performance helpers callable from pythonami without rebuilding the interpreter. Classic AmigaOS `.library` (Resident/LibInit/LVOs) is heavy for this use case; host `dlopen` is out of scope.
 - Decision: Amiga-only builtin `load_library(path)` uses `LoadSeg` on a relocatable Hunk file (`*.py68k`). First hunk payload after the seglist next-pointer is a `Py68ExtHeader` (`'PY68'`, ABI 1, export table). Each export becomes a `Py68NativeFunction` on a returned module. `UnLoadSeg` runs when the module is destroyed (after clearing globals). Public ABI is `include/py68k_ext.h`. Plugins must not link `startup.o` / `vc.lib` / NDK `amiga.lib`.
 - Alternatives considered: Real AmigaOS `.library` via `OpenLibrary`; extending `import` to auto-load natives; host ELF `dlopen`.
 - Consequences: Scripts keep the library module alive while calling exports; escaped native refs after unload are undefined. `import` remains `.py`-only. Sample + vasm workflow live under `ext/demo_add/` and `make amiga-ext`.
+
+## D-0029: Amiga `__stack` process stack size
+
+- Context: `examples/test_random.py` (`import random`, which itself does `import
+	randgen`) ran to completion with correct printed output on Amiga, then the
+	process crashed with a Guru Meditation after the script finished. Nothing in
+	`Makefile.amiga` or `src/main.c` ever requested a process stack size, so the
+	binary inherited whatever stack the launching Shell/Workbench icon provided
+	(often as little as 4 KiB). Recursive-descent tokenizing, parsing, and
+	compiling, plus a nested `import` re-entering `py68_vm_execute_module` on
+	the C call stack (once per imported module, stacked on top of the outer
+	module's own still-active frame), can exceed a small default stack; the
+	resulting corruption of adjacent memory only faults later, when the
+	corrupted C stack frames unwind during cleanup — after the script's own
+	output has already been written.
+- Decision: Define `long __stack = 65536L;` in `src/main.c` under
+	`#ifdef PY68K_AMIGA`. vbcc's `+aos68k` `lib/startup.o` recognizes this
+	SAS/C-style global and allocates a process stack of that size instead of
+	inheriting the caller's, independent of any CLI `Stack` override behavior.
+	Host builds are unaffected (`PY68K_AMIGA` is only defined for the Amiga
+	build).
+- Alternatives considered: Convert nested `import` execution to an explicit
+	worklist instead of C recursion (larger refactor, deferred); require callers
+	to raise the CLI `Stack` before running `pythonami` (undiscoverable,
+	not enforceable from Workbench).
+- Consequences: `examples/test_random.py` and other multi-level `import`
+	chains need real Amiga/emulator re-verification with a freshly rebuilt
+	binary. `__stack` size may need future tuning
+	if deeper import chains or recursion are added.
 
 ## D-0022: Opt-in top-level debug statistics
 
@@ -47,9 +126,9 @@
 ## D-0002: Cross-target validation strategy
 
 - Context: Python68K must be checked both on the Motorola 68000 target and on a current Linux Intel host without confusing compilation evidence with execution evidence.
-- Decision: Use `vbccm68k` for 68000 compiler/object checks, `vbcci386` or GCC for Intel-host compatibility checks, and Musashi for 680x0 emulation when the repository and harness are available.
+- Decision: Use `vbccm68k` for 68000 compiler/object checks and `vbcci386` or GCC for Intel-host compatibility checks. Report emulator and hardware execution separately from compiler and host results.
 - Alternatives considered: Treat the Amiga Hunk build as sufficient, or rely only on GCC and desktop tests.
-- Consequences: Host sanitizers remain fast and authoritative for portable-core defects; target and emulator results are reported separately, and no hardware compatibility claim is made without actual execution evidence.
+- Consequences: Host sanitizers remain fast and authoritative for portable-core defects; target, emulator, and hardware results are reported separately, and no compatibility claim is made without actual execution evidence.
 
 ## D-0003: Workbench startup ownership
 

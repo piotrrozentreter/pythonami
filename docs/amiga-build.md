@@ -20,6 +20,8 @@ make amiga VBCC=/home/piotr/local/vbcc NDK=/run/media/piotr/BACKUP/Rozen/Program
 
 `Makefile.amiga` uses vbcc through `vc`, targets `+aos68k`, and passes `-cpu=68000 -fpu=0`. Release and debug both keep `-use-framepointer -no-delayed-popping` to avoid 68000 stack-layout failures. The Amiga build uses the vbcc-native target tree for the C runtime, `startup.o`, and `vc.lib`. NDK 3.2 `Include_H` supplies Amiga system headers; its `lib/amiga.lib` is not mixed into the vbcc link. Emulator and real-hardware execution remain owner-verified.
 
+`src/main.c` defines `long __stack = 65536L;` under `#ifdef PY68K_AMIGA`; vbcc's `+aos68k` `startup.o` reads this SAS/C-style global to size the process stack instead of inheriting the launching Shell/Workbench default (see D-0029). Nested `import` chains (a module importing another module) recurse through the tokenizer/parser/compiler/VM on the C stack, so raise this value if a future script needs deeper import or expression nesting than `examples/test_random.py`.
+
 ## LoadSeg extensions (`*.py68k`)
 
 ```text

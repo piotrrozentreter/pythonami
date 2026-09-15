@@ -11,3 +11,9 @@ dotted names, relative imports, and native ABI **imports** are not supported.
 On Amiga only, `load_library(path)` loads a relocatable `*.py68k` LoadSeg plugin
 and returns a module of native exports (D-0027). This is not an `import` path
 and is unavailable on the host build. See `docs/amiga-extensions.md`.
+
+Command execution is currently limited to synchronous `os.system(command)`.
+The command must be a non-empty string without an embedded NUL, is executed
+with inherited standard handles, and returns the platform command status
+directly. `subprocess`, output capture, per-child directories/environments,
+timeouts, and `Popen` are not implemented yet.

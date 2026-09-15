@@ -38,6 +38,8 @@ Py68Status py68_builtin_max(Py68Runtime *runtime, Py68U16 argument_count,
                             Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_exit(Py68Runtime *runtime, Py68U16 argument_count,
                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_system(Py68Runtime *runtime, Py68U16 argument_count,
+                               Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_fopen(Py68Runtime *runtime, Py68U16 argument_count,
                               Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_fclose(Py68Runtime *runtime, Py68U16 argument_count,
@@ -101,5 +103,23 @@ Py68Status py68_builtin_any(Py68Runtime *runtime, Py68U16 argument_count,
                             Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_format(Py68Runtime *runtime, Py68U16 argument_count,
                                Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_time(Py68Runtime *runtime, Py68U16 argument_count,
+                             Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_sleep(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_ctime(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_localtime(Py68Runtime *runtime, Py68U16 argument_count,
+                                  Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_strftime(Py68Runtime *runtime, Py68U16 argument_count,
+                                 Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_perf_counter(Py68Runtime *runtime,
+                                     Py68U16 argument_count,
+                                     Py68Value *arguments,
+                                     Py68Value *result);
+Py68Status py68_builtin_time_tick(Py68Runtime *runtime,
+                                  Py68U16 argument_count,
+                                  Py68Value *arguments,
+                                  Py68Value *result);
 
 #endif

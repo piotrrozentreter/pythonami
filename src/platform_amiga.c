@@ -79,6 +79,65 @@ void py68_platform_flush_stdout(void)
     Flush(Output());
 }
 
+Py68Status py68_platform_time_epoch(Py68Runtime *runtime, Py68U32 *seconds,
+                                    Py68U32 *microseconds)
+{
+    struct DateStamp stamp;
+    (void)runtime;
+    DateStamp(&stamp);
+    *seconds = (Py68U32)stamp.ds_Days * 86400UL +
+               (Py68U32)stamp.ds_Minute * 60UL +
+               (Py68U32)stamp.ds_Tick / 50UL + 252460800UL;
+    *microseconds = ((Py68U32)stamp.ds_Tick % 50UL) * 20000UL;
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_time_monotonic(Py68Runtime *runtime,
+                                        Py68U32 *seconds,
+                                        Py68U32 *microseconds)
+{
+    return py68_platform_time_epoch(runtime, seconds, microseconds);
+}
+
+Py68Status py68_platform_time_tick(Py68Runtime *runtime,
+                                   Py68U32 *milliseconds)
+{
+    struct DateStamp stamp;
+    Py68U32 total;
+    (void)runtime;
+    DateStamp(&stamp);
+    total = ((Py68U32)stamp.ds_Days * 86400000UL) & 0x7FFFFFFFUL;
+    total = (total + (Py68U32)stamp.ds_Minute * 60000UL) & 0x7FFFFFFFUL;
+    total = (total + (Py68U32)stamp.ds_Tick * 20UL) & 0x7FFFFFFFUL;
+    *milliseconds = total;
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
+                                Py68U32 microseconds)
+{
+    struct DateStamp delay;
+    (void)runtime;
+    delay.ds_Days = (LONG)seconds / 86400L;
+    delay.ds_Minute = ((LONG)seconds % 86400L) / 60L;
+    delay.ds_Tick = ((LONG)seconds % 60L) * 50L +
+                    (LONG)(microseconds / 20000UL);
+    Delay(delay.ds_Days * 4320000L + delay.ds_Minute * 3000L + delay.ds_Tick);
+    return PY68_STATUS_OK;
+}
+
+Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
+                                Py68I32 *return_code)
+{
+    LONG status;
+    (void)runtime;
+    if (command == NULL || return_code == NULL) return PY68_STATUS_INTERNAL_ERROR;
+    status = Execute((STRPTR)command, 0, 0);
+    if (status == -1) return PY68_STATUS_RUNTIME_ERROR;
+    *return_code = (Py68I32)status;
+    return PY68_STATUS_OK;
+}
+
 Py68Status py68_platform_read_stdin_line(Py68Runtime *runtime, Py68U8 **data,
                                          Py68U32 *length)
 {
