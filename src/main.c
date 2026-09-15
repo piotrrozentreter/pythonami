@@ -29,7 +29,7 @@ long __stack = 65536L;
 
 #define PY68K_VERSION "Python68K 0.6.0\n"
 #define PY68K_HELP \
-    "Usage: pythonami [--debug] [-V|--help] [-c cmd | script.py]\n"
+    "Usage: pythonami [--debug] [--check] [-V|--help] [-c cmd | script.py]\n"
 
 static Py68Status py68_write_literal(Py68Runtime *runtime, const char *text)
 {
@@ -175,7 +175,7 @@ static void py68_report_debug_stats(Py68Runtime *runtime,
 
 static Py68Status py68_execute_source(Py68Runtime *runtime, const char *path,
                                       const Py68U8 *data, Py68U32 length,
-                                      int debug_enabled)
+                                      int debug_enabled, int check_only)
 {
     Py68Source source;
     Py68TokenArray tokens;
@@ -217,11 +217,15 @@ static Py68Status py68_execute_source(Py68Runtime *runtime, const char *path,
                                  &code, &runtime->error);
     if (status != PY68_STATUS_OK) goto cleanup_arena;
     code_ready = 1;
-    status = py68_builtins_install(runtime);
+    status = py68_verify_code(&code, &runtime->error);
     if (status != PY68_STATUS_OK) goto cleanup_code;
-    status = py68_sys_install(runtime);
-    if (status != PY68_STATUS_OK) goto cleanup_code;
-    status = py68_vm_execute(runtime, &code);
+    if (!check_only) {
+        status = py68_builtins_install(runtime);
+        if (status != PY68_STATUS_OK) goto cleanup_code;
+        status = py68_sys_install(runtime);
+        if (status != PY68_STATUS_OK) goto cleanup_code;
+        status = py68_vm_execute(runtime, &code);
+    }
 cleanup_code:
     if (debug_enabled)
         py68_report_debug_stats(runtime, &source, &tokens,
@@ -243,7 +247,7 @@ cleanup_source:
 }
 
 static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path,
-                                    int debug_enabled)
+                                    int debug_enabled, int check_only)
 {
     Py68U8 *file_data;
     Py68U32 file_length;
@@ -256,17 +260,18 @@ static Py68Status py68_execute_file(Py68Runtime *runtime, const char *path,
         return status;
     }
     status = py68_execute_source(runtime, path, file_data, file_length,
-                                 debug_enabled);
+                                 debug_enabled, check_only);
     py68_free(&runtime->allocator, PY68_MEM_SOURCE, file_data, file_length + 1);
     return status;
 }
 
 static Py68Status py68_execute_command(Py68Runtime *runtime, const char *command,
-                                       int debug_enabled)
+                                       int debug_enabled, int check_only)
 {
     return py68_execute_source(runtime, "<string>",
                                (const Py68U8 *)command,
-                               (Py68U32)strlen(command), debug_enabled);
+                               (Py68U32)strlen(command), debug_enabled,
+                               check_only);
 }
 
 static int py68_exit_status(Py68Runtime *runtime, Py68Status status)
@@ -287,6 +292,7 @@ int main(int argc, char **argv)
     Py68Runtime runtime;
     Py68Status status;
     int debug_enabled = 0;
+    int check_only = 0;
 
     status = py68_runtime_initialize(&runtime);
     if (status != PY68_STATUS_OK) {
@@ -295,6 +301,11 @@ int main(int argc, char **argv)
 
     if (argc > 1 && strcmp(argv[1], "--debug") == 0) {
         debug_enabled = 1;
+        --argc;
+        ++argv;
+    }
+    if (argc > 1 && strcmp(argv[1], "--check") == 0) {
+        check_only = 1;
         --argc;
         ++argv;
     }
@@ -309,7 +320,8 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[1], "-c") == 0) {
         status = py68_sys_set_argv(&runtime, 1, argv + 1);
         if (status == PY68_STATUS_OK) {
-            status = py68_execute_command(&runtime, argv[2], debug_enabled);
+            status = py68_execute_command(&runtime, argv[2], debug_enabled,
+                                           check_only);
         } else if (debug_enabled) {
             py68_report_debug_stats(&runtime, NULL, NULL, NULL, 0);
         }
@@ -317,7 +329,8 @@ int main(int argc, char **argv)
         py68_set_script_dir(&runtime, argv[1]);
         status = py68_sys_set_argv(&runtime, argc - 1, argv + 1);
         if (status == PY68_STATUS_OK) {
-            status = py68_execute_file(&runtime, argv[1], debug_enabled);
+            status = py68_execute_file(&runtime, argv[1], debug_enabled,
+                                        check_only);
         } else if (debug_enabled) {
             py68_report_debug_stats(&runtime, NULL, NULL, NULL, 0);
         }

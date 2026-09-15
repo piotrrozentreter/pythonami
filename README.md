@@ -79,7 +79,7 @@ Amiga also provides `load_library(path)` for LoadSeg `*.py68k` plugins (vbcc/vas
 see `docs/amiga-extensions.md`. Host has no `load_library`.
 
 ### Tooling
-- CLI: `pythonami script.py`, `pythonami -c "..."`, `-V` / `--help`
+- CLI: `pythonami script.py`, `pythonami --check script.py`, `pythonami -c "..."`, `-V` / `--help`
 - Pipeline: tokenize → parse (AST) → symbol analysis → compile → verify → VM execute
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback

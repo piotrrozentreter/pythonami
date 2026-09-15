@@ -1,5 +1,21 @@
 # Decisions
 
+## D-0033: Check-only CLI mode
+
+- Context: Amiga deployment needs a way to validate a script without running
+	its side effects, while preserving the same compiler and verifier path used
+	for normal execution.
+- Decision: `--check` accepts a command or script input, compiles and verifies
+	it, skips builtin installation and VM execution, and returns the normal
+	source or memory status. Valid input produces no script output; diagnostics
+	continue to use stderr.
+- Alternatives considered: Parse-only validation, a separate checker, or
+	executing in a sandbox. These alternatives would either omit bytecode
+	verification or duplicate the production pipeline.
+- Consequences: Deployment scripts can be preflighted on Amiga without
+	executing them. Imported modules are not loaded during this top-level check;
+	import validation remains part of normal execution.
+
 ## D-0032: Synchronous os.system as the first DOS process API
 
 - Context: The DOS command execution proposal requires a process backend, but

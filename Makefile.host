@@ -39,8 +39,9 @@ LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
 IMPORT_CHECK := tests/integration/host/run_import_checks.sh
 DEBUG_STATS_CHECK := tests/integration/host/run_debug_stats_check.sh
 STDIO_REDIRECTION_CHECK := tests/integration/host/run_stdio_redirection_check.sh
+CHECK_MODE_CHECK := tests/integration/host/run_check_mode_check.sh
 
-.PHONY: all debug release test language-test import-test debug-stats-test stdio-redirection-test clean
+.PHONY: all debug release test language-test import-test debug-stats-test stdio-redirection-test check-mode-test clean
 
 all: debug
 
@@ -136,7 +137,7 @@ $(HOST_BUILD)/test_exceptions: $(TEST_EXCEPTION_SOURCES) | $(HOST_BUILD)
 $(HOST_BUILD)/test_import: $(TEST_IMPORT_SOURCES) | $(HOST_BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(TEST_IMPORT_SOURCES) -o $@
 
-test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_process $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_string_methods $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM) language-test import-failure-test debug-stats-test stdio-redirection-test
+test: $(HOST_BUILD)/test_memory $(HOST_BUILD)/test_tokenizer $(HOST_BUILD)/test_parser $(HOST_BUILD)/test_statements $(HOST_BUILD)/test_symbols $(HOST_BUILD)/test_code $(HOST_BUILD)/test_compiler $(HOST_BUILD)/test_verify $(HOST_BUILD)/test_vm $(HOST_BUILD)/test_objects $(HOST_BUILD)/test_lists $(HOST_BUILD)/test_functions $(HOST_BUILD)/test_frames $(HOST_BUILD)/test_calls $(HOST_BUILD)/test_builtins $(HOST_BUILD)/test_builtin_io $(HOST_BUILD)/test_file_io $(HOST_BUILD)/test_input $(HOST_BUILD)/test_process $(HOST_BUILD)/test_tuple $(HOST_BUILD)/test_dict $(HOST_BUILD)/test_set $(HOST_BUILD)/test_attr $(HOST_BUILD)/test_string_methods $(HOST_BUILD)/test_float $(HOST_BUILD)/test_exceptions $(HOST_BUILD)/test_import $(HOST_PROGRAM) language-test import-failure-test debug-stats-test stdio-redirection-test check-mode-test
 	$(HOST_BUILD)/test_memory
 	$(HOST_BUILD)/test_tokenizer
 	$(HOST_BUILD)/test_parser
@@ -215,6 +216,10 @@ debug-stats-test: $(HOST_PROGRAM)
 stdio-redirection-test: $(HOST_PROGRAM)
 	chmod +x $(STDIO_REDIRECTION_CHECK)
 	$(STDIO_REDIRECTION_CHECK) $(HOST_PROGRAM)
+
+check-mode-test: $(HOST_PROGRAM)
+	chmod +x $(CHECK_MODE_CHECK)
+	$(CHECK_MODE_CHECK) $(HOST_PROGRAM)
 
 clean:
 	rm -rf build python python-debug pythonami pythonami-debug
