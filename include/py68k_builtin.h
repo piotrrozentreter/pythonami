@@ -40,6 +40,22 @@ Py68Status py68_builtin_exit(Py68Runtime *runtime, Py68U16 argument_count,
                              Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_system(Py68Runtime *runtime, Py68U16 argument_count,
                                Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_popen(Py68Runtime *runtime, Py68U16 argument_count,
+                              Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_check_break(Py68Runtime *runtime,
+                                    Py68U16 argument_count,
+                                    Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_yield_cpu(Py68Runtime *runtime,
+                                  Py68U16 argument_count,
+                                  Py68Value *arguments, Py68Value *result);
+Py68Status py68_builtin_set_poll_interval(Py68Runtime *runtime,
+                                          Py68U16 argument_count,
+                                          Py68Value *arguments,
+                                          Py68Value *result);
+Py68Status py68_builtin_get_poll_interval(Py68Runtime *runtime,
+                                          Py68U16 argument_count,
+                                          Py68Value *arguments,
+                                          Py68Value *result);
 Py68Status py68_builtin_fopen(Py68Runtime *runtime, Py68U16 argument_count,
                               Py68Value *arguments, Py68Value *result);
 Py68Status py68_builtin_fclose(Py68Runtime *runtime, Py68U16 argument_count,

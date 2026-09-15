@@ -13,6 +13,8 @@
 
 #define PY68_TRY_MAX 8
 #define PY68_PATH_MAX 256
+/* Backward branches between two py68_platform_poll calls. */
+#define PY68_POLL_INTERVAL_DEFAULT 256U
 
 typedef struct Py68TryBlock {
     Py68U32 handler_ip;
@@ -57,6 +59,8 @@ struct Py68Runtime {
     Py68U16 builtin_capacity;
     Py68Object *live_objects;
     Py68I32 requested_exit_code;
+    Py68U32 poll_counter;
+    Py68U32 poll_interval;
     Py68U16 trace_enabled;
     char traceback[512];
     Py68U16 traceback_length;

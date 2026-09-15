@@ -5,7 +5,9 @@
 
 #include <proto/dos.h>
 #include <proto/exec.h>
+#include <dos/dos.h>
 #include <dos/dosextens.h>
+#include <dos/dostags.h>
 
 Py68Status py68_platform_initialize(Py68Runtime *runtime)
 {
@@ -16,6 +18,26 @@ Py68Status py68_platform_initialize(Py68Runtime *runtime)
 void py68_platform_shutdown(Py68Runtime *runtime)
 {
     runtime->trace_enabled = 0;
+}
+
+Py68Status py68_platform_poll(Py68Runtime *runtime, Py68U32 flags)
+{
+    (void)runtime;
+    if ((flags & PY68_POLL_BREAK) != 0 &&
+        (CheckSignal(SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) != 0)
+        return PY68_STATUS_RUNTIME_ERROR;
+    if ((flags & PY68_POLL_YIELD) != 0) {
+        /* Exec has no Yield(); Permit() reschedules when attention is set. */
+        Forbid();
+        Permit();
+    }
+    return PY68_STATUS_OK;
+}
+
+void py68_platform_signal_break(Py68Runtime *runtime)
+{
+    (void)runtime;
+    Signal(FindTask(NULL), SIGBREAKF_CTRL_C);
 }
 
 /*
@@ -141,6 +163,88 @@ Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
     status = SystemTagList((STRPTR)command, NULL);
     if (status == -1) return PY68_STATUS_RUNTIME_ERROR;
     *return_code = (Py68I32)status;
+    return PY68_STATUS_OK;
+}
+
+/* Build "T:py68k_<hex task pointer>.tmp" without pulling in libc stdio. */
+static void py68_amiga_temp_path(char *buffer, ULONG value)
+{
+    static const char hex[] = "0123456789abcdef";
+    static const char prefix[] = "T:py68k_";
+    static const char suffix[] = ".tmp";
+    int position = 0;
+    int index;
+    for (index = 0; prefix[index] != '\0'; ++index) buffer[position++] = prefix[index];
+    for (index = 7; index >= 0; --index)
+        buffer[position++] = hex[(value >> (index * 4)) & 0xFUL];
+    for (index = 0; suffix[index] != '\0'; ++index) buffer[position++] = suffix[index];
+    buffer[position] = '\0';
+}
+
+Py68Status py68_platform_system_capture(Py68Runtime *runtime,
+                                        const char *command,
+                                        Py68I32 *return_code,
+                                        Py68U8 **data, Py68U32 *length)
+{
+    char temp_path[32];
+    BPTR output_handle;
+    BPTR read_handle;
+    struct TagItem tags[2];
+    LONG status;
+    LONG file_size;
+    LONG read_count;
+    Py68U8 *buffer;
+
+    if (runtime == NULL || command == NULL || return_code == NULL ||
+        data == NULL || length == NULL)
+        return PY68_STATUS_INTERNAL_ERROR;
+    *data = NULL;
+    *length = 0;
+    py68_amiga_temp_path(temp_path, (ULONG)(APTR)FindTask(NULL));
+    output_handle = Open(temp_path, MODE_NEWFILE);
+    if (output_handle == 0) return PY68_STATUS_RUNTIME_ERROR;
+    /* SystemTagList takes ownership of SYS_Output and closes it for us. */
+    tags[0].ti_Tag = SYS_Output;
+    tags[0].ti_Data = (ULONG)output_handle;
+    tags[1].ti_Tag = TAG_DONE;
+    tags[1].ti_Data = 0;
+    status = SystemTagList((STRPTR)command, tags);
+    if (status == -1) {
+        DeleteFile(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    read_handle = Open(temp_path, MODE_OLDFILE);
+    if (read_handle == 0) {
+        DeleteFile(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    Seek(read_handle, 0, OFFSET_END);
+    file_size = Seek(read_handle, 0, OFFSET_CURRENT);
+    Seek(read_handle, 0, OFFSET_BEGINNING);
+    if (file_size < 0) {
+        Close(read_handle);
+        DeleteFile(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
+                                  (Py68U32)file_size + 1UL);
+    if (buffer == NULL) {
+        Close(read_handle);
+        DeleteFile(temp_path);
+        return PY68_STATUS_MEMORY_ERROR;
+    }
+    read_count = Read(read_handle, buffer, file_size);
+    Close(read_handle);
+    DeleteFile(temp_path);
+    if (read_count != file_size) {
+        py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
+                 (Py68U32)file_size + 1UL);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    buffer[file_size] = 0;
+    *return_code = (Py68I32)status;
+    *data = buffer;
+    *length = (Py68U32)file_size;
     return PY68_STATUS_OK;
 }
 

@@ -24,6 +24,7 @@ const char *py68_error_kind_name(Py68U16 kind)
     case PY68_ERROR_IMPORT: return "ImportError";
     case PY68_ERROR_BYTECODE: return "BytecodeError";
     case PY68_ERROR_INTERNAL: return "InternalError";
+    case PY68_ERROR_INTERRUPT: return "KeyboardInterrupt";
     default: return "Exception";
     }
 }

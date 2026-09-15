@@ -163,6 +163,21 @@ static int py68_vm_truth(Py68Value value)
     return py68_value_truthy(value);
 }
 
+/* Called only on backward branches, so straight-line code pays nothing. */
+static Py68Status py68_vm_poll(Py68Runtime *runtime)
+{
+    if (runtime->poll_interval == 0) return PY68_STATUS_OK;
+    if (runtime->poll_counter > 1) {
+        --runtime->poll_counter;
+        return PY68_STATUS_OK;
+    }
+    runtime->poll_counter = runtime->poll_interval;
+    if (py68_platform_poll(runtime, PY68_POLL_BREAK) == PY68_STATUS_OK)
+        return PY68_STATUS_OK;
+    py68_vm_error(runtime, PY68_ERROR_INTERRUPT, "interrupted");
+    return PY68_STATUS_RUNTIME_ERROR;
+}
+
 static int py68_float_finite_bits(Py68U32 bits)
 {
     return py68_f32_is_finite(bits);
@@ -1093,18 +1108,24 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             target = (Py68U32)((Py68I32)(ip + 3) +
                 (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                                    current_code->bytecode[ip + 2]));
-            ip = target; status = PY68_STATUS_OK; break;
-        case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE:
-            status = py68_vm_pop(runtime, &value);
-            if (status == PY68_STATUS_OK &&
-                ((opcode == OP_JUMP_IF_FALSE && !py68_vm_truth(value)) ||
-                 (opcode == OP_JUMP_IF_TRUE && py68_vm_truth(value)))) {
-                ip = (Py68U32)((Py68I32)(ip + 3) +
-                    (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
-                                       current_code->bytecode[ip + 2]));
-            } else ip += 3;
-            if (status == PY68_STATUS_OK) py68_value_release(runtime, value);
+            status = target <= ip ? py68_vm_poll(runtime) : PY68_STATUS_OK;
+            if (status == PY68_STATUS_OK) ip = target;
             break;
+        case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE: {
+            int taken;
+            status = py68_vm_pop(runtime, &value);
+            if (status != PY68_STATUS_OK) break;
+            taken = (opcode == OP_JUMP_IF_FALSE && !py68_vm_truth(value)) ||
+                    (opcode == OP_JUMP_IF_TRUE && py68_vm_truth(value));
+            py68_value_release(runtime, value);
+            if (!taken) { ip += 3; break; }
+            target = (Py68U32)((Py68I32)(ip + 3) +
+                (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
+                                   current_code->bytecode[ip + 2]));
+            if (target <= ip) status = py68_vm_poll(runtime);
+            if (status == PY68_STATUS_OK) ip = target;
+            break;
+        }
         case OP_JUMP_IF_FALSE_OR_POP: case OP_JUMP_IF_TRUE_OR_POP:
             if (runtime->value_stack_count == 0) {
                 py68_vm_error(runtime, PY68_ERROR_BYTECODE, "value stack underflow");
@@ -1112,17 +1133,19 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 break;
             }
             value = runtime->value_stack[runtime->value_stack_count - 1];
+            status = PY68_STATUS_OK;
             if ((opcode == OP_JUMP_IF_FALSE_OR_POP && !py68_vm_truth(value)) ||
                 (opcode == OP_JUMP_IF_TRUE_OR_POP && py68_vm_truth(value))) {
-                ip = (Py68U32)((Py68I32)(ip + 3) +
+                target = (Py68U32)((Py68I32)(ip + 3) +
                     (Py68I32)(Py68I16)(((Py68U16)current_code->bytecode[ip + 1] << 8) |
                                        current_code->bytecode[ip + 2]));
+                if (target <= ip) status = py68_vm_poll(runtime);
+                if (status == PY68_STATUS_OK) ip = target;
             } else {
                 --runtime->value_stack_count;
                 py68_value_release(runtime, value);
                 ip += 3;
             }
-            status = PY68_STATUS_OK;
             break;
         case OP_CALL: {
             Py68U8 argument_count = current_code->bytecode[ip + 1];

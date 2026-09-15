@@ -148,6 +148,10 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         ,{ "strftime", 1, 2, py68_builtin_strftime }
         ,{ "perf_counter", 0, 0, py68_builtin_perf_counter }
         ,{ "time_tick", 0, 0, py68_builtin_time_tick }
+        ,{ "check_break", 0, 0, py68_builtin_check_break }
+        ,{ "yield_cpu", 0, 0, py68_builtin_yield_cpu }
+        ,{ "set_poll_interval", 1, 1, py68_builtin_set_poll_interval }
+        ,{ "get_poll_interval", 0, 0, py68_builtin_get_poll_interval }
     };
 #if defined(PY68K_AMIGA)
     static const Py68BuiltinDefinition platform_vars[] = {

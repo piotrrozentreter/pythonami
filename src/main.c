@@ -284,6 +284,8 @@ static int py68_exit_status(Py68Runtime *runtime, Py68Status status)
         if (code > 255) code = 255;
         return (int)code;
     }
+    /* AmigaDOS RETURN_ERROR for a user break. */
+    if (runtime->error.kind == PY68_ERROR_INTERRUPT) return 10;
     return (int)status;
 }
 

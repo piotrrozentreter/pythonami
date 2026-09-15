@@ -1,5 +1,34 @@
 # Decisions
 
+## D-0034: Temporary-file output capture for `os.popen`
+
+- Context: D-0032 deferred output capture pending a native request/result
+	contract. Users need to read a command's output into a variable (e.g. `dir`
+	or `list`) instead of only seeing it on the console.
+- Decision: Add `py68_platform_system_capture`, redirecting the command's
+	combined stdout/stderr to a per-process temporary file (host: `TEMP`/`TMP`/
+	`TMPDIR` or `.`, suffixed with the process id; Amiga: `T:`, suffixed with the
+	task pointer), then reading the file back into a `PY68_MEM_TEMP` buffer and
+	deleting it. Expose this as `os.popen(command)`, returning the captured text
+	directly as a `str` rather than a file object. Validation matches
+	`os.system`: reject non-string, empty, or NUL-containing commands with
+	`TypeError`/`ValueError`. The Amiga backend uses `SystemTagList` with a
+	`SYS_Output` tag pointing at the temp file's `BPTR`, which DOS closes on
+	return; no AmigaDOS pipe device or asynchronous execution is used.
+	The return code is discarded by `os.popen`; scripts needing both text and
+	status should call `os.system` separately for now.
+- Alternatives considered: A CPython-compatible `os.popen` returning a
+	file-like object; AmigaDOS `PIPE:` device streaming concurrently with the
+	child process. Both need process-handle lifetime and (for `PIPE:`)
+	asynchronous `SYS_Asynch` execution with polling, which the platform layer
+	does not yet support and which risks deadlock without a second I/O actor.
+	Temporary-file capture is synchronous, bounded, and reuses the existing
+	file-read primitives.
+- Consequences: Scripts can capture command output into a variable on both
+	host and Amiga. `subprocess`, argument-list commands, per-child `cwd`/`env`,
+	timeouts, and `Popen` remain unimplemented. A future increment must add a
+	combined text-and-return-code result (e.g. a small record type or
+	`subprocess.run`) before claiming closer CPython compatibility.
 ## D-0033: Check-only CLI mode
 
 - Context: Amiga deployment needs a way to validate a script without running
@@ -320,3 +349,17 @@
 - Decision: Compile `[elt for x in it if cond]`, `{elt for ...}`, and `{k: v for ...}` inline in the current code object using `BUILD_LIST`/`BUILD_SET`/`BUILD_DICT` plus the existing `RANGE_INIT`/`RANGE_NEXT` loop, then `LIST_APPEND`/`SET_ADD`/`MAP_ADD`. The target `x` is a normal `for` assignment: a function local if the comprehension appears in a function, otherwise a module global. Nested `for` clauses and zero or more `if` filters per clause are supported. Generator expressions `(elt for ...)` are a targeted syntax error.
 - Alternatives considered: Desugar to an anonymous nested function (requires closures); emit only list comprehensions and reject set/dict forms; keep the comprehension result in a compiler-generated temp name.
 - Consequences: `xs = [n for n in range(3)]; print(n)` prints `2`, matching `for`. A comprehension target assigned anywhere in a function makes that name local throughout the function (unbound reads raise `NameError`). Empty `{}` remains an empty dict; `{x for x in it}` is a set comprehension and `{k: v for ...}` is a dict comprehension, so they do not collide with `{k: v}` / `{a, b}` literals (D-0020).
+
+## D-0034: VM break polling on backward branches; AmigaOS needs no cooperative yield
+
+- Context: A CPU-bound Python68K loop cannot be aborted, because the VM never inspects the task signal set. AmigaOS is preemptively multitasking at the Exec level (Workbench is only the GUI launcher, not a scheduler), so a busy loop does not starve other programs and there is no Windows-style message pump that must be called for fairness.
+- Decision: Add `py68_platform_poll(runtime, flags)` with `PY68_POLL_BREAK` (consume a pending user break) and `PY68_POLL_YIELD` (politeness hint only). The Amiga implementation uses `CheckSignal(SIGBREAKF_CTRL_C)` and, for the yield hint, `Forbid(); Permit();` because Exec has no `Yield()`. The host implementation uses a `SIGINT` handler and a `volatile sig_atomic_t` flag. `py68_platform_signal_break` posts a break to the current process (`Signal(FindTask(NULL), SIGBREAKF_CTRL_C)` on Amiga) and makes the behaviour testable on the host. The VM calls the hook only on taken backward branches, throttled by `runtime->poll_interval` (default `PY68_POLL_INTERVAL_DEFAULT`, 256); `poll_interval == 0` disables polling. A consumed break raises `PY68_ERROR_INTERRUPT` ("KeyboardInterrupt"), which is deliberately absent from `py68_error_is_catchable`, so `except:` cannot swallow it. `main` maps it to exit code 10 (AmigaDOS `RETURN_ERROR`).
+- Alternatives considered: Poll every instruction (unaffordable dispatch cost on 68000); poll on call/return as well (recursion is already bounded by the recursion limit); `Delay(1)` as the yield primitive (costs a full 20 ms tick, so it is reserved for an explicit script-level yield); making `KeyboardInterrupt` catchable like CPython (would let a bare `except` inside a loop defeat Ctrl-C).
+- Consequences: `PY68_ERROR_INTERRUPT` is appended last in `Py68ErrorKind` so existing kind numbers stay stable. Straight-line code pays nothing; a loop iteration pays one decrement and branch. Scripts cannot catch or suppress a user break at Language Level 0.5. Script-visible `yield_cpu` / `set_priority` / `check_break` and Ctrl-C verification under emulation remain future increments.
+
+## D-0035: Break and scheduling builtins are import-free names
+
+- Context: D-0034 added the VM-level break poll. Scripts still need a way to observe a break themselves, to tune the poll rate, and to be explicitly polite to other tasks.
+- Decision: Register `check_break()`, `yield_cpu()`, `set_poll_interval(count)`, and `get_poll_interval()` as import-free builtins in the common table, alongside `time`/`sleep`, rather than behind an `amiga` or `sys` module. `check_break()` consumes the pending break and returns `True` exactly once, so a script that calls it takes responsibility for stopping. `yield_cpu()` passes only `PY68_POLL_YIELD` and never consumes a break. `set_poll_interval` accepts a non-negative int (`0` disables VM polling), rejects other types with `TypeError` and negatives with `ValueError`, and resets `poll_counter` so the new interval applies immediately.
+- Alternatives considered: A `sys` module namespace (Python68K has no attribute-settable module objects for runtime knobs and `sys` is already a fixed module); making `check_break()` non-consuming (a loop would then see `True` forever and the VM poll would raise anyway); mapping `set_poll_interval` onto a CPython-style `sys.setcheckinterval` name (misleading, since Python68K counts backward branches, not instructions).
+- Consequences: Four more names occupy the builtin table on every target, including the host, so host and Amiga scripts stay source compatible. `yield_cpu()` is a no-op on the host. Task priority control (`SetTaskPri`) is still not exposed.

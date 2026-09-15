@@ -22,7 +22,9 @@ typedef enum Py68ErrorKind {
     PY68_ERROR_KEY,
     PY68_ERROR_IMPORT,
     PY68_ERROR_BYTECODE,
-    PY68_ERROR_INTERNAL
+    PY68_ERROR_INTERNAL,
+    /* Appended last: existing kind numbers must stay stable. */
+    PY68_ERROR_INTERRUPT
 } Py68ErrorKind;
 
 typedef struct Py68Error {

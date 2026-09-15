@@ -63,6 +63,15 @@ available platform clock.
 `time_tick()` returns a signed 32-bit millisecond tick suitable for seeding
 short-lived pseudo-random examples without converting a large epoch float.
 
+Break and scheduling builtins are `check_break()`, `yield_cpu()`,
+`set_poll_interval(count)`, and `get_poll_interval()`. The VM already tests for
+a user break (Ctrl-C on Amiga, `SIGINT` on the host) on taken backward branches
+and raises an uncatchable `KeyboardInterrupt`; `set_poll_interval(0)` disables
+that test and hands full responsibility to the script. `check_break()` consumes
+a pending break and returns `True` once, so a script that calls it must stop by
+itself. `yield_cpu()` is only a politeness hint: AmigaOS is preemptively
+multitasking, so no program has to yield for other programs to run.
+
 ## Still not implemented
 
 Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.

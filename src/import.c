@@ -106,6 +106,18 @@ Py68Status py68_os_install(Py68Runtime *runtime, Py68Value *result)
         py68_object_release(runtime, &module->base);
         return status;
     }
+    function = NULL;
+    status = py68_native_new(runtime, "popen", 1, 1,
+                             py68_builtin_popen, &function);
+    if (status == PY68_STATUS_OK)
+        status = py68_module_set(runtime, module, (const Py68U8 *)"popen", 5,
+                                 py68_value_from_object(&function->base));
+    if (function != NULL)
+        py68_object_release(runtime, &function->base);
+    if (status != PY68_STATUS_OK) {
+        py68_object_release(runtime, &module->base);
+        return status;
+    }
     status = py68_import_cache_add(runtime, module);
     if (status != PY68_STATUS_OK) {
         py68_object_release(runtime, &module->base);
