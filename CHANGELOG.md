@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Builtin `sum(iterable[, start])` for list/tuple of numbers; optional numeric
+  `start` defaults to `0`. Checked int overflow; float promotion matches `+`
+  (D-0041).
+
 - Conditional expressions: `then if condition else else` (`PY68_AST_IF_EXP`).
   Evaluates the condition, then exactly one branch. Lower precedence than
   `or`/`and`/comparisons; else-chains are right-associative

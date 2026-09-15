@@ -20,7 +20,7 @@ The opt-in `make -f Makefile.host check-mode-test` check validates `--check`: va
 - `tests/language/functions/` — recursion (fibonacci/factorial/deep sum), local shadowing, reading globals from functions, `continue` inside functions, augassign on locals, multi-path `return`, implicit `None` return.
 - `tests/language/lists/` — concat, `list_append`/`list_pop`, nested index, list-building helpers, empty/`step`/`reverse` `range`, list slices with explicit bounds.
 - `tests/language/comprehensions/` — list/set/dict comprehensions, empty iterables, filters, nested `for`, name-binding leakage matching `for`, unbound-local interaction, and generator-expression rejection in unit tests.
-- `tests/language/strings/` — concat, index/slice, falsy empty string, `str`/`int` conversions, ASCII string methods, and text builtins (`ord`/`chr`/`repr`/`format`/`maketrans`, …).
+- `tests/language/strings/` — concat, index/slice, falsy empty string, `str`/`int` conversions, ASCII string methods, and text builtins (`ord`/`chr`/`repr`/`format`/`maketrans`, `all`/`any`, `sum`, …).
 - `tests/language/test_advanced_suite.py` — single cross-cutting differential fixture combining the above.
 - `examples/test_features.py` sections 13–18 extend the incremental demo with the same advanced behaviors.
 

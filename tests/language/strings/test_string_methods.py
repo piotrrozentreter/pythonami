@@ -84,6 +84,12 @@ print(all([1, 0, 3]))
 print(any([0, 0, 1]))
 print(any([]))
 print(all([]))
+print(sum([1, 2, 3]))
+print(sum((1, 2, 2)))
+print(sum([]))
+print(sum([1, 2], 10))
+print(sum([1.5, 2.5]))
+print(sum(range(5)))
 
 print("=== errors ===")
 caught = 0
@@ -114,6 +120,18 @@ caught = 0
 try:
     chr(256)
 except ValueError:
+    caught = 1
+print(caught)
+caught = 0
+try:
+    sum("abc")
+except TypeError:
+    caught = 1
+print(caught)
+caught = 0
+try:
+    sum([1, "x"])
+except TypeError:
     caught = 1
 print(caught)
 caught = 0

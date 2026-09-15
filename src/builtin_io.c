@@ -663,6 +663,99 @@ Py68Status py68_builtin_max(Py68Runtime *runtime, Py68U16 argument_count,
     return PY68_STATUS_OK;
 }
 
+static int py68_sum_add_int(Py68I32 left, Py68I32 right, Py68I32 *out)
+{
+    if ((right > 0 && left > (Py68I32)0x7fffffff - right) ||
+        (right < 0 && left < (Py68I32)-2147483647 - 1 - right))
+        return 0;
+    *out = left + right;
+    return 1;
+}
+
+Py68Status py68_builtin_sum(Py68Runtime *runtime, Py68U16 argument_count,
+                            Py68Value *arguments, Py68Value *result)
+{
+    Py68Value *items = NULL;
+    Py68U32 count = 0;
+    Py68U32 index;
+    Py68Value start;
+    Py68I32 int_total = 0;
+    Py68U32 float_bits = PY68_F32_ZERO;
+    int use_float = 0;
+
+    if (argument_count < 1 || argument_count > 2) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sum expects one or two arguments");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (arguments[0].type != PY68_VALUE_OBJECT || arguments[0].as.object == NULL) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sum() argument must be a list or tuple");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (arguments[0].as.object->type == PY68_OBJECT_LIST) {
+        Py68List *list = (Py68List *)arguments[0].as.object;
+        items = list->items;
+        count = list->count;
+    } else if (arguments[0].as.object->type == PY68_OBJECT_TUPLE) {
+        Py68Tuple *tuple = (Py68Tuple *)arguments[0].as.object;
+        items = tuple->items;
+        count = tuple->count;
+    } else {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sum() argument must be a list or tuple");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+
+    if (argument_count == 2)
+        start = arguments[1];
+    else
+        start = py68_value_int(0);
+    if (!py68_value_is_number(start)) {
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "sum() start must be a number");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (start.type == PY68_VALUE_FLOAT) {
+        use_float = 1;
+        float_bits = py68_value_float_bits_get(start);
+    } else {
+        int_total = start.as.integer;
+    }
+
+    for (index = 0; index < count; ++index) {
+        Py68Value item = items[index];
+        if (!py68_value_is_number(item)) {
+            py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                               "sum() items must be numbers");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        if (!use_float && item.type == PY68_VALUE_FLOAT) {
+            float_bits = py68_f32_from_i32(int_total);
+            use_float = 1;
+        }
+        if (use_float) {
+            float_bits = py68_f32_add(float_bits,
+                                     py68_value_float_bits_get(item));
+            if (!py68_f32_is_finite(float_bits)) {
+                py68_builtin_error(runtime, PY68_ERROR_VALUE,
+                                   "non-finite float result");
+                return PY68_STATUS_RUNTIME_ERROR;
+            }
+        } else if (!py68_sum_add_int(int_total, item.as.integer, &int_total)) {
+            py68_builtin_error(runtime, PY68_ERROR_OVERFLOW,
+                               "integer overflow");
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+    }
+
+    if (use_float)
+        *result = py68_value_float_bits(float_bits);
+    else
+        *result = py68_value_int(int_total);
+    return PY68_STATUS_OK;
+}
+
 Py68Status py68_builtin_exit(Py68Runtime *runtime, Py68U16 argument_count,
                              Py68Value *arguments, Py68Value *result)
 {

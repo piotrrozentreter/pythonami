@@ -1,5 +1,22 @@
 # Decisions
 
+## D-0041: `sum(iterable[, start])` numeric builtin
+
+- Context: Scripts and examples use CPython's `sum` over lists/tuples. Python68K
+	already exposed related aggregators (`min`/`max`/`all`/`any`/`sorted`) but
+	omitted `sum`, which produced `NameError` at call sites.
+- Decision: Register import-free `sum(iterable[, start])` with arity 1–2.
+	`iterable` must be a list or tuple of numbers (`int`/`bool`/`float`);
+	`start` defaults to `0` and must be numeric. Empty input returns `start`.
+	Integer accumulation uses checked 32-bit add (OverflowError); any float
+	promotes the running total to binary32 float with non-finite rejection,
+	matching `OP_ADD`. Strings and other containers are `TypeError`.
+- Alternatives considered: Defer until a general iterator protocol; accept
+	only ints (too narrow vs existing float arithmetic); support string
+	`start` for concatenation (CPython forbids this for `sum`).
+- Consequences: `sum(range(n))` works because `range` materializes a list.
+	No `key=` or keyword arguments.
+
 ## D-0040: Conditional expressions via JUMP_IF_FALSE / JUMP
 
 - Context: Everyday Python `then if condition else else` was missing. `if` /
@@ -454,7 +471,7 @@
 - Context: CPython exposes `str.maketrans` as a static method on the `str` type object. Python68K has no type objects. Full `str.format` / `format_map`, `bytes`/`bytearray`/`encode`, and `eval`/`exec`/`compile` conflict with Level 0.1 constraints (no kwargs, no bytes type, security).
 - Decision: Expose `maketrans(x[, y[, z]])` as an import-free builtin returning a `dict` of int→int/None mappings; `str.translate(table)` consumes that dict (or any compatible dict). Provide minimal `format(value[, format_spec])` for ints (`''`, `d`, width, `0`-pad such as `04d`). Defer `bytes`/`bytearray`/`encode`, `eval`/`exec`/`compile`, full `str.format`/`format_map` with replacement fields and kwargs, and general iterator builtins (`iter`/`next`/`enumerate`/`reversed`) except where list/tuple/`for` already covers use. `sorted(iterable)` is provided without `key`/`reverse` (D-0039). `ascii` escapes bytes `>= 128` as `\xHH`; `repr` leaves high bytes literal when printable.
 - Alternatives considered: Opaque translation-table object; alias `ascii` to `repr`.
-- Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work.
+- Consequences: `maketrans` is a name in the builtin table, not `str.maketrans`. Advanced formatting and encoding remain future work. `sum` is provided separately (D-0041).
 
 ## D-0026: Comprehensions bind in the enclosing scope
 

@@ -87,6 +87,38 @@ int main(void)
 
     py68_object_release(&runtime, &pop_list->base);
     py68_object_release(&runtime, &list->base);
+
+    passed &= py68_list_new(&runtime, &list) == PY68_STATUS_OK;
+    passed &= py68_list_append_copy(&runtime, list, py68_value_int(1)) ==
+              PY68_STATUS_OK;
+    passed &= py68_list_append_copy(&runtime, list, py68_value_int(2)) ==
+              PY68_STATUS_OK;
+    passed &= py68_list_append_copy(&runtime, list, py68_value_int(3)) ==
+              PY68_STATUS_OK;
+    arguments[0] = py68_value_from_object(&list->base);
+    passed &= py68_builtin_sum(&runtime, 1, arguments, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_INT && result.as.integer == 6;
+    py68_value_release(&runtime, result);
+    arguments[1] = py68_value_int(10);
+    passed &= py68_builtin_sum(&runtime, 2, arguments, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_INT && result.as.integer == 16;
+    py68_value_release(&runtime, result);
+    py68_object_release(&runtime, &list->base);
+
+    passed &= py68_list_new(&runtime, &list) == PY68_STATUS_OK;
+    arguments[0] = py68_value_from_object(&list->base);
+    passed &= py68_builtin_sum(&runtime, 1, arguments, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_INT && result.as.integer == 0;
+    py68_value_release(&runtime, result);
+    py68_object_release(&runtime, &list->base);
+
+    arguments[0] = py68_value_int(1);
+    passed &= py68_builtin_sum(&runtime, 1, arguments, &result) ==
+              PY68_STATUS_RUNTIME_ERROR;
+
     py68_runtime_shutdown(&runtime);
     passed &= runtime.allocator.stats.current_bytes == 0;
     if (passed) { puts("PASS: builtin IO tests"); return 0; }
