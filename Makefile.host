@@ -7,21 +7,21 @@ LDFLAGS ?=
 HOST_BUILD := build/host
 HOST_PROGRAM := $(HOST_BUILD)/pythonami
 HOST_SOURCES := src/main.c src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/value.c src/object.c src/string.c src/string_methods.c src/list.c src/range.c src/function.c src/native.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/builtin_text.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/import.c src/module.c src/float.c
-TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/string_methods.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/builtin_text.c src/native.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/module.c src/float.c
+TEST_COMMON := src/error.c src/memory.c src/platform_host.c src/file_host.c src/file_object.c src/runtime.c src/source.c src/token.c src/value.c src/object.c src/string.c src/string_methods.c src/list.c src/range.c src/frame.c src/global.c src/builtin.c src/builtin_io.c src/builtin_file.c src/builtin_text.c src/native.c src/tuple.c src/dict.c src/set.c src/attr.c src/exception.c src/module.c src/code.c src/opcode.c src/float.c
 TEST_MEMORY_SOURCES := tests/unit/test_memory.c $(TEST_COMMON)
 TEST_TOKENIZER_SOURCES := tests/unit/test_tokenizer.c $(TEST_COMMON) src/tokenizer.c
 TEST_PARSER_SOURCES := tests/unit/test_parser.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
 TEST_STATEMENT_SOURCES := tests/unit/test_statements.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c
 TEST_SYMBOL_SOURCES := tests/unit/test_symbols.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c
 TEST_CODE_SOURCES := tests/unit/test_code.c src/memory.c src/code.c src/opcode.c
-TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
+TEST_COMPILER_SOURCES := tests/unit/test_compiler.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 TEST_VERIFY_SOURCES := tests/unit/test_verify.c src/error.c src/memory.c src/code.c src/opcode.c src/verify.c
-TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/import.c
+TEST_VM_SOURCES := tests/unit/test_vm.c $(TEST_COMMON) src/verify.c src/vm.c src/function.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/import.c
 TEST_OBJECT_SOURCES := tests/unit/test_objects.c $(TEST_COMMON)
 TEST_LIST_SOURCES := tests/unit/test_lists.c $(TEST_COMMON)
-TEST_FUNCTION_SOURCES := tests/unit/test_functions.c $(TEST_COMMON) src/function.c src/code.c
-TEST_FRAME_SOURCES := tests/unit/test_frames.c $(TEST_COMMON) src/code.c
-TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/code.c src/opcode.c src/verify.c src/vm.c src/function.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/import.c
+TEST_FUNCTION_SOURCES := tests/unit/test_functions.c $(TEST_COMMON) src/function.c
+TEST_FRAME_SOURCES := tests/unit/test_frames.c $(TEST_COMMON)
+TEST_CALL_SOURCES := tests/unit/test_calls.c $(TEST_COMMON) src/verify.c src/vm.c src/function.c src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/import.c
 TEST_BUILTIN_SOURCES := tests/unit/test_builtins.c $(TEST_COMMON)
 TEST_BUILTIN_IO_SOURCES := tests/unit/test_builtin_io.c $(TEST_COMMON)
 TEST_FILE_IO_SOURCES := tests/unit/test_file_io.c $(TEST_COMMON)
@@ -31,8 +31,8 @@ TEST_DICT_SOURCES := tests/unit/test_dict.c $(TEST_COMMON)
 TEST_SET_SOURCES := tests/unit/test_set.c $(TEST_COMMON)
 TEST_ATTR_SOURCES := tests/unit/test_attr.c $(TEST_COMMON)
 TEST_FLOAT_SOURCES := tests/unit/test_float.c $(TEST_COMMON)
-TEST_EXCEPTION_SOURCES := tests/unit/test_exceptions.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
-TEST_IMPORT_SOURCES := tests/unit/test_import.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/code.c src/opcode.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
+TEST_EXCEPTION_SOURCES := tests/unit/test_exceptions.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
+TEST_IMPORT_SOURCES := tests/unit/test_import.c $(TEST_COMMON) src/tokenizer.c src/ast_arena.c src/parser_expression.c src/parser_statement.c src/symbol.c src/compiler.c src/verify.c src/vm.c src/function.c src/import.c
 TEST_STRING_METHODS_SOURCES := tests/unit/test_string_methods.c $(TEST_COMMON)
 LANGUAGE_CHECK := tests/integration/host/run_language_check.sh
 IMPORT_CHECK := tests/integration/host/run_import_checks.sh
@@ -184,7 +184,9 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_argv.py tests/fixtures/language/import/test_argv.expected.txt arg-one arg-two
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_cache.py tests/fixtures/language/import/test_import_cache.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_from_alias.py tests/fixtures/language/import/test_import_from_alias.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_functions.py tests/fixtures/language/import/test_import_functions.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/import/test_import_precedence_argv.py tests/fixtures/language/import/test_import_precedence_argv.expected.txt arg-one arg-two
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/random/test_random.py tests/fixtures/language/random/test_random.expected.txt
 	@printf 'Alice\n' | $(HOST_PROGRAM) tests/language/test_input.py > build/host/test_input_lang.out
 	@tr -d '\r' < tests/fixtures/language/test_input.expected.txt > build/host/test_input_expected.normalized
 	@tr -d '\r' < build/host/test_input_lang.out > build/host/test_input_lang.normalized

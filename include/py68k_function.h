@@ -10,6 +10,8 @@
 struct Py68Function {
     Py68Object base;
     Py68Code *code;
+    /* Borrowed defining module for LOAD_GLOBAL; NULL uses runtime->globals. */
+    struct Py68Module *globals_owner;
     Py68U16 argument_count;
     Py68U16 local_count;
 };
@@ -17,6 +19,7 @@ typedef struct Py68Function Py68Function;
 
 Py68Status py68_function_new(struct Py68Runtime *runtime, Py68Code *code,
                              Py68U16 argument_count, Py68U16 local_count,
+                             struct Py68Module *globals_owner,
                              Py68Function **result);
 Py68Status py68_function_check_arguments(Py68Function *function,
                                          Py68U16 argument_count);

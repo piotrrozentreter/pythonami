@@ -23,7 +23,8 @@ static Py68Status py68_frame_grow(Py68Runtime *runtime)
 Py68Status py68_frame_push(Py68Runtime *runtime, Py68Code *code,
                            Py68Code *return_code, Py68U16 local_count,
                            Py68U16 argument_count, Py68Value *arguments,
-                           Py68U32 return_ip)
+                           Py68U32 return_ip,
+                           struct Py68Module *globals_owner)
 {
     Py68Frame *frame;
     Py68U16 index;
@@ -54,6 +55,7 @@ Py68Status py68_frame_push(Py68Runtime *runtime, Py68Code *code,
     frame->local_count = local_count;
     frame->code = code;
     frame->return_code = return_code;
+    frame->globals_owner = globals_owner;
     frame->argument_count = argument_count;
     frame->return_ip = return_ip;
     frame->try_count = 0;

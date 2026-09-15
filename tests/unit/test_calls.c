@@ -103,7 +103,7 @@ int main(void)
                                     constant_index) == PY68_STATUS_OK;
     passed &= py68_code_emit_u8(&runtime.allocator, &function_code,
                                 OP_RETURN_VALUE) == PY68_STATUS_OK;
-    passed &= py68_function_new(&runtime, &function_code, 0, 0,
+    passed &= py68_function_new(&runtime, &function_code, 0, 0, NULL,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
     code.source_data = (const Py68U8 *)"myfun";
@@ -147,7 +147,7 @@ int main(void)
               PY68_STATUS_OK;
     passed &= py68_code_emit_u8(&runtime.allocator, &function_code,
                                 OP_RETURN_VALUE) == PY68_STATUS_OK;
-    passed &= py68_function_new(&runtime, &function_code, 0, 0,
+    passed &= py68_function_new(&runtime, &function_code, 0, 0, NULL,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
     code.source_data = (const Py68U8 *)"loop";
@@ -179,7 +179,7 @@ int main(void)
     py68_code_initialize(&function_code);
     passed &= py68_code_emit_u8(&runtime.allocator, &function_code,
                                 OP_HALT) == PY68_STATUS_OK;
-    passed &= py68_function_new(&runtime, &function_code, 0, 0,
+    passed &= py68_function_new(&runtime, &function_code, 0, 0, NULL,
                                 &user_function) == PY68_STATUS_OK;
     py68_code_initialize(&code);
     code.source_data = (const Py68U8 *)"haltfun";

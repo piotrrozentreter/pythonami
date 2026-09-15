@@ -132,6 +132,7 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     Py68GlobalEntry *saved_globals;
     Py68U16 saved_count;
     Py68U16 saved_capacity;
+    Py68Module *saved_executing;
     Py68Status status;
 
     status = py68_platform_read_file(runtime, path, &file_data, &file_length);
@@ -173,10 +174,13 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     saved_globals = runtime->globals;
     saved_count = runtime->global_count;
     saved_capacity = runtime->global_capacity;
+    saved_executing = runtime->executing_module;
     runtime->globals = module->globals;
     runtime->global_count = module->global_count;
     runtime->global_capacity = module->global_capacity;
+    runtime->executing_module = module;
     status = py68_vm_execute_module(runtime, &code);
+    runtime->executing_module = saved_executing;
     module->globals = runtime->globals;
     module->global_count = runtime->global_count;
     module->global_capacity = runtime->global_capacity;
@@ -193,6 +197,9 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     module->owned_source_length = source.length;
     source.data = NULL;
     source.length = 0;
+    /* Transfer compiled code ownership so imported defs remain callable. */
+    module->owned_code = code;
+    py68_code_initialize(&code);
     *result = module;
 cleanup_code:
     py68_code_destroy(&runtime->allocator, &code);
