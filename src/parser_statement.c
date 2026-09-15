@@ -517,22 +517,31 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         ++parser->expression.position;
         name_token = py68_statement_current(parser);
         if (name_token != NULL && name_token->kind == PY68_TOKEN_LEFT_PAREN) {
-            Py68AstNode *grouped;
-            status = py68_parse_expression(&parser->expression, &grouped);
-            if (status != PY68_STATUS_OK) return status;
-            if (grouped->kind == PY68_AST_NAME) {
-                name_offset = grouped->as.name.offset;
-                name_length = grouped->as.name.length;
-            } else if (py68_ast_is_name_tuple(grouped)) {
-                Py68AstNode *first = grouped->as.list_literal.elements.items[0];
-                name_offset = first->as.name.offset;
-                name_length = first->as.name.length;
-                for_target = grouped;
+            /* Parse the parenthesized name list locally. Using the expression
+               parser would consume `in` as a membership operator. */
+            ++parser->expression.position;
+            name_token = py68_statement_current(parser);
+            if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME)
+                return py68_statement_error(parser, name_token,
+                                            "invalid for target");
+            ++parser->expression.position;
+            if (py68_statement_current(parser) != NULL &&
+                py68_statement_current(parser)->kind == PY68_TOKEN_COMMA) {
+                status = py68_parse_unpack_name_tuple(parser, name_token,
+                                                      &for_target);
+                if (status != PY68_STATUS_OK) return status;
+                name_offset = for_target->as.list_literal.elements.items[0]
+                                  ->as.name.offset;
+                name_length = for_target->as.list_literal.elements.items[0]
+                                  ->as.name.length;
             } else {
+                name_offset = name_token->location.offset;
+                name_length = name_token->location.length;
+            }
+            if (!py68_statement_accept(parser, PY68_TOKEN_RIGHT_PAREN))
                 return py68_statement_error(parser,
                                             py68_statement_current(parser),
-                                            "invalid for target");
-            }
+                                            "expected closing parenthesis");
         } else if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME) {
             return py68_statement_error(parser, name_token,
                                         "expected loop variable");

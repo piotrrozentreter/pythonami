@@ -154,6 +154,19 @@ int main(void)
                         "for unpack stores a name tuple target");
         py68_ast_arena_destroy(&arena);
     }
+    passed &= check(parse_module(&allocator,
+                                 "for (a, b) in pairs:\n    pass\n",
+                                 &arena, &module, &error),
+                    "parenthesized for unpack parses");
+    if (module != NULL) {
+        passed &= check(module->as.module.statements.items[0]
+                            ->as.for_statement.target != NULL &&
+                        module->as.module.statements.items[0]
+                            ->as.for_statement.target->as.list_literal
+                            .elements.count == 2,
+                        "parenthesized for unpack has two names");
+        py68_ast_arena_destroy(&arena);
+    }
     passed &= check(!parse_module(&allocator, "a, *rest = xs\n",
                                   &arena, &module, &error),
                     "starred unpacking is rejected");
