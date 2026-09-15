@@ -2,6 +2,10 @@
 
 #include "py68k_range.h"
 #include "py68k_runtime.h"
+#include "py68k_string.h"
+#include "py68k_tuple.h"
+#include "py68k_dict.h"
+#include "py68k_set.h"
 
 #include <stddef.h>
 
@@ -79,4 +83,84 @@ Py68Status py68_range_next_value(Py68Runtime *runtime,
     }
     range->current += range->step;
     return PY68_STATUS_OK;
+}
+
+Py68Status py68_iterable_get_iter(Py68Runtime *runtime, Py68Value value,
+                                  Py68Range **result)
+{
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_RANGE) {
+        py68_value_retain(value);
+        *result = (Py68Range *)value.as.object;
+        return PY68_STATUS_OK;
+    }
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_LIST)
+        return py68_range_new_list(runtime, (Py68List *)value.as.object,
+                                   result);
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_TUPLE) {
+        Py68Tuple *tuple = (Py68Tuple *)value.as.object;
+        Py68List *list;
+        Py68U32 index;
+        Py68Status status = py68_list_new(runtime, &list);
+        if (status != PY68_STATUS_OK) return status;
+        for (index = 0; index < tuple->count; ++index) {
+            status = py68_list_append_copy(runtime, list, tuple->items[index]);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+        }
+        status = py68_range_new_list(runtime, list, result);
+        py68_object_release(runtime, &list->base);
+        return status;
+    }
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_DICT) {
+        Py68List *list;
+        Py68Status status = py68_dict_keys(
+            runtime, (Py68Dict *)value.as.object, &list);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_range_new_list(runtime, list, result);
+        py68_object_release(runtime, &list->base);
+        return status;
+    }
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_SET) {
+        Py68List *list;
+        Py68Status status = py68_set_values(
+            runtime, (Py68Set *)value.as.object, &list);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_range_new_list(runtime, list, result);
+        py68_object_release(runtime, &list->base);
+        return status;
+    }
+    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
+        value.as.object->type == PY68_OBJECT_STRING) {
+        Py68String *string = (Py68String *)value.as.object;
+        Py68List *list;
+        Py68U32 index;
+        Py68Status status = py68_list_new(runtime, &list);
+        if (status != PY68_STATUS_OK) return status;
+        for (index = 0; index < string->length; ++index) {
+            Py68String *ch;
+            status = py68_string_new_copy(runtime, string->data + index, 1, &ch);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+            status = py68_list_append_copy(
+                runtime, list, py68_value_from_object(&ch->base));
+            py68_object_release(runtime, &ch->base);
+            if (status != PY68_STATUS_OK) {
+                py68_object_release(runtime, &list->base);
+                return status;
+            }
+        }
+        status = py68_range_new_list(runtime, list, result);
+        py68_object_release(runtime, &list->base);
+        return status;
+    }
+    return PY68_STATUS_SOURCE_ERROR;
 }

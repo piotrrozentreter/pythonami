@@ -118,6 +118,52 @@ int main(void)
     arguments[0] = py68_value_int(1);
     passed &= py68_builtin_sum(&runtime, 1, arguments, &result) ==
               PY68_STATUS_RUNTIME_ERROR;
+    py68_error_clear(&runtime.error);
+
+    passed &= py68_list_new(&runtime, &list) == PY68_STATUS_OK;
+    passed &= py68_list_append_copy(&runtime, list, py68_value_int(10)) ==
+              PY68_STATUS_OK;
+    passed &= py68_list_append_copy(&runtime, list, py68_value_int(20)) ==
+              PY68_STATUS_OK;
+    arguments[0] = py68_value_from_object(&list->base);
+    passed &= py68_builtin_iter(&runtime, 1, arguments, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_OBJECT && result.as.object != NULL &&
+              result.as.object->type == PY68_OBJECT_RANGE;
+    {
+        Py68Value iterator = result;
+        Py68Value again;
+        passed &= py68_builtin_iter(&runtime, 1, &iterator, &again) ==
+                  PY68_STATUS_OK;
+        passed &= again.type == PY68_VALUE_OBJECT &&
+                  again.as.object == iterator.as.object;
+        py68_value_release(&runtime, again);
+        arguments[0] = iterator;
+        passed &= py68_builtin_next(&runtime, 1, arguments, &result) ==
+                  PY68_STATUS_OK;
+        passed &= result.type == PY68_VALUE_INT && result.as.integer == 10;
+        py68_value_release(&runtime, result);
+        passed &= py68_builtin_next(&runtime, 1, arguments, &result) ==
+                  PY68_STATUS_OK;
+        passed &= result.type == PY68_VALUE_INT && result.as.integer == 20;
+        py68_value_release(&runtime, result);
+        passed &= py68_builtin_next(&runtime, 1, arguments, &result) ==
+                  PY68_STATUS_RUNTIME_ERROR;
+        passed &= runtime.error.kind == PY68_ERROR_STOP_ITERATION;
+        py68_error_clear(&runtime.error);
+        arguments[1] = py68_value_int(-1);
+        passed &= py68_builtin_next(&runtime, 2, arguments, &result) ==
+                  PY68_STATUS_OK;
+        passed &= result.type == PY68_VALUE_INT && result.as.integer == -1;
+        py68_value_release(&runtime, result);
+        py68_value_release(&runtime, iterator);
+    }
+    py68_object_release(&runtime, &list->base);
+
+    arguments[0] = py68_value_int(3);
+    passed &= py68_builtin_iter(&runtime, 1, arguments, &result) ==
+              PY68_STATUS_RUNTIME_ERROR;
+    py68_error_clear(&runtime.error);
 
     py68_runtime_shutdown(&runtime);
     passed &= runtime.allocator.stats.current_bytes == 0;

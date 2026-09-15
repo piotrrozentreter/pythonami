@@ -25,6 +25,7 @@ const char *py68_error_kind_name(Py68U16 kind)
     case PY68_ERROR_BYTECODE: return "BytecodeError";
     case PY68_ERROR_INTERNAL: return "InternalError";
     case PY68_ERROR_INTERRUPT: return "KeyboardInterrupt";
+    case PY68_ERROR_STOP_ITERATION: return "StopIteration";
     default: return "Exception";
     }
 }
@@ -51,6 +52,8 @@ Py68U16 py68_error_kind_from_name(const char *name, Py68U16 length)
         return PY68_ERROR_RECURSION;
     if (length == 11 && memcmp(name, "ImportError", 11) == 0)
         return PY68_ERROR_IMPORT;
+    if (length == 13 && memcmp(name, "StopIteration", 13) == 0)
+        return PY68_ERROR_STOP_ITERATION;
     return PY68_ERROR_INTERNAL;
 }
 

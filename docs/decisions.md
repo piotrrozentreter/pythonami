@@ -1,5 +1,21 @@
 # Decisions
 
+## D-0042: `iter` / `next` over `Py68Range`; catchable `StopIteration`
+
+- Context: Scripts need CPython-style `iter`/`next` without classes or user
+	`__iter__`. `for` already converts containers to `PY68_OBJECT_RANGE` via
+	`RANGE_INIT`/`RANGE_NEXT`.
+- Decision: Expose that cursor as the iterator. `iter(x)` (arity 1) converts
+	list/tuple/str/dict/set (and retains an existing RANGE) through shared
+	`py68_iterable_get_iter`. `next(it[, default])` advances a RANGE; exhaustion
+	raises catchable `StopIteration` (`PY68_ERROR_STOP_ITERATION`, appended after
+	`INTERRUPT`) or returns `default`. `for` / comprehensions stay on
+	`RANGE_*` (no `GET_ITER`/`FOR_ITER`). Reject `iter(callable, sentinel)`.
+- Alternatives considered: New iterator heap type; rewire `for` to new opcodes;
+	exhaustion as `ValueError` only.
+- Consequences: `for x in iter(xs):` works because `RANGE_INIT` accepts RANGE.
+	`enumerate` / `reversed` remain deferred.
+
 ## D-0041: `sum(iterable[, start])` numeric builtin
 
 - Context: Scripts and examples use CPython's `sum` over lists/tuples. Python68K

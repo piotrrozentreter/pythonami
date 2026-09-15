@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Builtins `iter(x)` / `next(it[, default])` over the existing `Py68Range`
+  cursor used by `for`; catchable `StopIteration` (D-0042). `enumerate` /
+  `reversed` still deferred; `for` bytecode unchanged.
+
 - Builtin `sum(iterable[, start])` for list/tuple of numbers; optional numeric
   `start` defaults to `0`. Checked int overflow; float promotion matches `+`
   (D-0041).

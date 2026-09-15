@@ -313,86 +313,6 @@ static int py68_vm_catch(Py68Runtime *runtime, Py68Code **current_code,
     return 0;
 }
 
-static Py68Status py68_vm_iterable_range(Py68Runtime *runtime, Py68Value value,
-                                         Py68Range **range_obj)
-{
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_RANGE) {
-        py68_value_retain(value);
-        *range_obj = (Py68Range *)value.as.object;
-        return PY68_STATUS_OK;
-    }
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_LIST)
-        return py68_range_new_list(runtime, (Py68List *)value.as.object,
-                                   range_obj);
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_TUPLE) {
-        Py68Tuple *tuple = (Py68Tuple *)value.as.object;
-        Py68List *list;
-        Py68U32 index;
-        Py68Status status = py68_list_new(runtime, &list);
-        if (status != PY68_STATUS_OK) return status;
-        for (index = 0; index < tuple->count; ++index) {
-            status = py68_list_append_copy(runtime, list, tuple->items[index]);
-            if (status != PY68_STATUS_OK) {
-                py68_object_release(runtime, &list->base);
-                return status;
-            }
-        }
-        status = py68_range_new_list(runtime, list, range_obj);
-        py68_object_release(runtime, &list->base);
-        return status;
-    }
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_DICT) {
-        Py68List *list;
-        Py68Status status = py68_dict_keys(
-            runtime, (Py68Dict *)value.as.object, &list);
-        if (status != PY68_STATUS_OK) return status;
-        status = py68_range_new_list(runtime, list, range_obj);
-        py68_object_release(runtime, &list->base);
-        return status;
-    }
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_SET) {
-        Py68List *list;
-        Py68Status status = py68_set_values(
-            runtime, (Py68Set *)value.as.object, &list);
-        if (status != PY68_STATUS_OK) return status;
-        status = py68_range_new_list(runtime, list, range_obj);
-        py68_object_release(runtime, &list->base);
-        return status;
-    }
-    if (value.type == PY68_VALUE_OBJECT && value.as.object != NULL &&
-        value.as.object->type == PY68_OBJECT_STRING) {
-        Py68String *string = (Py68String *)value.as.object;
-        Py68List *list;
-        Py68U32 index;
-        Py68Status status = py68_list_new(runtime, &list);
-        if (status != PY68_STATUS_OK) return status;
-        for (index = 0; index < string->length; ++index) {
-            Py68String *ch;
-            status = py68_string_new_copy(runtime, string->data + index, 1, &ch);
-            if (status != PY68_STATUS_OK) {
-                py68_object_release(runtime, &list->base);
-                return status;
-            }
-            status = py68_list_append_copy(
-                runtime, list, py68_value_from_object(&ch->base));
-            py68_object_release(runtime, &ch->base);
-            if (status != PY68_STATUS_OK) {
-                py68_object_release(runtime, &list->base);
-                return status;
-            }
-        }
-        status = py68_range_new_list(runtime, list, range_obj);
-        py68_object_release(runtime, &list->base);
-        return status;
-    }
-    return PY68_STATUS_SOURCE_ERROR;
-}
-
 static void py68_vm_clear_stack(Py68Runtime *runtime)
 {
     while (runtime->value_stack_count != 0) {
@@ -1001,7 +921,7 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 }
                 {
                     Py68Range *converted = NULL;
-                    Py68Status convert = py68_vm_iterable_range(
+                    Py68Status convert = py68_iterable_get_iter(
                         runtime, arg0, &converted);
                     if (convert == PY68_STATUS_OK) {
                         py68_value_release(runtime, arg0);
