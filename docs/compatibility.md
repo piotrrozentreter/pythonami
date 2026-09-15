@@ -12,8 +12,11 @@ On Amiga only, `load_library(path)` loads a relocatable `*.py68k` LoadSeg plugin
 and returns a module of native exports (D-0027). This is not an `import` path
 and is unavailable on the host build. See `docs/amiga-extensions.md`.
 
-Command execution is currently limited to synchronous `os.system(command)`.
-The command must be a non-empty string without an embedded NUL, is executed
-with inherited standard handles, and returns the platform command status
-directly. `subprocess`, output capture, per-child directories/environments,
-timeouts, and `Popen` are not implemented yet.
+Command execution is currently limited to synchronous `os.system(command)` and
+`os.popen(command)`. Both require a non-empty string without an embedded NUL.
+`os.system` executes with inherited standard handles and returns the platform
+command status directly. `os.popen` redirects combined stdout/stderr to a
+temporary file and returns the captured text as a `str` (not a file object, and
+the return code is discarded), on both host and Amiga (D-0034). `subprocess`,
+argument-list commands, per-child directories/environments, timeouts, and
+`Popen` are not implemented yet.

@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
 #include <time.h>
 
 #if defined(_WIN32)
@@ -16,15 +17,47 @@
 #include <unistd.h>
 #endif
 
+static volatile sig_atomic_t py68_host_break_pending = 0;
+static void (*py68_host_previous_sigint)(int) = NULL;
+
+static void py68_host_sigint(int signal_number)
+{
+    (void)signal_number;
+    py68_host_break_pending = 1;
+    signal(SIGINT, py68_host_sigint);
+}
+
 Py68Status py68_platform_initialize(Py68Runtime *runtime)
 {
     (void)runtime;
+    py68_host_break_pending = 0;
+    py68_host_previous_sigint = signal(SIGINT, py68_host_sigint);
     return PY68_STATUS_OK;
 }
 
 void py68_platform_shutdown(Py68Runtime *runtime)
 {
     (void)runtime;
+    if (py68_host_previous_sigint != SIG_ERR)
+        signal(SIGINT, py68_host_previous_sigint);
+    py68_host_previous_sigint = NULL;
+    py68_host_break_pending = 0;
+}
+
+Py68Status py68_platform_poll(Py68Runtime *runtime, Py68U32 flags)
+{
+    (void)runtime;
+    if ((flags & PY68_POLL_BREAK) != 0 && py68_host_break_pending != 0) {
+        py68_host_break_pending = 0;
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    return PY68_STATUS_OK;
+}
+
+void py68_platform_signal_break(Py68Runtime *runtime)
+{
+    (void)runtime;
+    py68_host_break_pending = 1;
 }
 
 static Py68Status py68_platform_write(FILE *stream, const char *data,
@@ -129,6 +162,88 @@ Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
     if (status > 2147483647L || status < (-2147483647L - 1L))
         return PY68_STATUS_RUNTIME_ERROR;
     *return_code = (Py68I32)status;
+    return PY68_STATUS_OK;
+}
+
+/* Build a per-process temporary file path under TEMP/TMP/TMPDIR or ".". */
+static int py68_host_temp_path(char *buffer, size_t buffer_size)
+{
+    const char *directory = getenv("TEMP");
+    unsigned long pid;
+    if (directory == NULL) directory = getenv("TMP");
+    if (directory == NULL) directory = getenv("TMPDIR");
+    if (directory == NULL) directory = ".";
+#if defined(_WIN32)
+    pid = (unsigned long)GetCurrentProcessId();
+#else
+    pid = (unsigned long)getpid();
+#endif
+    if ((size_t)snprintf(buffer, buffer_size, "%s/py68k_popen_%08lx.tmp",
+                         directory, pid) >= buffer_size) {
+        return 0;
+    }
+    return 1;
+}
+
+Py68Status py68_platform_system_capture(Py68Runtime *runtime,
+                                        const char *command,
+                                        Py68I32 *return_code,
+                                        Py68U8 **data, Py68U32 *length)
+{
+    char temp_path[512];
+    char *full_command;
+    Py68U32 command_capacity;
+    long status;
+    FILE *file;
+    long file_size;
+    Py68U8 *buffer;
+    size_t read_count;
+
+    if (runtime == NULL || command == NULL || return_code == NULL ||
+        data == NULL || length == NULL)
+        return PY68_STATUS_INTERNAL_ERROR;
+    *data = NULL;
+    *length = 0;
+    if (!py68_host_temp_path(temp_path, sizeof temp_path))
+        return PY68_STATUS_RUNTIME_ERROR;
+    command_capacity = (Py68U32)strlen(command) + (Py68U32)strlen(temp_path) +
+                       16UL;
+    full_command = (char *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
+                                      command_capacity);
+    if (full_command == NULL) return PY68_STATUS_MEMORY_ERROR;
+    sprintf(full_command, "%s > \"%s\" 2>&1", command, temp_path);
+    status = (long)system(full_command);
+    py68_free(&runtime->allocator, PY68_MEM_TEMP, full_command,
+             command_capacity);
+    if (status > 2147483647L || status < (-2147483647L - 1L)) {
+        remove(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    file = fopen(temp_path, "rb");
+    if (file == NULL) {
+        remove(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (fseek(file, 0, SEEK_END) != 0 || (file_size = ftell(file)) < 0 ||
+        fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        remove(temp_path);
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
+                                  (Py68U32)file_size + 1UL);
+    if (buffer == NULL) {
+        fclose(file);
+        remove(temp_path);
+        return PY68_STATUS_MEMORY_ERROR;
+    }
+    read_count = fread(buffer, 1, (size_t)file_size, file);
+    fclose(file);
+    remove(temp_path);
+    buffer[read_count] = 0;
+    *return_code = (Py68I32)status;
+    *data = buffer;
+    *length = (Py68U32)read_count;
     return PY68_STATUS_OK;
 }
 

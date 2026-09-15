@@ -18,6 +18,10 @@ typedef enum Py68PlatformFileMode {
     PY68_PFILE_APPEND = 3
 } Py68PlatformFileMode;
 
+/* py68_platform_poll flags. */
+#define PY68_POLL_BREAK 0x0001U /* test for a pending user break (Ctrl-C) */
+#define PY68_POLL_YIELD 0x0002U /* give up the remaining scheduler quantum */
+
 Py68Status py68_platform_initialize(Py68Runtime *runtime);
 void py68_platform_shutdown(Py68Runtime *runtime);
 Py68Status py68_platform_write_stdout(Py68Runtime *runtime,
@@ -36,6 +40,17 @@ Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
 /* Execute a synchronous DOS command using inherited standard handles. */
 Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
                                  Py68I32 *return_code);
+/*
+ * Execute a synchronous DOS command with its combined stdout/stderr
+ * redirected to a temporary file, then read the file back into a
+ * PY68_MEM_TEMP buffer of *length bytes plus a NUL terminator.
+ * The caller frees *data with py68_free(..., PY68_MEM_TEMP, *data,
+ * *length + 1). The temporary file is removed before returning.
+ */
+Py68Status py68_platform_system_capture(Py68Runtime *runtime,
+                                        const char *command,
+                                        Py68I32 *return_code,
+                                        Py68U8 **data, Py68U32 *length);
 /* Read one line from console stdin (Input()/stdin). Strips trailing CR/LF.
    Empty line at EOF with no data returns PY68_STATUS_SOURCE_ERROR (EOF).
    Buffer is PY68_MEM_TEMP sized length+1. */
@@ -77,5 +92,16 @@ Py68Status py68_platform_var_unset(Py68Runtime *runtime, const char *name);
 
 /* Amiga: UnLoadSeg for LoadSeg plugins. Host: no-op. */
 void py68_platform_unload_seg(void *seg);
+
+/*
+ * Cooperative check point called from the VM on backward branches.
+ * PY68_POLL_BREAK consumes a pending break and returns
+ * PY68_STATUS_RUNTIME_ERROR; the caller owns the diagnostic.
+ * AmigaOS is preemptively multitasking, so PY68_POLL_YIELD is only a
+ * politeness hint (Forbid/Permit reschedule), never required for fairness.
+ */
+Py68Status py68_platform_poll(Py68Runtime *runtime, Py68U32 flags);
+/* Post a break to this process, as the shell does for Ctrl-C. */
+void py68_platform_signal_break(Py68Runtime *runtime);
 
 #endif

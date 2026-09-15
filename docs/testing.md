@@ -6,6 +6,8 @@ The opt-in `make -f Makefile.host debug-stats-test` check validates `--debug`. I
 
 The opt-in `make -f Makefile.host stdio-redirection-test` check validates separate host stdout/stderr redirection for successful `-c` execution, a runtime failure with exit code 11, and `--debug`. It normalizes CRLF/LF before comparing output and confirms that debug statistics and diagnostics stay on stderr while script output stays on stdout.
 
+The opt-in `make -f Makefile.host check-mode-test` check validates `--check`: valid source is compiled and verified without executing script output, while invalid source produces the normal syntax diagnostic and status 10.
+
 `tests/unit/test_compiler.c` covers `break`/`continue` bytecode generation and jump patching: `break` inside a `while` body, `continue` inside a `for` body (verified via executed VM state), and `while`-`else` compilation for both the normal-completion path (else runs) and the `break`-exits-early path (else is skipped), each checked with `allocator.stats.current_bytes == 0` after teardown. It also covers source-level compilation and VM execution of `def` functions: parameter binding, recursion (`fibonacci`), local-variable shadowing of globals, `UNBOUND` local read errors, rejection of nested `def` statements, and rejection of duplicate parameter names.
 
 ## Language-level advanced fixtures

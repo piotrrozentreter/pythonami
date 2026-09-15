@@ -21,6 +21,8 @@ Py68Status py68_runtime_initialize(Py68Runtime *runtime)
 {
     py68_runtime_initialize_struct(runtime);
     runtime->recursion_limit = 64;
+    runtime->poll_interval = PY68_POLL_INTERVAL_DEFAULT;
+    runtime->poll_counter = PY68_POLL_INTERVAL_DEFAULT;
     return py68_platform_initialize(runtime);
 }
 

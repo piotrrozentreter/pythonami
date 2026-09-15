@@ -79,7 +79,7 @@ Amiga also provides `load_library(path)` for LoadSeg `*.py68k` plugins (vbcc/vas
 see `docs/amiga-extensions.md`. Host has no `load_library`.
 
 ### Tooling
-- CLI: `pythonami script.py`, `pythonami -c "..."`, `-V` / `--help`
+- CLI: `pythonami script.py`, `pythonami --check script.py`, `pythonami -c "..."`, `-V` / `--help`
 - Pipeline: tokenize → parse (AST) → symbol analysis → compile → verify → VM execute
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback
@@ -108,6 +108,10 @@ make clean
 ./build/host/pythonami examples/test_features.py
 ./build/host/pythonami -c 'print(1 + 2 * 3)'
 ```
+
+For the complete command list, small examples, and common workflows, see
+[`docs/user-guide.md`](docs/user-guide.md). Contributors should start with
+[`docs/developer-guide.md`](docs/developer-guide.md).
 
 Amiga toolchain defaults (override if needed):
 
@@ -168,9 +172,21 @@ Makefile.amiga vbcc Amiga build
 | `docs/testing.md` | Test coverage narrative |
 | `docs/decisions.md` | Design decisions (D-0001…) |
 | `docs/architecture.md` | Pipeline and module overview |
+| `docs/user-guide.md` | CLI, build, test, and script-running commands |
+| `docs/developer-guide.md` | Source layout, implementation pipeline, and contributor workflow |
 | `CHANGELOG.md` | Release history |
 
 Normative design briefs (for implementers): `Python68K_Full_Agent_Implementation_Brief.md`, `Python68K_Final_Implementation_Checklist.md`.
+
+## Current verification status
+
+The host build and test suite are the primary executable checks. They cover the
+documented Language Levels 0.1-0.6, CLI smoke checks, imports, process APIs,
+debug statistics, standard-stream separation, and `--check` mode. Amiga
+debug/release builds are compile/link-verified when vbcc and the NDK are
+available; execution on an emulator or real 68000 hardware remains a separate
+owner verification step. See [`docs/testing.md`](docs/testing.md) for the
+evidence and boundaries of each check.
 
 ---
 
