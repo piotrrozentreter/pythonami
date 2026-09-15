@@ -132,7 +132,13 @@ Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
     LONG status;
     (void)runtime;
     if (command == NULL || return_code == NULL) return PY68_STATUS_INTERNAL_ERROR;
-    status = Execute((STRPTR)command, 0, 0);
+    /*
+     * Use SystemTagList (dos.library V36+), not Execute.
+     * Execute returns DOSTRUE (-1) / DOSFALSE (0) for launch success only and
+     * does not expose the command return code. SystemTagList returns the
+     * AmigaDOS/program status, or -1 if the shell could not be started.
+     */
+    status = SystemTagList((STRPTR)command, NULL);
     if (status == -1) return PY68_STATUS_RUNTIME_ERROR;
     *return_code = (Py68I32)status;
     return PY68_STATUS_OK;

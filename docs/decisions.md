@@ -9,8 +9,9 @@
 	non-empty string and reject embedded NUL bytes, execute synchronously with
 	inherited standard handles, and return the native command status directly.
 	Launch failure is mapped to an I/O runtime error. The Amiga implementation
-	uses `Execute`; the host implementation uses its synchronous command
-	primitive. `subprocess` and `Popen` remain explicitly unsupported.
+	uses `SystemTagList` (not `Execute`, which only returns DOSTRUE/DOSFALSE);
+	the host implementation uses its synchronous command primitive.
+	`subprocess` and `Popen` remain explicitly unsupported.
 - Alternatives considered: Emulate `subprocess` synchronously, silently
 	ignore capture/timeout parameters, or expose shell execution as a direct
 	process API before the backend can enforce that distinction.
