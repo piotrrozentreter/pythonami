@@ -59,6 +59,135 @@ static int py68_statement_needs_newline(Py68AstKind kind)
            kind == PY68_AST_IMPORT_FROM || kind == PY68_AST_EXPRESSION_STATEMENT;
 }
 
+static int py68_statement_at_line_end(Py68StatementParser *parser)
+{
+    Py68Token *token = py68_statement_current(parser);
+    return token == NULL || token->kind == PY68_TOKEN_NEWLINE ||
+           token->kind == PY68_TOKEN_DEDENT || token->kind == PY68_TOKEN_EOF;
+}
+
+static int py68_ast_is_name_tuple(Py68AstNode *node)
+{
+    Py68U16 index;
+    Py68AstNode *element;
+    if (node == NULL || node->kind != PY68_AST_TUPLE) return 0;
+    if (node->as.list_literal.elements.count == 0) return 0;
+    for (index = 0; index < node->as.list_literal.elements.count; ++index) {
+        element = node->as.list_literal.elements.items[index];
+        if (element == NULL || element->kind != PY68_AST_NAME) return 0;
+    }
+    return 1;
+}
+
+static Py68Status py68_parse_name_node(Py68StatementParser *parser,
+                                       Py68Token *token,
+                                       Py68AstNode **node_out)
+{
+    Py68Status status = py68_statement_new(parser, PY68_AST_NAME, token,
+                                           node_out);
+    if (status != PY68_STATUS_OK) return status;
+    (*node_out)->as.name.offset = token->location.offset;
+    (*node_out)->as.name.length = token->location.length;
+    return PY68_STATUS_OK;
+}
+
+static int py68_lookahead_unpack_assign(Py68StatementParser *parser)
+{
+    Py68U32 position = parser->expression.position;
+    const Py68TokenArray *tokens = parser->expression.tokens;
+    Py68TokenKind kind;
+    if (position >= tokens->count) return 0;
+    if (tokens->items[position].kind != PY68_TOKEN_NAME) return 0;
+    ++position;
+    if (position >= tokens->count ||
+        tokens->items[position].kind != PY68_TOKEN_COMMA) return 0;
+    while (position < tokens->count) {
+        kind = tokens->items[position].kind;
+        if (kind == PY68_TOKEN_COMMA) {
+            ++position;
+            continue;
+        }
+        if (kind == PY68_TOKEN_NAME) {
+            ++position;
+            continue;
+        }
+        if (kind == PY68_TOKEN_STAR)
+            return 0;
+        return kind == PY68_TOKEN_ASSIGN;
+    }
+    return 0;
+}
+
+static Py68Status py68_parse_unpack_name_tuple(Py68StatementParser *parser,
+                                               Py68Token *first_token,
+                                               Py68AstNode **node_out)
+{
+    Py68AstNode *tuple;
+    Py68AstNode *name;
+    Py68Token *token;
+    Py68Status status;
+    status = py68_statement_new(parser, PY68_AST_TUPLE, first_token, &tuple);
+    if (status != PY68_STATUS_OK) return status;
+    py68_ast_list_initialize(&tuple->as.list_literal.elements);
+    status = py68_parse_name_node(parser, first_token, &name);
+    if (status != PY68_STATUS_OK) return status;
+    status = py68_ast_list_append(parser->expression.arena,
+                                  &tuple->as.list_literal.elements, name);
+    if (status != PY68_STATUS_OK) return status;
+    while (py68_statement_accept(parser, PY68_TOKEN_COMMA)) {
+        token = py68_statement_current(parser);
+        if (token != NULL && token->kind == PY68_TOKEN_STAR)
+            return py68_statement_error(parser, token,
+                "starred unpacking is not supported by Python68K Language Level 0.6");
+        if (token == NULL || token->kind != PY68_TOKEN_NAME) break;
+        ++parser->expression.position;
+        status = py68_parse_name_node(parser, token, &name);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_ast_list_append(parser->expression.arena,
+                                      &tuple->as.list_literal.elements, name);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    if (tuple->as.list_literal.elements.count == 0)
+        return py68_statement_error(parser, first_token,
+                                    "invalid assignment target");
+    *node_out = tuple;
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_parse_assignment_rhs(Py68StatementParser *parser,
+                                            Py68AstNode **node_out)
+{
+    Py68AstNode *first;
+    Py68AstNode *tuple;
+    Py68AstNode *element;
+    Py68Status status;
+    status = py68_parse_expression(&parser->expression, &first);
+    if (status != PY68_STATUS_OK) return status;
+    if (!py68_statement_accept(parser, PY68_TOKEN_COMMA)) {
+        *node_out = first;
+        return PY68_STATUS_OK;
+    }
+    status = py68_ast_arena_new(parser->expression.arena, PY68_AST_TUPLE,
+                                first->location, &tuple);
+    if (status != PY68_STATUS_OK) return status;
+    py68_ast_list_initialize(&tuple->as.list_literal.elements);
+    status = py68_ast_list_append(parser->expression.arena,
+                                  &tuple->as.list_literal.elements, first);
+    if (status != PY68_STATUS_OK) return status;
+    for (;;) {
+        if (py68_statement_at_line_end(parser)) break;
+        status = py68_parse_expression(&parser->expression, &element);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_ast_list_append(parser->expression.arena,
+                                      &tuple->as.list_literal.elements,
+                                      element);
+        if (status != PY68_STATUS_OK) return status;
+        if (!py68_statement_accept(parser, PY68_TOKEN_COMMA)) break;
+    }
+    *node_out = tuple;
+    return PY68_STATUS_OK;
+}
+
 static Py68Status py68_parse_suite(Py68StatementParser *parser,
                                    Py68AstList *body);
 
@@ -382,13 +511,47 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
     }
     if (token->kind == PY68_TOKEN_FOR) {
         Py68Token *name_token;
+        Py68AstNode *for_target = NULL;
+        Py68U32 name_offset = 0;
+        Py68U16 name_length = 0;
         ++parser->expression.position;
         name_token = py68_statement_current(parser);
-        if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME) {
+        if (name_token != NULL && name_token->kind == PY68_TOKEN_LEFT_PAREN) {
+            Py68AstNode *grouped;
+            status = py68_parse_expression(&parser->expression, &grouped);
+            if (status != PY68_STATUS_OK) return status;
+            if (grouped->kind == PY68_AST_NAME) {
+                name_offset = grouped->as.name.offset;
+                name_length = grouped->as.name.length;
+            } else if (py68_ast_is_name_tuple(grouped)) {
+                Py68AstNode *first = grouped->as.list_literal.elements.items[0];
+                name_offset = first->as.name.offset;
+                name_length = first->as.name.length;
+                for_target = grouped;
+            } else {
+                return py68_statement_error(parser,
+                                            py68_statement_current(parser),
+                                            "invalid for target");
+            }
+        } else if (name_token == NULL || name_token->kind != PY68_TOKEN_NAME) {
             return py68_statement_error(parser, name_token,
                                         "expected loop variable");
+        } else {
+            ++parser->expression.position;
+            if (py68_statement_current(parser) != NULL &&
+                py68_statement_current(parser)->kind == PY68_TOKEN_COMMA) {
+                status = py68_parse_unpack_name_tuple(parser, name_token,
+                                                      &for_target);
+                if (status != PY68_STATUS_OK) return status;
+                name_offset = for_target->as.list_literal.elements.items[0]
+                                  ->as.name.offset;
+                name_length = for_target->as.list_literal.elements.items[0]
+                                  ->as.name.length;
+            } else {
+                name_offset = name_token->location.offset;
+                name_length = name_token->location.length;
+            }
         }
-        ++parser->expression.position;
         if (!py68_statement_accept(parser, PY68_TOKEN_IN)) {
             return py68_statement_error(parser, py68_statement_current(parser),
                                         "expected in after loop variable");
@@ -401,9 +564,9 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         }
         status = py68_statement_new(parser, PY68_AST_FOR, token, &node);
         if (status != PY68_STATUS_OK) return status;
-        if (status != PY68_STATUS_OK) return status;
-        node->as.for_statement.name_offset = name_token->location.offset;
-        node->as.for_statement.name_length = name_token->location.length;
+        node->as.for_statement.name_offset = name_offset;
+        node->as.for_statement.name_length = name_length;
+        node->as.for_statement.target = for_target;
         node->as.for_statement.iterable = value;
         py68_ast_list_initialize(&node->as.for_statement.body);
         py68_ast_list_initialize(&node->as.for_statement.else_body);
@@ -538,9 +701,9 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
             Py68Token target_token = *token;
             ++parser->expression.position;
             ++parser->expression.position;
-            status = py68_parse_expression(&parser->expression, &value);
-            if (status != PY68_STATUS_OK) return status;
             if (next_kind == PY68_TOKEN_ASSIGN) {
+                status = py68_parse_assignment_rhs(parser, &value);
+                if (status != PY68_STATUS_OK) return status;
                 status = py68_statement_new(parser, PY68_AST_ASSIGN,
                                             &target_token, &node);
                 if (status != PY68_STATUS_OK) return status;
@@ -550,6 +713,8 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
                 node->as.assign.value = value;
             } else {
                 Py68AstNode *target;
+                status = py68_parse_expression(&parser->expression, &value);
+                if (status != PY68_STATUS_OK) return status;
                 status = py68_statement_new(parser, PY68_AST_AUGMENTED_ASSIGN,
                                             &target_token, &node);
                 if (status != PY68_STATUS_OK) return status;
@@ -566,6 +731,47 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
             *node_out = node;
             return PY68_STATUS_OK;
         }
+        if (next_kind == PY68_TOKEN_COMMA &&
+            py68_lookahead_unpack_assign(parser)) {
+            Py68Token first_token = *token;
+            Py68AstNode *target;
+            ++parser->expression.position;
+            status = py68_parse_unpack_name_tuple(parser, &first_token,
+                                                  &target);
+            if (status != PY68_STATUS_OK) return status;
+            if (!py68_statement_accept(parser, PY68_TOKEN_ASSIGN))
+                return py68_statement_error(parser,
+                                            py68_statement_current(parser),
+                                            "expected assignment");
+            status = py68_parse_assignment_rhs(parser, &value);
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_statement_new(parser, PY68_AST_ASSIGN,
+                                        &first_token, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.assign.name_offset = 0;
+            node->as.assign.name_length = 0;
+            node->as.assign.target = target;
+            node->as.assign.value = value;
+            *node_out = node;
+            return PY68_STATUS_OK;
+        }
+        if (next_kind == PY68_TOKEN_COMMA) {
+            Py68Token *star;
+            Py68U32 position = parser->expression.position + 1;
+            Py68TokenKind scan;
+            while (position < parser->expression.tokens->count) {
+                scan = parser->expression.tokens->items[position].kind;
+                if (scan == PY68_TOKEN_STAR) {
+                    star = &parser->expression.tokens->items[position];
+                    return py68_statement_error(parser, star,
+                        "starred unpacking is not supported by Python68K Language Level 0.6");
+                }
+                if (scan == PY68_TOKEN_NEWLINE || scan == PY68_TOKEN_DEDENT ||
+                    scan == PY68_TOKEN_EOF || scan == PY68_TOKEN_ASSIGN)
+                    break;
+                ++position;
+            }
+        }
     }
     status = py68_parse_expression(&parser->expression, &value);
     if (status != PY68_STATUS_OK) return status;
@@ -577,32 +783,30 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
             node->as.assign.name_length = value->as.name.length;
             node->as.assign.target = NULL;
             node->as.assign.value = NULL;
-            status = py68_parse_expression(&parser->expression,
-                                           &node->as.assign.value);
+            status = py68_parse_assignment_rhs(parser, &node->as.assign.value);
             if (status != PY68_STATUS_OK) return status;
             *node_out = node;
             return PY68_STATUS_OK;
         }
-        if (value->kind == PY68_AST_ATTRIBUTE) {
+        if (value->kind == PY68_AST_ATTRIBUTE ||
+            value->kind == PY68_AST_INDEX) {
             status = py68_statement_new(parser, PY68_AST_ASSIGN, token, &node);
             if (status != PY68_STATUS_OK) return status;
             node->as.assign.name_offset = 0;
             node->as.assign.name_length = 0;
             node->as.assign.target = value;
-            status = py68_parse_expression(&parser->expression,
-                                           &node->as.assign.value);
+            status = py68_parse_assignment_rhs(parser, &node->as.assign.value);
             if (status != PY68_STATUS_OK) return status;
             *node_out = node;
             return PY68_STATUS_OK;
         }
-        if (value->kind == PY68_AST_INDEX) {
+        if (py68_ast_is_name_tuple(value)) {
             status = py68_statement_new(parser, PY68_AST_ASSIGN, token, &node);
             if (status != PY68_STATUS_OK) return status;
             node->as.assign.name_offset = 0;
             node->as.assign.name_length = 0;
             node->as.assign.target = value;
-            status = py68_parse_expression(&parser->expression,
-                                           &node->as.assign.value);
+            status = py68_parse_assignment_rhs(parser, &node->as.assign.value);
             if (status != PY68_STATUS_OK) return status;
             *node_out = node;
             return PY68_STATUS_OK;

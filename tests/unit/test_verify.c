@@ -56,6 +56,13 @@ int main(void)
     passed &= py68_verify_code(&code, &error) == PY68_STATUS_SOURCE_ERROR;
     py68_code_destroy(&allocator, &code);
 
+    py68_code_initialize(&code);
+    passed &= emit(&allocator, &code, OP_UNPACK);
+    passed &= py68_code_emit_u16_be(&allocator, &code, 2) == PY68_STATUS_OK;
+    passed &= emit(&allocator, &code, OP_HALT);
+    passed &= py68_verify_code(&code, &error) == PY68_STATUS_SOURCE_ERROR;
+    py68_code_destroy(&allocator, &code);
+
     passed &= allocator.stats.current_bytes == 0;
     if (passed) { puts("PASS: verifier tests"); return 0; }
     return 1;

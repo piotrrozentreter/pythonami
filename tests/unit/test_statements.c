@@ -124,6 +124,42 @@ int main(void)
     passed &= check(strstr(error.message, "generator expressions") != NULL,
                     "generator-expression diagnostic is targeted");
     py68_ast_arena_destroy(&arena);
+    passed &= check(parse_module(&allocator, "a, b = (1, 2)\n",
+                                 &arena, &module, &error),
+                    "unpack assignment parses");
+    if (module != NULL) {
+        passed &= check(module->as.module.statements.count == 1 &&
+                        module->as.module.statements.items[0]->kind ==
+                            PY68_AST_ASSIGN &&
+                        module->as.module.statements.items[0]
+                            ->as.assign.target != NULL &&
+                        module->as.module.statements.items[0]
+                            ->as.assign.target->kind == PY68_AST_TUPLE &&
+                        module->as.module.statements.items[0]
+                            ->as.assign.target->as.list_literal.elements.count == 2,
+                        "unpack assignment stores a name tuple target");
+        py68_ast_arena_destroy(&arena);
+    }
+    passed &= check(parse_module(&allocator, "for a, b in pairs:\n    pass\n",
+                                 &arena, &module, &error),
+                    "for unpack parses");
+    if (module != NULL) {
+        passed &= check(module->as.module.statements.count == 1 &&
+                        module->as.module.statements.items[0]->kind ==
+                            PY68_AST_FOR &&
+                        module->as.module.statements.items[0]
+                            ->as.for_statement.target != NULL &&
+                        module->as.module.statements.items[0]
+                            ->as.for_statement.target->kind == PY68_AST_TUPLE,
+                        "for unpack stores a name tuple target");
+        py68_ast_arena_destroy(&arena);
+    }
+    passed &= check(!parse_module(&allocator, "a, *rest = xs\n",
+                                  &arena, &module, &error),
+                    "starred unpacking is rejected");
+    passed &= check(strstr(error.message, "starred unpacking") != NULL,
+                    "starred-unpacking diagnostic is targeted");
+    py68_ast_arena_destroy(&arena);
     passed &= check(allocator.stats.current_bytes == 0,
                     "statement parser releases all allocations");
     if (passed) {

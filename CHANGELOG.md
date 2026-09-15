@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fixed-count unpacking / multiple assignment: `a, b = (1, 2)`, `a, b = [1, 2]`,
+  `a, b = 1, 2`, `for a, b in pairs:`, and string unpack `a, b = "ab"`.
+  `OP_UNPACK` (0x0F). Length mismatch is `ValueError`; non-sequence is
+  `TypeError`. Assignment RHS is an expression list (D-0038). Starred and
+  nested unpacking remain unsupported. D-0015 still requires parentheses for
+  tuples outside assignment (`return a, b` is still a syntax error).
+
 - Identity operators `is` / `is not` (`OP_IS` / `OP_IS_NOT`). Immediate
   None/bool/int/float values compare by type and payload; heap objects compare
   by pointer (D-0037). `is not` is one comparison operator, not `is` plus unary

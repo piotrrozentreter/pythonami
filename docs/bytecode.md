@@ -17,6 +17,10 @@ Identity and membership comparison opcodes (new numbers; existing opcodes unchan
 - `OP_IS` (0x16), `OP_IS_NOT` (0x17) — identity; tagged immediates compare type+payload, heap objects compare pointers (D-0037)
 - `OP_CONTAINS` (0x1E), `OP_NOT_CONTAINS` (0x1F) — membership (D-0036)
 
+Unpacking (new number; existing opcodes unchanged):
+
+- `OP_UNPACK` (0x0F) — `u16` count; pop one list/tuple/string, push `count` items right-to-left (first item TOS). Stack effect is `count - 1` (D-0038).
+
 Language Level 0.6 comprehension opcodes (new numbers; existing opcodes unchanged):
 
 - `OP_LIST_APPEND` (0x2F) — `u8` depth; append TOS to the list `depth` slots down, then pop TOS

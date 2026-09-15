@@ -19,6 +19,7 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     static const Py68OpcodeInfo store_local = INFO(3, -1, "STORE_LOCAL");
     static const Py68OpcodeInfo unary = INFO(1, 0, "UNARY");
     static const Py68OpcodeInfo rot_two = INFO(1, 0, "ROT_TWO");
+    static const Py68OpcodeInfo unpack = INFO(3, 0, "UNPACK");
     static const Py68OpcodeInfo binary = INFO(1, -1, "BINARY");
     static const Py68OpcodeInfo jump = INFO(3, 0, "JUMP");
     static const Py68OpcodeInfo jump_pop = INFO(3, -1, "JUMP_POP");
@@ -55,6 +56,7 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     case OP_LOAD_LOCAL: return &load_local; case OP_STORE_LOCAL: return &store_local;
     case OP_NEGATE: case OP_POSITIVE: case OP_NOT: return &unary;
     case OP_ROT_TWO: return &rot_two;
+    case OP_UNPACK: return &unpack;
     case OP_ADD: case OP_SUBTRACT: case OP_MULTIPLY: case OP_FLOOR_DIVIDE:
     case OP_MODULO: case OP_TRUE_DIVIDE: case OP_EQUAL: case OP_NOT_EQUAL:
     case OP_LESS:

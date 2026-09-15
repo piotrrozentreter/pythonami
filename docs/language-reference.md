@@ -8,7 +8,8 @@ Symbol analysis classifies names using local, module-global, builtin, and undefi
 
 - Scalars: signed 32-bit `int` (checked overflow), `bool`, `None`, IEEE-754 binary32 `float` (no NaN/Inf; no 68881; integer-only software in `src/float.c`).
 - `str`: 8-bit strings (not Unicode).
-- `list`, `tuple` (parenthesized only: `()`, `(a,)`, `(a, b)`), `dict`, `set`.
+- `list`, `tuple` (parenthesized displays `()`, `(a,)`, `(a, b)`; assignment
+  also accepts unparenthesized expression lists such as `x = 1, 2`), `dict`, `set`.
 - Hashable keys: `None`, `bool`, `int`, `str`, and tuples of hashable items. Lists, dicts, sets, files, functions, and modules are unhashable.
 - Cyclic list/dict insertion is rejected (`ValueError`).
 - `/` is true division and yields `float`. `//` is integer floor division. Mixed int/float arithmetic promotes to float.
@@ -20,7 +21,8 @@ Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool 
 ## Control flow
 
 - `if` / `elif` / `else`
-- `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings)
+- `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings). `for a, b in pairs:` unpacks each item (D-0038).
+- Assignment: `NAME = expr`, index/attribute stores, and fixed-count unpacking `a, b = seq` (list, tuple, or string). Assignment RHS may be an unparenthesized expression list (`a, b = 1, 2`). Starred and nested unpacking are not supported.
 - List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.
 - Comparisons: `== != < <= > >=`, membership `in` / `not in` (str substring; item in list/tuple; key in dict; member in set), identity `is` / `is not`
 - `break` / `continue` / `return` / `pass`
@@ -75,4 +77,4 @@ multitasking, so no program has to yield for other programs to run.
 
 ## Still not implemented
 
-Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, `*args`/`**kwargs`, relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.
+Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, starred unpacking (`a, *rest`, `*args`/`**kwargs`), nested unpacking (`(a, b), c = …`), relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, `eval`/`exec`/`compile`, general iterator protocol builtins (`iter`/`next`/`enumerate`/`reversed`/`sorted`), and Language Level freeze after owner emulator/hardware verification.

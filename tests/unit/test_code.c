@@ -18,7 +18,8 @@ int main(void)
     passed &= py68_opcode_info(OP_LOAD_CONST) != NULL;
     passed &= py68_opcode_info(OP_IS) != NULL;
     passed &= py68_opcode_info(OP_IS_NOT) != NULL;
-    passed &= py68_opcode_info(0x0F) == NULL;
+    passed &= py68_opcode_info(OP_UNPACK) != NULL;
+    passed &= py68_opcode_info(0x36) == NULL;
     passed &= py68_code_emit_u8(&allocator, &code, OP_JUMP) == PY68_STATUS_OK;
     passed &= py68_code_emit_u16_be(&allocator, &code, 0) == PY68_STATUS_OK;
     passed &= py68_code_patch_i16_be(&code, 1, -7) == PY68_STATUS_OK;

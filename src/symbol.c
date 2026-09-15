@@ -192,6 +192,46 @@ static Py68Status py68_add_global(Py68Allocator *allocator,
                            &analysis->global_capacity, symbol);
 }
 
+static Py68Status py68_bind_unpack_locals(Py68Allocator *allocator,
+                                          const Py68Source *source,
+                                          Py68FunctionSymbols *function,
+                                          Py68AstNode *target)
+{
+    Py68U16 index;
+    Py68AstNode *name;
+    Py68Status status;
+    if (target == NULL || target->kind != PY68_AST_TUPLE)
+        return PY68_STATUS_OK;
+    for (index = 0; index < target->as.list_literal.elements.count; ++index) {
+        name = target->as.list_literal.elements.items[index];
+        if (name == NULL || name->kind != PY68_AST_NAME) continue;
+        status = py68_add_local(allocator, source, function,
+                                name->as.name.offset, name->as.name.length);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
+static Py68Status py68_bind_unpack_globals(Py68Allocator *allocator,
+                                           const Py68Source *source,
+                                           Py68SymbolAnalysis *analysis,
+                                           Py68AstNode *target)
+{
+    Py68U16 index;
+    Py68AstNode *name;
+    Py68Status status;
+    if (target == NULL || target->kind != PY68_AST_TUPLE)
+        return PY68_STATUS_OK;
+    for (index = 0; index < target->as.list_literal.elements.count; ++index) {
+        name = target->as.list_literal.elements.items[index];
+        if (name == NULL || name->kind != PY68_AST_NAME) continue;
+        status = py68_add_global(allocator, source, analysis,
+                                 name->as.name.offset, name->as.name.length);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    return PY68_STATUS_OK;
+}
+
 static Py68Status py68_collect_expression(Py68Allocator *allocator,
                                           const Py68Source *source,
                                           Py68FunctionSymbols *function,
@@ -325,7 +365,12 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
         statement = statements->items[index];
         switch ((Py68AstKind)statement->kind) {
         case PY68_AST_ASSIGN:
-            if (statement->as.assign.target != NULL) {
+            if (statement->as.assign.target != NULL &&
+                statement->as.assign.target->kind == PY68_AST_TUPLE) {
+                status = py68_bind_unpack_locals(
+                    allocator, source, function,
+                    statement->as.assign.target);
+            } else if (statement->as.assign.target != NULL) {
                 status = py68_collect_expression(allocator, source, function,
                                                  statement->as.assign.target);
             } else {
@@ -349,9 +394,15 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
                                              statement->as.augmented_assign.value);
             break;
         case PY68_AST_FOR:
-            status = py68_add_local(allocator, source, function,
-                                    statement->as.for_statement.name_offset,
-                                    statement->as.for_statement.name_length);
+            if (statement->as.for_statement.target != NULL) {
+                status = py68_bind_unpack_locals(
+                    allocator, source, function,
+                    statement->as.for_statement.target);
+            } else {
+                status = py68_add_local(allocator, source, function,
+                                        statement->as.for_statement.name_offset,
+                                        statement->as.for_statement.name_length);
+            }
             if (status == PY68_STATUS_OK) {
                 status = py68_collect_expression(allocator, source, function,
                                                  statement->as.for_statement.iterable);
@@ -524,6 +575,10 @@ static Py68Status py68_analyze_statement(Py68Allocator *allocator,
                                        &statement->as.function_def.body, error);
     }
     if (statement->kind == PY68_AST_ASSIGN) {
+        if (statement->as.assign.target != NULL &&
+            statement->as.assign.target->kind == PY68_AST_TUPLE)
+            return py68_bind_unpack_globals(allocator, source, analysis,
+                                            statement->as.assign.target);
         if (statement->as.assign.target != NULL)
             return PY68_STATUS_OK;
         return py68_add_global(allocator, source, analysis,

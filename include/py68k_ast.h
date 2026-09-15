@@ -64,7 +64,8 @@ struct Py68AstNode {
     union {
         struct { Py68AstList statements; } module;
         struct { Py68U32 name_offset; Py68U16 name_length;
-                 Py68AstNode *target; /* NULL = simple name; INDEX = store */
+                 Py68AstNode *target; /* NULL = simple name; INDEX/ATTR = store;
+                                         TUPLE of NAME = unpack */
                  Py68AstNode *value; } assign;
         struct { Py68U16 operator_kind; Py68AstNode *target;
                  Py68AstNode *value; } augmented_assign;
@@ -73,6 +74,7 @@ struct Py68AstNode {
         struct { Py68AstNode *condition; Py68AstList body;
                  Py68AstList else_body; } while_statement;
         struct { Py68U32 name_offset; Py68U16 name_length;
+                 Py68AstNode *target; /* NULL = simple NAME; TUPLE of NAME = unpack */
                  Py68AstNode *iterable; Py68AstList body;
                  Py68AstList else_body; } for_statement;
         struct { Py68U32 name_offset; Py68U16 name_length;

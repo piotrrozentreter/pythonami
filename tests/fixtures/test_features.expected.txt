@@ -146,4 +146,14 @@ False
 True
 True
 False
+=== 28. Unpacking / multiple assignment ===
+1
+2
+7
+5
+6
+2
+1
+33
+1
 === Feature Test Complete ===

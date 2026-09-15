@@ -48,6 +48,10 @@ static Py68I32 py68_effect(const Py68U8 *bytes, Py68U32 offset,
     if (opcode == OP_CALL) {
         return -(Py68I32)bytes[offset + 1];
     }
+    if (opcode == OP_UNPACK) {
+        operand = py68_read_u16(bytes, offset + 1);
+        return (Py68I32)operand - 1;
+    }
     if (opcode == OP_LIST_APPEND || opcode == OP_SET_ADD) {
         operand = bytes[offset + 1];
         if (operand == 0) return 0;
@@ -191,6 +195,11 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
         if (opcode == OP_MAP_ADD &&
             (code->bytecode[current + 1] < 2 ||
              depth <= (Py68I32)code->bytecode[current + 1])) {
+            py68_verify_error(error, "value stack underflow", current);
+            status = PY68_STATUS_SOURCE_ERROR;
+            goto cleanup;
+        }
+        if (opcode == OP_UNPACK && depth < 1) {
             py68_verify_error(error, "value stack underflow", current);
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;

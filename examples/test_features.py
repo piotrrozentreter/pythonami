@@ -283,4 +283,29 @@ print(left is not right)
 print(0 is not 1)
 print(0 is (not 1))
 
+print("=== 28. Unpacking / multiple assignment ===")
+u, v = (1, 2)
+print(u)
+print(v)
+u, v = [3, 4]
+print(u + v)
+u, v = 5, 6
+print(u)
+print(v)
+swap_l = 1
+swap_r = 2
+swap_l, swap_r = swap_r, swap_l
+print(swap_l)
+print(swap_r)
+pair_sum = 0
+for x, y in [(10, 1), (20, 2)]:
+    pair_sum = pair_sum + x + y
+print(pair_sum)
+unpack_err = 0
+try:
+    too_few, extra = [1]
+except ValueError:
+    unpack_err = 1
+print(unpack_err)
+
 print("=== Feature Test Complete ===")
