@@ -108,6 +108,24 @@ int main(void)
                     "not remains a separate token after is");
     passed &= check(tokens.items[3].kind == PY68_TOKEN_NONE, "None token");
     py68_token_array_destroy(&allocator, &tokens);
+    passed &= check(tokenize(&allocator, "f\"x={y}\"\n", &tokens, &error),
+                    "f-string tokenizes");
+    passed &= check(tokens.items[0].kind == PY68_TOKEN_FSTRING,
+                    "f-string token kind");
+    py68_token_array_destroy(&allocator, &tokens);
+    passed &= check(tokenize(&allocator, "f = 1\n", &tokens, &error),
+                    "bare f remains a name");
+    passed &= check(tokens.items[0].kind == PY68_TOKEN_NAME,
+                    "bare f is NAME");
+    py68_token_array_destroy(&allocator, &tokens);
+    passed &= check(!tokenize(&allocator, "fr\"x\"\n", &tokens, &error),
+                    "fr prefix is rejected");
+    passed &= check(error.kind == PY68_ERROR_TOKEN,
+                    "fr rejection is a token error");
+    py68_token_array_destroy(&allocator, &tokens);
+    passed &= check(!tokenize(&allocator, "b\"x\"\n", &tokens, &error),
+                    "b prefix is rejected");
+    py68_token_array_destroy(&allocator, &tokens);
     passed &= check(tokenize(&allocator, "a.b + 1.5 / 2 // 3 {1}\n",
                              &tokens, &error),
                     "dot, float, slash, floor-div, and braces tokenize");
