@@ -16,11 +16,11 @@ Symbol analysis classifies names using local, module-global, builtin, and undefi
 
 ## Operators and comparisons
 
-Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare lexicographically when types match; unsupported orderings raise `TypeError`). Identity `is` / `is not` tests sameness, not equality: tagged immediates (None, bool, int, float) match by type and payload, so `x is None` follows Python and equal ints with the same bits are identical; heap objects match only when they are the same object (`[1] is [1]` is false). `is not` is a single operator (`x is not y` is not `x is (not y)`). Comparisons do not chain: `a is b is c` is `(a is b) is c`, matching `==`. Short-circuit `and` / `or` are value-preserving.
+Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool compares as 0/1; `None == None`; strings/lists/tuples compare lexicographically when types match; unsupported orderings raise `TypeError`). Identity `is` / `is not` tests sameness, not equality: tagged immediates (None, bool, int, float) match by type and payload, so `x is None` follows Python and equal ints with the same bits are identical; heap objects match only when they are the same object (`[1] is [1]` is false). `is not` is a single operator (`x is not y` is not `x is (not y)`). Comparisons do not chain: `a is b is c` is `(a is b) is c`, matching `==`. Short-circuit `and` / `or` are value-preserving. Conditional expressions `then if condition else else` evaluate the condition, then exactly one branch. They bind less tightly than `or`; `a if c1 else b if c2 else c` is `a if c1 else (b if c2 else c)`. Comprehension `if` filters are unrelated (`or_test`, not a ternary). Statement `if`/`elif`/`else` is unchanged.
 
 ## Control flow
 
-- `if` / `elif` / `else`
+- `if` / `elif` / `else` (statements). Value-level `then if cond else else` is an expression (D-0040).
 - `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings). `for a, b in pairs:` unpacks each item (D-0038).
 - Assignment: `NAME = expr`, index/attribute stores, augmented assignment on names/index/attributes (`name += expr`, `L[i] += expr`), and fixed-count unpacking `a, b = seq` (list, tuple, or string). Assignment RHS may be an unparenthesized expression list (`a, b = 1, 2`). Starred and nested unpacking are not supported.
 - List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.

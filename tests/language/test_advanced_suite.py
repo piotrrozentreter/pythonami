@@ -75,4 +75,11 @@ print(max(-2, 3))
 print(bool(None))
 print(int(True))
 
+print("=== 8. Conditional expressions ===")
+print("yes" if 1 else "no")
+print("yes" if 0 else "no")
+print("a" if 0 else "b" if 1 else "c")
+print(1 or 0 if 0 else 2)
+print([n if n else -1 for n in range(3)])
+
 print("=== Advanced Suite Complete ===")

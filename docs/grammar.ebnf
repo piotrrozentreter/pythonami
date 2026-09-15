@@ -14,6 +14,8 @@ comp_op          ::= "<" | ">" | "==" | ">=" | "<=" | "!="
 ```
 
 ```ebnf
+expression       ::= or_test ["if" or_test "else" expression]
+or_test          ::= and_test ("or" and_test)*
 assignment       ::= target_list "=" expression_list
 target_list      ::= NAME ("," NAME)* [","]
                    | "(" target_list ")"
@@ -21,6 +23,10 @@ expression_list  ::= expression ("," expression)* [","]
 for_statement    ::= "for" target_list "in" expression ":" suite
                      [ "else" ":" suite ]
 ```
+
+Conditional expressions bind less tightly than `or`. Else-chains are
+right-associative (`a if c1 else b if c2 else c`). `lambda` is not part of
+this grammar, so `expression` is the top of the Pratt/`or` ladder (D-0040).
 
 Unparenthesized tuples remain invalid in other expression positions
 (`return a, b` is still a syntax error; D-0015).
@@ -33,9 +39,9 @@ dict_display     ::= "{" "}" | "{" (key_datum_list | dict_comprehension) "}"
 comprehension    ::= expression comp_for
 dict_comprehension ::= expression ":" expression comp_for
 
-comp_for         ::= "for" NAME "in" expression [comp_iter]
+comp_for         ::= "for" NAME "in" or_test [comp_iter]
 comp_iter        ::= comp_for | comp_if
-comp_if          ::= "if" expression [comp_iter]
+comp_if          ::= "if" or_test [comp_iter]
 ```
 
 `{x for x in it}` is a set comprehension; `{k: v for k in it}` is a dict

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Conditional expressions: `then if condition else else` (`PY68_AST_IF_EXP`).
+  Evaluates the condition, then exactly one branch. Lower precedence than
+  `or`/`and`/comparisons; else-chains are right-associative
+  (`a if c1 else b if c2 else c`). Compiles to `JUMP_IF_FALSE` / `JUMP`
+  (D-0040). Comprehension `for`/`if` clauses stay `or_test` filters.
+  Statement `if`/`elif`/`else` is unchanged.
+
 - Fixed-count unpacking / multiple assignment: `a, b = (1, 2)`, `a, b = [1, 2]`,
   `a, b = 1, 2`, `for a, b in pairs:`, and string unpack `a, b = "ab"`.
   `OP_UNPACK` (0x0F). Length mismatch is `ValueError`; non-sequence is

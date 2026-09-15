@@ -1152,6 +1152,30 @@ static Py68Status py68_compile_expression(Py68Allocator *allocator,
         default: return PY68_STATUS_SOURCE_ERROR;
         }
     }
+    case PY68_AST_IF_EXP: {
+        Py68U32 false_operand;
+        Py68U32 end_operand;
+        status = py68_compile_expression(allocator, source,
+                                         node->as.if_exp.condition, code,
+                                         error, analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_emit_jump(allocator, code, OP_JUMP_IF_FALSE,
+                                &false_operand);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_compile_expression(allocator, source,
+                                         node->as.if_exp.body, code, error,
+                                         analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_emit_jump(allocator, code, OP_JUMP, &end_operand);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_patch_jump(code, false_operand, code->bytecode_length);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_compile_expression(allocator, source,
+                                         node->as.if_exp.else_body, code,
+                                         error, analysis, function);
+        if (status != PY68_STATUS_OK) return status;
+        return py68_patch_jump(code, end_operand, code->bytecode_length);
+    }
     case PY68_AST_LIST:
         element_count = node->as.list_literal.elements.count;
         for (index = 0; index < element_count; ++index) {

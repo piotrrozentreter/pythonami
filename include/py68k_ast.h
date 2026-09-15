@@ -35,6 +35,7 @@ typedef enum Py68AstKind {
     PY68_AST_NAME,
     PY68_AST_UNARY,
     PY68_AST_BINARY,
+    PY68_AST_IF_EXP,
     PY68_AST_CALL,
     PY68_AST_INDEX,
     PY68_AST_SLICE,
@@ -103,6 +104,8 @@ struct Py68AstNode {
         struct { Py68U16 operator_kind; Py68AstNode *operand; } unary;
         struct { Py68U16 operator_kind; Py68AstNode *left;
                  Py68AstNode *right; } binary;
+        struct { Py68AstNode *body; Py68AstNode *condition;
+                 Py68AstNode *else_body; } if_exp;
         struct { Py68AstNode *callee; Py68AstList arguments; } call;
         struct { Py68AstNode *container; Py68AstNode *index; } index;
         struct { Py68AstNode *container; Py68AstNode *start;

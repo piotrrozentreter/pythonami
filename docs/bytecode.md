@@ -17,6 +17,8 @@ Identity and membership comparison opcodes (new numbers; existing opcodes unchan
 - `OP_IS` (0x16), `OP_IS_NOT` (0x17) — identity; tagged immediates compare type+payload, heap objects compare pointers (D-0037)
 - `OP_CONTAINS` (0x1E), `OP_NOT_CONTAINS` (0x1F) — membership (D-0036)
 
+Conditional expressions reuse existing jumps: evaluate the condition, `OP_JUMP_IF_FALSE` to the else branch, emit the then-expr, `OP_JUMP` to the join point, then the else-expr. Both branches leave one value (D-0040).
+
 Unpacking (new number; existing opcodes unchanged):
 
 - `OP_UNPACK` (0x0F) — `u16` count; pop one list/tuple/string, push `count` items right-to-left (first item TOS). Stack effect is `count - 1` (D-0038).

@@ -242,6 +242,171 @@ int main(void)
     }
 
     {
+        const char *ifexp_text = "1 if 0 else 2";
+        const char *nested_text = "a if c1 else b if c2 else c";
+        const char *or_text = "a or b if c else d";
+        const char *missing_else = "1 if 0";
+        const char *comp_filter = "[x for x in items if x]";
+        const char *comp_elt = "[x if x else 0 for x in items]";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "ifexp.py",
+            (const Py68U8 *)ifexp_text, (Py68U32)strlen(ifexp_text)) ==
+            PY68_STATUS_OK, "conditional-expression source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "conditional expression tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "1 if 0 else 2 parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_IF_EXP &&
+                        node->as.if_exp.body != NULL &&
+                        node->as.if_exp.body->kind == PY68_AST_INTEGER &&
+                        node->as.if_exp.body->as.integer_literal.value == 1 &&
+                        node->as.if_exp.condition != NULL &&
+                        node->as.if_exp.condition->kind == PY68_AST_INTEGER &&
+                        node->as.if_exp.condition->as.integer_literal.value ==
+                            0 &&
+                        node->as.if_exp.else_body != NULL &&
+                        node->as.if_exp.else_body->kind == PY68_AST_INTEGER &&
+                        node->as.if_exp.else_body->as.integer_literal.value ==
+                            2,
+                        "ternary stores then/condition/else");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "conditional parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "nest.py",
+            (const Py68U8 *)nested_text, (Py68U32)strlen(nested_text)) ==
+            PY68_STATUS_OK, "nested-ternary source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "nested ternary tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "nested ternary parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_IF_EXP &&
+                        node->as.if_exp.else_body != NULL &&
+                        node->as.if_exp.else_body->kind == PY68_AST_IF_EXP,
+                        "a if c1 else b if c2 else c is right-associative");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "nested ternary parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "orif.py",
+            (const Py68U8 *)or_text, (Py68U32)strlen(or_text)) ==
+            PY68_STATUS_OK, "or-ternary source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "or-ternary tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "a or b if c else d parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_IF_EXP &&
+                        node->as.if_exp.body != NULL &&
+                        node->as.if_exp.body->kind == PY68_AST_BINARY &&
+                        node->as.if_exp.body->as.binary.operator_kind ==
+                            PY68_TOKEN_OR,
+                        "or binds tighter than conditional expression");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "or-ternary parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source,
+            "noelse.py", (const Py68U8 *)missing_else,
+            (Py68U32)strlen(missing_else)) == PY68_STATUS_OK,
+            "missing-else source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "missing-else tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) != PY68_STATUS_OK,
+                        "1 if 0 without else is rejected");
+        passed &= check(strstr(error.message, "expected else") != NULL,
+                        "missing-else diagnostic mentions else");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "missing-else parser releases all allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source,
+            "compif.py", (const Py68U8 *)comp_filter,
+            (Py68U32)strlen(comp_filter)) == PY68_STATUS_OK,
+            "comprehension-filter source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "comprehension-filter tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "comprehension if filter still parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_LIST_COMP &&
+                        node->as.comprehension.generators.count == 1 &&
+                        node->as.comprehension.generators.items[0]
+                            ->as.comprehension_for.ifs.count == 1,
+                        "comprehension if remains a filter, not a ternary");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "comprehension-filter parser releases allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source,
+            "compelt.py", (const Py68U8 *)comp_elt,
+            (Py68U32)strlen(comp_elt)) == PY68_STATUS_OK,
+            "comprehension-element ternary source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "comprehension-element ternary tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "ternary comprehension element parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_LIST_COMP &&
+                        node->as.comprehension.elt != NULL &&
+                        node->as.comprehension.elt->kind == PY68_AST_IF_EXP,
+                        "elt may be a conditional expression");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "comprehension-element ternary releases allocations");
+    }
+
+    {
         const char *gen_text = "(x for x in items)";
         py68_allocator_initialize(&allocator);
         passed &= check(py68_source_initialize(&allocator, &source, "gen.py",

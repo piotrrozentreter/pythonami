@@ -252,6 +252,15 @@ static Py68Status py68_collect_expression(Py68Allocator *allocator,
         if (status != PY68_STATUS_OK) return status;
         return py68_collect_expression(allocator, source, function,
                                        node->as.binary.right);
+    case PY68_AST_IF_EXP:
+        status = py68_collect_expression(allocator, source, function,
+                                         node->as.if_exp.body);
+        if (status != PY68_STATUS_OK) return status;
+        status = py68_collect_expression(allocator, source, function,
+                                         node->as.if_exp.condition);
+        if (status != PY68_STATUS_OK) return status;
+        return py68_collect_expression(allocator, source, function,
+                                       node->as.if_exp.else_body);
     case PY68_AST_CALL:
         status = py68_collect_expression(allocator, source, function,
                                          node->as.call.callee);

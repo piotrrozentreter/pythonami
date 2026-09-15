@@ -689,6 +689,70 @@ int main(void)
         passed &= runtime.allocator.stats.current_bytes == 0;
     }
 
+    {
+        const char *ifexp_text =
+            "x = 1 if 0 else 2\n"
+            "y = 3 if 1 else 4\n"
+            "z = 5 if 0 else 6 if 0 else 7\n"
+            "seen = [0]\n"
+            "def mark(n):\n"
+            "    seen[0] = seen[0] + 1\n"
+            "    return n\n"
+            "chosen = mark(10) if 1 else mark(20)\n";
+        Py68Value flag;
+        Py68U32 bytecode_index;
+        int saw_jump_if_false = 0;
+        passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+        py68_token_array_initialize(&tokens);
+        passed &= py68_source_initialize(&runtime.allocator, &source,
+            "ifexp_test.py", (const Py68U8 *)ifexp_text,
+            (Py68U32)strlen(ifexp_text)) == PY68_STATUS_OK;
+        passed &= py68_tokenize(&runtime.allocator, &source, &tokens,
+                                &error) == PY68_STATUS_OK;
+        py68_ast_arena_initialize(&arena, &runtime.allocator);
+        parser.expression.allocator = &runtime.allocator;
+        parser.expression.source = &source;
+        parser.expression.tokens = &tokens;
+        parser.expression.position = 0;
+        parser.expression.arena = &arena;
+        parser.expression.error = &error;
+        parser.inside_function = 0;
+        parser.loop_depth = 0;
+        passed &= py68_parse_module(&parser, &module) == PY68_STATUS_OK;
+        passed &= py68_compile_module(&runtime.allocator, &source, module,
+                                      &code, &error) == PY68_STATUS_OK;
+        for (bytecode_index = 0; bytecode_index < code.bytecode_length;
+             ++bytecode_index) {
+            if (code.bytecode[bytecode_index] == OP_JUMP_IF_FALSE)
+                saw_jump_if_false = 1;
+        }
+        passed &= saw_jump_if_false;
+        passed &= py68_verify_code(&code, &error) == PY68_STATUS_OK;
+        passed &= py68_vm_execute(&runtime, &code) == PY68_STATUS_OK;
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"x", 1,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_INT && flag.as.integer == 2;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"y", 1,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_INT && flag.as.integer == 3;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"z", 1,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_INT && flag.as.integer == 7;
+        py68_value_release(&runtime, flag);
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"chosen", 6,
+                                       &flag) == PY68_STATUS_OK;
+        passed &= flag.type == PY68_VALUE_INT && flag.as.integer == 10;
+        py68_value_release(&runtime, flag);
+        py68_code_destroy(&runtime.allocator, &code);
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&runtime.allocator, &tokens);
+        py68_source_destroy(&runtime.allocator, &source);
+        py68_runtime_shutdown(&runtime);
+        passed &= runtime.allocator.stats.current_bytes == 0;
+    }
+
     if (passed) { puts("PASS: compiler tests"); return 0; }
     return 1;
 }

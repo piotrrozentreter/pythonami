@@ -182,6 +182,7 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_logic_advanced.py tests/fixtures/language/operators/test_logic_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_membership.py tests/fixtures/language/operators/test_membership.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_identity.py tests/fixtures/language/operators/test_identity.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/operators/test_conditional.py tests/fixtures/language/operators/test_conditional.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/assignment/test_unpack.py tests/fixtures/language/assignment/test_unpack.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/control_flow/test_control_advanced.py tests/fixtures/language/control_flow/test_control_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/functions/test_functions_advanced.py tests/fixtures/language/functions/test_functions_advanced.expected.txt
