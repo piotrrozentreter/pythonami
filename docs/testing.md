@@ -8,6 +8,8 @@ The opt-in `make -f Makefile.host stdio-redirection-test` check validates separa
 
 The opt-in `make -f Makefile.host check-mode-test` check validates `--check`: valid source is compiled and verified without executing script output, while invalid source produces the normal syntax diagnostic and status 10.
 
+Process coverage now includes repeated `os.system` launches with native exit-status checks, repeated `os.popen` captures, captured output content, invalid argument handling, embedded-NUL rejection, and allocator cleanup in `tests/unit/test_process.c`. The cross-target process fixtures also verify repeated command execution and pipe output capture under `tests/language/process/`.
+
 `tests/unit/test_compiler.c` covers `break`/`continue` bytecode generation and jump patching: `break` inside a `while` body, `continue` inside a `for` body (verified via executed VM state), and `while`-`else` compilation for both the normal-completion path (else runs) and the `break`-exits-early path (else is skipped), each checked with `allocator.stats.current_bytes == 0` after teardown. It also covers source-level compilation and VM execution of `def` functions: parameter binding, recursion (`fibonacci`), local-variable shadowing of globals, `UNBOUND` local read errors, rejection of nested `def` statements, and rejection of duplicate parameter names.
 
 ## Language-level advanced fixtures

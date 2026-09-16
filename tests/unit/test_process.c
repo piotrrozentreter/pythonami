@@ -37,6 +37,54 @@ int main(void)
     py68_object_release(&runtime, &command->base);
     py68_error_clear(&runtime.error);
 
+    passed &= py68_string_new_copy(&runtime, "exit 0", 6, &command) ==
+              PY68_STATUS_OK;
+    argument = py68_value_from_object(&command->base);
+    result = py68_value_none();
+    passed &= py68_builtin_system(&runtime, 1, &argument, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_INT;
+#if defined(_WIN32)
+    passed &= result.as.integer == 0;
+#else
+    passed &= WIFEXITED(result.as.integer) && WEXITSTATUS(result.as.integer) == 0;
+#endif
+    py68_object_release(&runtime, &command->base);
+
+    passed &= py68_string_new_copy(&runtime, "echo PY68K_PIPE_FIRST",
+                                   sizeof("echo PY68K_PIPE_FIRST") - 1,
+                                   &command) == PY68_STATUS_OK;
+    argument = py68_value_from_object(&command->base);
+    result = py68_value_none();
+    passed &= py68_builtin_popen(&runtime, 1, &argument, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_OBJECT &&
+              result.as.object->type == PY68_OBJECT_STRING;
+    if (result.type == PY68_VALUE_OBJECT) {
+        Py68String *captured = (Py68String *)result.as.object;
+        passed &= captured->length > 0 &&
+                  strstr((const char *)captured->data, "PY68K_PIPE_FIRST") != NULL;
+        py68_object_release(&runtime, result.as.object);
+    }
+    py68_object_release(&runtime, &command->base);
+
+    passed &= py68_string_new_copy(&runtime, "echo PY68K_PIPE_REPEAT",
+                                   sizeof("echo PY68K_PIPE_REPEAT") - 1,
+                                   &command) == PY68_STATUS_OK;
+    argument = py68_value_from_object(&command->base);
+    result = py68_value_none();
+    passed &= py68_builtin_popen(&runtime, 1, &argument, &result) ==
+              PY68_STATUS_OK;
+    passed &= result.type == PY68_VALUE_OBJECT &&
+              result.as.object->type == PY68_OBJECT_STRING;
+    if (result.type == PY68_VALUE_OBJECT) {
+        Py68String *captured = (Py68String *)result.as.object;
+        passed &= captured->length > 0 &&
+                  strstr((const char *)captured->data, "PY68K_PIPE_REPEAT") != NULL;
+        py68_object_release(&runtime, result.as.object);
+    }
+    py68_object_release(&runtime, &command->base);
+
     argument = py68_value_int(7);
     passed &= py68_builtin_system(&runtime, 1, &argument, &result) !=
               PY68_STATUS_OK;

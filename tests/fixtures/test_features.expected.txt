@@ -163,4 +163,40 @@ c
 1
 [0, 1, -2, 3]
 2
+=== literals ===
+hi
+
+{ok}
+a{b}c
+=== expressions ===
+x=42
+a3b
+Hello, Ada!
+=== conversions ===
+'A\nB'
+'A\nB'
+42
+=== format specs ===
+0042
+7
+=== list iter ===
+1
+2
+3
+1
+99
+=== tuple and string ===
+7
+8
+-1
+a
+b
+=== for over iter ===
+60
+=== double iter identity ===
+True
+1
+=== errors ===
+1
+1
 === Feature Test Complete ===
