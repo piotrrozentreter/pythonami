@@ -161,35 +161,36 @@
 	Python 3 subset. Opcode numbers 0x1E/0x1F are now assigned; changing them
 	requires a bytecode-format version bump.
 
-## D-0034: Temporary-file output capture for `os.popen`
+## D-0034: Platform-specific output capture for `os.popen`
 
 - Context: D-0032 deferred output capture pending a native request/result
 	contract. Users need to read a command's output into a variable (e.g. `dir`
 	or `list`) instead of only seeing it on the console.
-- Decision: Add `py68_platform_system_capture`, redirecting the command's
-	combined stdout/stderr to a per-process temporary file (host: `TEMP`/`TMP`/
-	`TMPDIR` or `.`, suffixed with the process id; Amiga: `T:`, suffixed with the
-	task pointer), then reading the file back into a `PY68_MEM_TEMP` buffer and
-	deleting it. Expose this as `os.popen(command)`, returning the captured text
-	directly as a `str` rather than a file object. Validation matches
-	`os.system`: reject non-string, empty, or NUL-containing commands with
-	`TypeError`/`ValueError`. The Amiga backend uses `SystemTagList` with a
-	`SYS_Output` tag pointing at the temp file's `BPTR`, which DOS closes on
-	return; no AmigaDOS pipe device or asynchronous execution is used.
-	The return code is discarded by `os.popen`; scripts needing both text and
-	status should call `os.system` separately for now.
+- Decision: Add `py68_platform_system_capture` and expose it as
+	`os.popen(command)`, returning captured stdout directly as a `str` rather
+	than a file object. Validation matches `os.system`: reject non-string,
+	empty, or NUL-containing commands with `TypeError`/`ValueError`. The host
+	backend redirects combined stdout/stderr to a per-process temporary file.
+	The Amiga backend creates a unique `PIPE:` name from the current task and a
+	sequence number, launches `command >PIPE:name` asynchronously through the
+	user shell, then opens the reader endpoint and buffers until EOF. Because
+	async `SystemTagList` closes its streams, the child receives a disposable
+	`NIL:` base output instead of PythonAmi's `Output()` handle; shell
+	redirection replaces it for command stdout. `SYS_Error` is not used because
+	it is V50-only and PythonAmi supports V36+. Error output behavior therefore
+	depends on the active shell and DOS version. The Amiga async launch cannot
+	provide a portable child exit status, and `os.popen` discards the platform
+	return code.
 - Alternatives considered: A CPython-compatible `os.popen` returning a
-	file-like object; AmigaDOS `PIPE:` device streaming concurrently with the
-	child process. Both need process-handle lifetime and (for `PIPE:`)
-	asynchronous `SYS_Asynch` execution with polling, which the platform layer
-	does not yet support and which risks deadlock without a second I/O actor.
-	Temporary-file capture is synchronous, bounded, and reuses the existing
-	file-read primitives.
+	file-like object; synchronous `SystemTagList` redirection to `T:`. The
+	temporary-file implementation failed on the target when reopening/reading
+	the redirected process output. Returning a live file object would require
+	process lifetime and close semantics that the platform API does not expose.
 - Consequences: Scripts can capture command output into a variable on both
-	host and Amiga. `subprocess`, argument-list commands, per-child `cwd`/`env`,
-	timeouts, and `Popen` remain unimplemented. A future increment must add a
-	combined text-and-return-code result (e.g. a small record type or
-	`subprocess.run`) before claiming closer CPython compatibility.
+	host and Amiga when a `PIPE:` handler is mounted. Amiga capture is bounded
+	to 1 MiB including the terminator and waits for producer EOF; a child that
+	never closes stdout can block the caller. `subprocess`, argument-list
+	commands, per-child `cwd`/`env`, timeouts, and `Popen` remain unimplemented.
 ## D-0033: Check-only CLI mode
 
 - Context: Amiga deployment needs a way to validate a script without running

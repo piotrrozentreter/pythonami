@@ -69,6 +69,31 @@ temporary output after the check:
 delete T:py68k-system-out
 ```
 
+## DOS command output-capture fixture
+
+This test requires a mounted `PIPE:` handler. Run:
+
+```text
+pythonami tests/language/process/test_popen.py >T:py68k-popen-out
+echo $RC
+type T:py68k-popen-out
+```
+
+Expected `$RC` is `0`, and `T:py68k-popen-out` contains:
+
+```text
+PY68K_POPEN_OK
+type-error
+```
+
+The command's stdout travels through a unique `PIPE:` object. Error output is
+shell/OS-version dependent because `SYS_Error` is not available before V50.
+Remove the fixture output:
+
+```text
+delete T:py68k-popen-out
+```
+
 ## LoadSeg `load_library` fixture
 
 Build the interpreter and sample plugin on a machine with vbcc/vasm/vlink:

@@ -41,11 +41,10 @@ Py68Status py68_platform_sleep(Py68Runtime *runtime, Py68U32 seconds,
 Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
                                  Py68I32 *return_code);
 /*
- * Execute a synchronous DOS command with its combined stdout/stderr
- * redirected to a temporary file, then read the file back into a
- * PY68_MEM_TEMP buffer of *length bytes plus a NUL terminator.
+ * Execute a command and capture stdout into a PY68_MEM_TEMP buffer of
+ * *length bytes plus a NUL terminator. The call returns after capture EOF.
  * The caller frees *data with py68_free(..., PY68_MEM_TEMP, *data,
- * *length + 1). The temporary file is removed before returning.
+ * *length + 1).
  */
 Py68Status py68_platform_system_capture(Py68Runtime *runtime,
                                         const char *command,

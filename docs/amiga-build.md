@@ -61,6 +61,32 @@ AmigaDOS console output uses `Output()` for standard output and a V36-safe error
 
 Note: Amiga Shell `2>` stderr redirection and `SelectError` are also V47-era. On older shells, diagnostics and `--debug` statistics typically appear on the same console stream as script output unless `pr_CES` was already set by the caller.
 
+## Command output capture
+
+`os.popen(command)` requires a mounted `PIPE:` handler. PythonAmi starts the
+user-shell command asynchronously with stdout redirected to a unique pipe,
+then reads until the producer closes its endpoint. Error output behavior is
+shell/OS-version dependent because `SYS_Error` is unavailable before V50. The
+call is synchronous from the script's perspective and returns the complete
+captured stdout as a string; it does not expose the child return code.
+
+Run the Amiga fixture from the repository directory:
+
+```text
+pythonami tests/language/process/test_popen.py
+echo $RC
+```
+
+Expected output before the return code is:
+
+```text
+PY68K_POPEN_OK
+type-error
+```
+
+If the command reports that it cannot open or read the process pipeline,
+verify that `PIPE:` is mounted and usable by the active shell.
+
 ## Workbench startup
 
 The vbcc `+aos68k` configuration links its own `startup.o`, which handles the AmigaOS `WBenchMsg` handshake and normal process exit. Do not add the sibling assembler project's `wbstartup.s` to this `vc` link: that wrapper is for programs with a custom assembly entry point and would risk receiving or replying to the Workbench message twice. Rebuild `pythonami` before retesting a Workbench launch.
