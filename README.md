@@ -55,7 +55,7 @@ Executable name: `pythonami`
 - Builtin module `sys` (`path`, `modules`, `argv`)
 
 ### Builtins (core)
-`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `exit`
+`print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `exit`, `sum`
 
 `input([prompt])` writes an optional prompt (no newline), flushes stdout, reads one line from the console, and returns it without the trailing newline.
 

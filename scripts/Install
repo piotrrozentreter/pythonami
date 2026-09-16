@@ -1,0 +1,64 @@
+; Python68k pythonami Install
+; AmigaDOS shell script — run from the unpacked LHA directory:
+;   execute Install
+; or double-click Install after Protect Install +s
+;
+; Installs:
+;   SYS:pythonami/pythonami   — Hunk executable
+;   SYS:pythonami/lib/        — stdlib (.py modules)
+;
+; Session setup (current boot):
+;   Assign pythonami_lib: SYS:pythonami/lib
+;   Path SYS:pythonami ADD
+;
+; Permanence: append the same Assign/Path lines to S:User-Startup.
+
+echo "pythonami Install"
+echo "-----------------"
+
+IF NOT EXISTS pythonami
+  echo "Error: pythonami not found in the current directory."
+  echo "Unpack the LHA, CD into that drawer, then run Install again."
+  QUIT 20
+ENDIF
+
+IF NOT EXISTS lib
+  echo "Error: lib drawer not found in the current directory."
+  echo "The package must contain lib/random.py and lib/randgen.py."
+  QUIT 20
+ENDIF
+
+echo "Creating SYS:pythonami"
+IF NOT EXISTS SYS:pythonami
+  makedir SYS:pythonami
+ENDIF
+
+echo "Copying pythonami -> SYS:pythonami/"
+copy pythonami SYS:pythonami/
+
+echo "Copying lib -> SYS:pythonami/lib"
+copy lib SYS:pythonami/lib ALL
+
+echo "Assign pythonami_lib: SYS:pythonami/lib"
+Assign pythonami_lib: SYS:pythonami/lib
+
+echo "Path SYS:pythonami ADD"
+Path SYS:pythonami ADD
+
+echo ""
+echo "Installation complete for this session."
+echo ""
+echo "For permanence, add these lines to S:User-Startup:"
+echo "  Assign pythonami_lib: SYS:pythonami/lib"
+echo "  Path SYS:pythonami ADD"
+echo ""
+echo "Then you can run from any Shell:"
+echo "  pythonami script.py"
+echo ""
+echo "Stdlib import (lib is NOT searched automatically yet)."
+echo "In your script:"
+echo "  import sys"
+echo "  sys.path.append('pythonami_lib:')"
+echo "  import random"
+echo ""
+echo "Or: sys.path.append('SYS:pythonami/lib')"

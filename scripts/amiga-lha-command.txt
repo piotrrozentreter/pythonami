@@ -1,0 +1,8 @@
+; Build the pythonami release LHA on Amiga.
+
+; Zip the folder and its content
+; lha a -a -r python68k.lha python68k
+
+; End-user extract (from the drawer where the .lha was copied):
+; lha x python68k.lha
+; then: execute Install
