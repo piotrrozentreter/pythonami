@@ -139,7 +139,7 @@
 - [x] -c execution
 - [ ] argv support
 - [x] Synchronous `os.system` command execution
-- [x] `os.popen` temporary-file output capture
+- [ ] `os.popen` `PIPE:` output capture verified on Amiga
 - [x] File APIs
 - [x] Environment APIs
 - [x] Exit-code mapping

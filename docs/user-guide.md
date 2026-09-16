@@ -108,6 +108,83 @@ functions, imports, process calls, and the Amiga-only extension loader. The
 user-facing command list in this guide is limited to the `pythonami` CLI and
 repository build/test commands.
 
+## Language syntax implemented
+
+This is a user-facing summary; the authoritative grammar and semantics are in
+[`language-reference.md`](language-reference.md) and `docs/grammar.ebnf`.
+
+- Values: `int`, `bool`, `None`, binary32 `float`, 8-bit `str`, `list`,
+  `tuple`, `dict`, `set`.
+- Operators: arithmetic `+ - * / // %`, comparisons `== != < <= > >=`,
+  identity `is` / `is not`, membership `in` / `not in`, boolean `and` / `or` /
+  `not`, conditional expressions `a if cond else b`.
+- Statements: `if` / `elif` / `else`, `while … else`, `for … in iterable …
+  else`, assignment and augmented assignment, fixed-count unpacking
+  (`a, b = seq`), `break` / `continue` / `return` / `pass`, `try` / `except`
+  / `finally`, `raise`, `with EXPR as NAME` (file handles only), `def`
+  (no nested `def`, no closures), list/set/dict comprehensions.
+- Imports: `import name[ as alias]`, `from name import a[, b]`.
+- Restricted f-strings: `f"...{expr!s|r|a:spec}..."`.
+
+## Builtin commands
+
+Builtins are called directly, without `import`, except for the `os` and `sys`
+modules noted below. Full argument semantics are in
+[`language-reference.md`](language-reference.md#builtins).
+
+| Group | Builtins | Notes |
+| --- | --- | --- |
+| Output / input | `print`, `input` | `input([prompt])` returns one line without the trailing newline. |
+| Collections | `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `sorted`, `iter`, `next` | `iter`/`next` share the `for`-loop cursor and raise `StopIteration`. |
+| Conversion / inspection | `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `sum`, `ord`, `chr`, `repr`, `ascii`, `format`, `maketrans`, `all`, `any` | `ord`/`chr` operate on one byte (`0..255`); `format` supports a minimal int subset. |
+| File I/O | `fopen`, `fclose`, `fread`, `freadline`, `fwrite`, `exists`, `remove`, `rename` | `fopen(path, mode)` accepts `r`/`w`/`a`/`rb`/`wb`/`ab`; file handles support `with fopen(...) as f:`. |
+| Environment (host) | `getenv`, `setenv`, `unsetenv` | Host process environment only. |
+| Amiga assigns | `assign_get`, `assign_add`, `assign_remove` | AmigaDOS logical assigns; Amiga build only. |
+| Amiga extensions | `load_library(path)` | Loads a `*.py68k` LoadSeg plugin; Amiga build only. See [`amiga-extensions.md`](amiga-extensions.md). |
+| Time | `time`, `sleep`, `ctime`, `localtime`, `strftime`, `perf_counter`, `time_tick` | `localtime` returns a `struct_time`-like object with `tm_*` attributes. |
+| Break / scheduling | `check_break`, `yield_cpu`, `set_poll_interval`, `get_poll_interval` | Control the VM's backward-branch break check. |
+| Process (via `import os`) | `os.system(command)`, `os.popen(command)` | `os.system` runs synchronously and returns the platform status; `os.popen` returns captured combined stdout/stderr text (not a file object). Both reject empty or NUL-containing commands. |
+| Runtime | `exit([code])` | Exit code is clamped to `0..255`. |
+
+`sys` is a builtin module (no separate import list needed beyond `import sys`)
+exposing `sys.path`, `sys.modules`, and `sys.argv`.
+
+## Example: file I/O and an external command
+
+The following script was verified with `--check` (compiles, no output) and
+then executed on the host build before being added to this guide:
+
+```python
+import os
+
+f = fopen("RAM_TEST.txt", "w")
+fwrite(f, "hello from user guide\n")
+fclose(f)
+
+f = fopen("RAM_TEST.txt", "r")
+line = freadline(f)
+fclose(f)
+print(line)
+
+status = os.system("echo user-guide-check")
+print(status)
+
+remove("RAM_TEST.txt")
+```
+
+Expected output on the host build:
+
+```text
+hello from user guide
+
+user-guide-check
+0
+```
+
+The blank line after the file contents is the newline written by `fwrite` and
+echoed by `print`; `freadline` does not strip it. On Amiga, replace
+`"RAM_TEST.txt"` with an AmigaDOS path such as `"RAM:test.txt"`.
+
 ## Platform notes
 
 Host file APIs use stdio and host environment variables. Amiga builds use
@@ -115,3 +192,47 @@ AmigaDOS file handles and assigns, and only Amiga provides `load_library()` for
 `*.py68k` extensions. `os.system(command)` runs synchronously and
 `os.popen(command)` returns captured combined output; subprocess handles,
 timeouts, and asynchronous process APIs are not supported.
+
+## Comparison with standard Python semantics
+
+Python68K intentionally implements a restricted subset of CPython. This
+summarizes the differences a Python programmer should expect; see
+[`compatibility.md`](compatibility.md) for the full rationale and design
+decisions.
+
+| Area | Standard Python | Python68K |
+| --- | --- | --- |
+| Numeric types | Arbitrary-precision `int`, `float` (double), `complex` | Checked 32-bit `int` (raises `OverflowError`), binary32 `float` (no NaN/Inf), no `complex` |
+| Strings | Unicode `str`, separate `bytes`/`bytearray` | 8-bit `str` only; no `bytes`, `bytearray`, or `encode`/`decode` |
+| Classes | `class`, instances, inheritance, `__init__`, dunder protocol | Not implemented; only a fixed per-type method table |
+| Functions | Closures, nested `def`, `*args`/`**kwargs`, default/keyword args | `def` without nesting or closures; methods are positional-only |
+| Iteration | Generators, generator expressions, `enumerate`, `reversed` | List/set/dict comprehensions only; `iter`/`next` over the same cursor as `for` |
+| Unpacking | Starred (`a, *rest`) and nested (`(a, b), c = …`) targets | Fixed-count unpacking of list/tuple/string only |
+| Imports | Packages, relative imports, `from x import *` | Single-level `.py` modules, explicit names only |
+| File I/O | `open()`, file objects with `.read()`/`.write()`/`seek()` | `fopen`/`fread`/`freadline`/`fwrite`/`fclose` procedural API; no `seek` |
+| Process control | `subprocess.run`/`Popen`, async process APIs | Synchronous `os.system` and `os.popen` (captured text only) |
+| Error handling | Full exception class hierarchy, `except (A, B)` | Flat catchable kind set (`TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `IOError`, `RecursionError`, `ImportError`, `StopIteration`); matching by kind name, not hierarchy |
+| Dynamic execution | `eval`, `exec`, `compile` | Not implemented |
+| Pattern matching | `match` / `case` | Not implemented |
+
+## Missing areas versus CPython
+
+The following are not implemented in any Language Level through 0.6 and have
+no scheduled release; treat scripts depending on them as unsupported until
+`language-reference.md` records otherwise:
+
+- Classes, instances, and inheritance.
+- Unicode text and the `bytes`/`bytearray` types.
+- Generator expressions, closures, and nested `def`.
+- `async`/`await` and the `match` statement.
+- Starred and nested unpacking (`a, *rest`; `(a, b), c = …`; `*args`/`**kwargs`).
+- Relative imports, `from x import *`, and multi-level packages.
+- File `seek`, encodings, and method-style `open()`/`file.read()`.
+- Full `str.format`/`format_map`, and raw/bytes/nested f-string prefixes.
+- `eval`, `exec`, `compile`.
+- `enumerate`, `reversed`, and `iter(callable, sentinel)`.
+- `subprocess`-style process control (argument lists, timeouts, async, per-child environment).
+
+This list is sourced from the "Still not implemented" section of
+[`language-reference.md`](language-reference.md); update both places together
+when an item is implemented and evidenced by tests.

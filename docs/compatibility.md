@@ -15,8 +15,10 @@ and is unavailable on the host build. See `docs/amiga-extensions.md`.
 Command execution is currently limited to synchronous `os.system(command)` and
 `os.popen(command)`. Both require a non-empty string without an embedded NUL.
 `os.system` executes with inherited standard handles and returns the platform
-command status directly. `os.popen` redirects combined stdout/stderr to a
-temporary file and returns the captured text as a `str` (not a file object, and
-the return code is discarded), on both host and Amiga (D-0034). `subprocess`,
+command status directly. `os.popen` returns captured stdout as a `str`, not a
+file object, and discards the return code. The host uses a temporary file and
+combines stderr; Amiga uses an asynchronously produced `PIPE:` stream and
+captures stdout only (D-0034). Amiga error output is shell/OS-version dependent
+because the separate `SYS_Error` process tag is V50-only. `subprocess`,
 argument-list commands, per-child directories/environments, timeouts, and
-`Popen` are not implemented yet.
+`Popen` are not implemented.

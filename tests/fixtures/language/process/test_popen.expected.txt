@@ -1,2 +1,3 @@
 PY68K_POPEN_OK
+PY68K_POPEN_SECOND
 type-error

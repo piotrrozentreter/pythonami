@@ -9,6 +9,8 @@
 #include <dos/dosextens.h>
 #include <dos/dostags.h>
 
+#include <string.h>
+
 Py68Status py68_platform_initialize(Py68Runtime *runtime)
 {
     runtime->trace_enabled = 0;
@@ -166,18 +168,32 @@ Py68Status py68_platform_system(Py68Runtime *runtime, const char *command,
     return PY68_STATUS_OK;
 }
 
-/* Build "T:py68k_<hex task pointer>.tmp" without pulling in libc stdio. */
-static void py68_amiga_temp_path(char *buffer, ULONG value)
+static ULONG py68_amiga_pipe_sequence = 0;
+
+static int py68_amiga_append_hex(char *buffer, int position, ULONG value)
 {
     static const char hex[] = "0123456789abcdef";
-    static const char prefix[] = "T:py68k_";
-    static const char suffix[] = ".tmp";
-    int position = 0;
     int index;
-    for (index = 0; prefix[index] != '\0'; ++index) buffer[position++] = prefix[index];
     for (index = 7; index >= 0; --index)
         buffer[position++] = hex[(value >> (index * 4)) & 0xFUL];
-    for (index = 0; suffix[index] != '\0'; ++index) buffer[position++] = suffix[index];
+    return position;
+}
+
+static void py68_amiga_pipe_name(char *buffer)
+{
+    static const char prefix[] = "PIPE:py68k_";
+    ULONG sequence;
+    int position = 0;
+    int index;
+
+    sequence = ++py68_amiga_pipe_sequence;
+    if (sequence == 0) sequence = ++py68_amiga_pipe_sequence;
+    for (index = 0; prefix[index] != '\0'; ++index)
+        buffer[position++] = prefix[index];
+    position = py68_amiga_append_hex(
+        buffer, position, (ULONG)(APTR)FindTask(NULL));
+    buffer[position++] = '_';
+    position = py68_amiga_append_hex(buffer, position, sequence);
     buffer[position] = '\0';
 }
 
@@ -186,65 +202,127 @@ Py68Status py68_platform_system_capture(Py68Runtime *runtime,
                                         Py68I32 *return_code,
                                         Py68U8 **data, Py68U32 *length)
 {
-    char temp_path[32];
-    BPTR output_handle;
-    BPTR read_handle;
-    struct TagItem tags[2];
-    LONG status;
-    LONG file_size;
+    char pipe_name[40];
+    char *shell_command;
+    Py68U32 command_length;
+    Py68U32 shell_length;
+    BPTR shell_output;
+    BPTR pipe;
+    struct TagItem tags[5];
+    LONG launch_status;
     LONG read_count;
     Py68U8 *buffer;
+    Py68U32 capacity = 256;
+    Py68U32 used = 0;
 
     if (runtime == NULL || command == NULL || return_code == NULL ||
         data == NULL || length == NULL)
         return PY68_STATUS_INTERNAL_ERROR;
     *data = NULL;
     *length = 0;
-    py68_amiga_temp_path(temp_path, (ULONG)(APTR)FindTask(NULL));
-    output_handle = Open(temp_path, MODE_NEWFILE);
-    if (output_handle == 0) return PY68_STATUS_RUNTIME_ERROR;
-    /* SystemTagList takes ownership of SYS_Output and closes it for us. */
-    tags[0].ti_Tag = SYS_Output;
-    tags[0].ti_Data = (ULONG)output_handle;
-    tags[1].ti_Tag = TAG_DONE;
-    tags[1].ti_Data = 0;
-    status = SystemTagList((STRPTR)command, tags);
-    if (status == -1) {
-        DeleteFile(temp_path);
+    py68_amiga_pipe_name(pipe_name);
+    command_length = (Py68U32)strlen(command);
+    if (command_length > 0xFFFFFFFFUL - (Py68U32)strlen(pipe_name) - 3UL)
+        return PY68_STATUS_MEMORY_ERROR;
+    shell_length = command_length + (Py68U32)strlen(pipe_name) + 2UL;
+    shell_command = (char *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
+                                      shell_length + 1UL);
+    if (shell_command == NULL) return PY68_STATUS_MEMORY_ERROR;
+    memcpy(shell_command, command, command_length);
+    shell_command[command_length] = ' ';
+    shell_command[command_length + 1UL] = '>';
+    memcpy(shell_command + command_length + 2UL, pipe_name,
+           (Py68U32)strlen(pipe_name) + 1UL);
+
+        /* Async SystemTagList closes its input and output streams. */
+    shell_output = Open("NIL:", MODE_NEWFILE);
+    if (shell_output == 0) {
+        py68_free(&runtime->allocator, PY68_MEM_TEMP, shell_command,
+                  shell_length + 1UL);
         return PY68_STATUS_RUNTIME_ERROR;
     }
-    read_handle = Open(temp_path, MODE_OLDFILE);
-    if (read_handle == 0) {
-        DeleteFile(temp_path);
+    tags[0].ti_Tag = SYS_Asynch;
+    tags[0].ti_Data = TRUE;
+    tags[1].ti_Tag = SYS_UserShell;
+    tags[1].ti_Data = TRUE;
+    tags[2].ti_Tag = SYS_Input;
+    tags[2].ti_Data = 0;
+    tags[3].ti_Tag = SYS_Output;
+    tags[3].ti_Data = (ULONG)shell_output;
+    tags[4].ti_Tag = TAG_DONE;
+    tags[4].ti_Data = 0;
+    launch_status = SystemTagList((STRPTR)shell_command, tags);
+    py68_free(&runtime->allocator, PY68_MEM_TEMP, shell_command,
+              shell_length + 1UL);
+    if (launch_status == -1) {
+        Close(shell_output);
         return PY68_STATUS_RUNTIME_ERROR;
     }
-    Seek(read_handle, 0, OFFSET_END);
-    file_size = Seek(read_handle, 0, OFFSET_CURRENT);
-    Seek(read_handle, 0, OFFSET_BEGINNING);
-    if (file_size < 0) {
-        Close(read_handle);
-        DeleteFile(temp_path);
+
+    pipe = Open(pipe_name, MODE_OLDFILE);
+    if (pipe == 0)
         return PY68_STATUS_RUNTIME_ERROR;
-    }
     buffer = (Py68U8 *)py68_alloc(&runtime->allocator, PY68_MEM_TEMP,
-                                  (Py68U32)file_size + 1UL);
+                                  capacity);
     if (buffer == NULL) {
-        Close(read_handle);
-        DeleteFile(temp_path);
+        Close(pipe);
         return PY68_STATUS_MEMORY_ERROR;
     }
-    read_count = Read(read_handle, buffer, file_size);
-    Close(read_handle);
-    DeleteFile(temp_path);
-    if (read_count != file_size) {
-        py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
-                 (Py68U32)file_size + 1UL);
-        return PY68_STATUS_RUNTIME_ERROR;
+    for (;;) {
+        if (used + 1UL >= capacity) {
+            Py68U32 new_capacity = capacity * 2UL;
+            Py68U8 *replacement;
+            if (capacity == 1048576UL) {
+                UBYTE extra;
+                read_count = Read(pipe, &extra, 1);
+                if (read_count == 0) break;
+                py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
+                          capacity);
+                Close(pipe);
+                return read_count < 0 ? PY68_STATUS_RUNTIME_ERROR :
+                                        PY68_STATUS_MEMORY_ERROR;
+            }
+            if (new_capacity < capacity || new_capacity > 1048576UL) {
+                py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
+                          capacity);
+                Close(pipe);
+                return PY68_STATUS_MEMORY_ERROR;
+            }
+            replacement = (Py68U8 *)py68_realloc(
+                &runtime->allocator, PY68_MEM_TEMP, buffer, capacity,
+                new_capacity);
+            if (replacement == NULL) {
+                py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer,
+                          capacity);
+                Close(pipe);
+                return PY68_STATUS_MEMORY_ERROR;
+            }
+            buffer = replacement;
+            capacity = new_capacity;
+        }
+        read_count = Read(pipe, buffer + used, (LONG)(capacity - used - 1UL));
+        if (read_count < 0) {
+            py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, capacity);
+            Close(pipe);
+            return PY68_STATUS_RUNTIME_ERROR;
+        }
+        if (read_count == 0) break;
+        used += (Py68U32)read_count;
     }
-    buffer[file_size] = 0;
-    *return_code = (Py68I32)status;
+    Close(pipe);
+    buffer[used] = 0;
+    if (used + 1UL < capacity) {
+        Py68U8 *exact = (Py68U8 *)py68_realloc(
+            &runtime->allocator, PY68_MEM_TEMP, buffer, capacity, used + 1UL);
+        if (exact == NULL) {
+            py68_free(&runtime->allocator, PY68_MEM_TEMP, buffer, capacity);
+            return PY68_STATUS_MEMORY_ERROR;
+        }
+        buffer = exact;
+    }
+    *return_code = 0;
     *data = buffer;
-    *length = (Py68U32)file_size;
+    *length = used;
     return PY68_STATUS_OK;
 }
 
