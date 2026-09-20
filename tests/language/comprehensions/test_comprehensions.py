@@ -1,4 +1,5 @@
-# List, set, and dict comprehensions. Generator expressions are rejected.
+# List, set, and dict comprehensions. Generator expressions live in
+# tests/language/generators/test_generator_exp.py.
 
 print("=== list basic ===")
 print([x for x in range(4)])

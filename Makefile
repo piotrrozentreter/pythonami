@@ -54,10 +54,10 @@ debug release test language-test:
 
 amiga:
 	@if [ "$(MODE)" = "debug" ]; then \
-		"$(MAKE)" -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)"; \
+		"$(MAKE)" -f Makefile.amiga amiga-debug VBCC="$(VBCC)" NDK="$(NDK)" && \
 		echo "Amiga binary: pythonami-debug"; \
 	else \
-		"$(MAKE)" -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)"; \
+		"$(MAKE)" -f Makefile.amiga amiga-release VBCC="$(VBCC)" NDK="$(NDK)" && \
 		echo "Amiga binary: pythonami"; \
 	fi
 

@@ -199,4 +199,15 @@ True
 === errors ===
 1
 1
+=== 30. Generators ===
+3
+2
+1
+2
+True
+1
+done
+[0, 1, 4, 9]
+4
+[3, 6, 9]
 === Feature Test Complete ===

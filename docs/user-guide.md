@@ -20,7 +20,7 @@ does not execute it; use it before `-c` or the script path.
 
 | Command | Example | Description |
 | --- | --- | --- |
-| Show version | `pythonami -V` | Prints the current version, `Python68K 0.6.0`. `--version` is the long form. |
+| Show version | `pythonami -V` | Prints the current version, `Python68K 0.7.0`. `--version` is the long form. |
 | Show help | `pythonami --help` | Prints the usage line. Running `pythonami` with no input does the same. |
 | Run a script | `pythonami examples/hello.py` | Loads, compiles, verifies, and executes one `.py` source file. |
 | Pass script arguments | `pythonami examples/test_features.py one two` | Makes the script path and following arguments available as `sys.argv`. |
@@ -122,7 +122,8 @@ This is a user-facing summary; the authoritative grammar and semantics are in
   else`, assignment and augmented assignment, fixed-count unpacking
   (`a, b = seq`), `break` / `continue` / `return` / `pass`, `try` / `except`
   / `finally`, `raise`, `with EXPR as NAME` (file handles only), `def`
-  (no nested `def`, no closures), list/set/dict comprehensions.
+  (no nested `def`, no closures), list/set/dict comprehensions, `yield`
+  generators and generator expressions `(expr for x in iterable)`.
 - Imports: `import name[ as alias]`, `from name import a[, b]`.
 - Restricted f-strings: `f"...{expr!s|r|a:spec}..."`.
 
@@ -135,8 +136,8 @@ modules noted below. Full argument semantics are in
 | Group | Builtins | Notes |
 | --- | --- | --- |
 | Output / input | `print`, `input` | `input([prompt])` returns one line without the trailing newline. |
-| Collections | `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `sorted`, `iter`, `next` | `iter`/`next` share the `for`-loop cursor and raise `StopIteration`. |
-| Conversion / inspection | `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `sum`, `ord`, `chr`, `repr`, `ascii`, `format`, `maketrans`, `all`, `any` | `ord`/`chr` operate on one byte (`0..255`); `format` supports a minimal int subset. |
+| Collections | `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_append`, `list_pop`, `sorted`, `iter`, `next` | `iter`/`next` share the `for`-loop cursor, also accept generators, and raise `StopIteration`. `list`/`tuple`/`set`/`sorted` consume a generator argument. |
+| Conversion / inspection | `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `sum`, `ord`, `chr`, `repr`, `ascii`, `format`, `maketrans`, `all`, `any` | `ord`/`chr` operate on one byte (`0..255`); `format` supports a minimal int subset. `sum`/`all`/`any` consume a generator argument; `min`/`max` take two values and do not. |
 | File I/O | `fopen`, `fclose`, `fread`, `freadline`, `fwrite`, `exists`, `remove`, `rename` | `fopen(path, mode)` accepts `r`/`w`/`a`/`rb`/`wb`/`ab`; file handles support `with fopen(...) as f:`. |
 | Environment (host) | `getenv`, `setenv`, `unsetenv` | Host process environment only. |
 | Amiga assigns | `assign_get`, `assign_add`, `assign_remove` | AmigaDOS logical assigns; Amiga build only. |
@@ -206,7 +207,7 @@ decisions.
 | Strings | Unicode `str`, separate `bytes`/`bytearray` | 8-bit `str` only; no `bytes`, `bytearray`, or `encode`/`decode` |
 | Classes | `class`, instances, inheritance, `__init__`, dunder protocol | Not implemented; only a fixed per-type method table |
 | Functions | Closures, nested `def`, `*args`/`**kwargs`, default/keyword args | `def` without nesting or closures; methods are positional-only |
-| Iteration | Generators, generator expressions, `enumerate`, `reversed` | List/set/dict comprehensions only; `iter`/`next` over the same cursor as `for` |
+| Iteration | Generators with `send`/`throw`/`close`/`yield from`, `enumerate`, `reversed` | `yield` generators and generator expressions (free variables snapshotted at creation), comprehensions, `iter`/`next`; no `send`/`throw`/`close`/`yield from` |
 | Unpacking | Starred (`a, *rest`) and nested (`(a, b), c = …`) targets | Fixed-count unpacking of list/tuple/string only |
 | Imports | Packages, relative imports, `from x import *` | Single-level `.py` modules, explicit names only |
 | File I/O | `open()`, file objects with `.read()`/`.write()`/`seek()` | `fopen`/`fread`/`freadline`/`fwrite`/`fclose` procedural API; no `seek` |
@@ -217,13 +218,15 @@ decisions.
 
 ## Missing areas versus CPython
 
-The following are not implemented in any Language Level through 0.6 and have
+The following are not implemented in any Language Level through 0.7 and have
 no scheduled release; treat scripts depending on them as unsupported until
 `language-reference.md` records otherwise:
 
 - Classes, instances, and inheritance.
 - Unicode text and the `bytes`/`bytearray` types.
-- Generator expressions, closures, and nested `def`.
+- Generator `send`/`throw`/`close()`, `yield from`, and `yield` as an expression.
+- Closures and nested `def` (generator expressions snapshot enclosing locals
+  instead of capturing them).
 - `async`/`await` and the `match` statement.
 - Starred and nested unpacking (`a, *rest`; `(a, b), c = …`; `*args`/`**kwargs`).
 - Relative imports, `from x import *`, and multi-level packages.

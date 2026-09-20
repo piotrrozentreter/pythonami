@@ -29,3 +29,7 @@ True
 [1, 2, 3]
 'a': 1
 'b': 2
+=== builtin arity diagnostics ===
+min: TypeError
+sorted: TypeError
+next: TypeError

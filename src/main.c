@@ -27,7 +27,7 @@
 long __stack = 65536L;
 #endif
 
-#define PY68K_VERSION "Python68K 0.6.0\n"
+#define PY68K_VERSION "Python68K 0.7.0\n"
 #define PY68K_HELP \
     "Usage: pythonami [--debug] [--check] [-V|--help] [-c cmd | script.py]\n"
 

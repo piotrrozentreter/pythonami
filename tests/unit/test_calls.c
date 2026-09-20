@@ -8,6 +8,7 @@
 #include "py68k_vm.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static Py68Status native_sum(struct Py68Runtime *runtime, Py68U16 count,
                              Py68Value *arguments, Py68Value *result)
@@ -18,6 +19,17 @@ static Py68Status native_sum(struct Py68Runtime *runtime, Py68U16 count,
         return PY68_STATUS_RUNTIME_ERROR;
     *result = py68_value_int(arguments[0].as.integer + arguments[1].as.integer);
     return PY68_STATUS_OK;
+}
+
+static Py68Status native_quiet_failure(struct Py68Runtime *runtime,
+                                       Py68U16 count, Py68Value *arguments,
+                                       Py68Value *result)
+{
+    (void)runtime;
+    (void)count;
+    (void)arguments;
+    (void)result;
+    return PY68_STATUS_RUNTIME_ERROR;
 }
 
 int main(void)
@@ -50,6 +62,24 @@ int main(void)
     passed &= py68_native_call(native, &runtime, 2, arguments, &result) ==
               PY68_STATUS_OK;
     passed &= result.type == PY68_VALUE_INT && result.as.integer == 5;
+    passed &= py68_native_call(native, &runtime, 1, arguments, &result) ==
+              PY68_STATUS_RUNTIME_ERROR;
+    passed &= runtime.error.kind == PY68_ERROR_TYPE;
+    passed &= strstr(runtime.error.message,
+                     "sum() takes exactly 2 arguments, got 1") != NULL;
+    py68_error_clear(&runtime.error);
+    {
+        Py68NativeFunction *quiet;
+        passed &= py68_native_new(&runtime, "quiet", 0, 0,
+                                  native_quiet_failure, &quiet) ==
+                  PY68_STATUS_OK;
+        passed &= py68_native_call(quiet, &runtime, 0, NULL, &result) ==
+                  PY68_STATUS_RUNTIME_ERROR;
+        passed &= runtime.error.kind == PY68_ERROR_TYPE;
+        passed &= strstr(runtime.error.message, "quiet()") != NULL;
+        py68_object_release(&runtime, &quiet->base);
+        py68_error_clear(&runtime.error);
+    }
     passed &= py68_code_emit_u8(&runtime.allocator, &code, OP_LOAD_GLOBAL) ==
               PY68_STATUS_OK;
     passed &= py68_code_emit_u16_be(&runtime.allocator, &code, value_index) ==

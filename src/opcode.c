@@ -46,6 +46,7 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     static const Py68OpcodeInfo call = INFO(2, 0, "CALL");
     static const Py68OpcodeInfo return_value = INFO(1, -1, "RETURN_VALUE");
     static const Py68OpcodeInfo return_none = INFO(1, 1, "RETURN_NONE");
+    static const Py68OpcodeInfo yield_value = INFO(1, -1, "YIELD_VALUE");
     static const Py68OpcodeInfo debug = INFO(1, -1, "PRINT_DEBUG");
 
     switch (opcode) {
@@ -85,6 +86,7 @@ const Py68OpcodeInfo *py68_opcode_info(Py68U8 opcode)
     case OP_RANGE_INIT: return &range_init; case OP_RANGE_NEXT: return &range_next;
     case OP_MAKE_FUNCTION: return &make_function; case OP_CALL: return &call;
     case OP_RETURN_VALUE: return &return_value; case OP_RETURN_NONE: return &return_none;
+    case OP_YIELD_VALUE: return &yield_value;
     case OP_PRINT_DEBUG: return &debug; default: return 0;
     }
 }

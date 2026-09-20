@@ -176,7 +176,15 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
         { "assign_remove", 1, 1, py68_builtin_assign_remove }
     };
 #endif
+    /* Builtins that walk their first argument. A generator there is drained
+       into a list by OP_CALL before the callback runs (D-0045). */
+    static const Py68NativeCallback iterable_consumers[] = {
+        py68_builtin_list, py68_builtin_tuple, py68_builtin_set,
+        py68_builtin_sorted, py68_builtin_sum, py68_builtin_all,
+        py68_builtin_any
+    };
     Py68U16 index;
+    Py68U16 consumer;
     Py68Status status;
     Py68NativeFunction *function;
 
@@ -186,6 +194,13 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
                                  common[index].maximum_arguments,
                                  common[index].callback, &function);
         if (status != PY68_STATUS_OK) return status;
+        for (consumer = 0;
+             consumer < sizeof(iterable_consumers) /
+                        sizeof(iterable_consumers[0]);
+             ++consumer) {
+            if (common[index].callback == iterable_consumers[consumer])
+                function->consumes_iterable = PY68_NATIVE_ITERABLE_ARG;
+        }
         status = py68_builtin_set_copy(
             runtime, (const Py68U8 *)common[index].name,
             py68_static_strlen(common[index].name),

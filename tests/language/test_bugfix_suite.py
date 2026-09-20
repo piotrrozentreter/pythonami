@@ -57,3 +57,20 @@ print(("a", 1) < ("a", 2))
 print(sorted([3, 1, 2]))
 for letter, count in sorted({ "b": 2, "a": 1 }.items()):
     print("'" + letter + "':", count)
+
+print("=== builtin arity diagnostics ===")
+try:
+    min(1)
+    print("min: no error")
+except TypeError:
+    print("min: TypeError")
+try:
+    sorted([2, 1], 0)
+    print("sorted: no error")
+except TypeError:
+    print("sorted: TypeError")
+try:
+    next()
+    print("next: no error")
+except TypeError:
+    print("next: TypeError")

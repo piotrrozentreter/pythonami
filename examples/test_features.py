@@ -389,4 +389,26 @@ except TypeError:
     bad = 1
 print(bad)
 
+print("=== 30. Generators ===")
+def countdown(start):
+    value = start
+    while value > 0:
+        yield value
+        value = value - 1
+
+for value in countdown(3):
+    print(value)
+steps = countdown(2)
+print(next(steps))
+print(iter(steps) is steps)
+print(next(steps))
+print(next(steps, "done"))
+squares = (value * value for value in range(4))
+print(list(squares))
+print(sum(value for value in range(5) if value % 2))
+def scaled(factor):
+    return (value * factor for value in [1, 2, 3])
+
+print(list(scaled(3)))
+
 print("=== Feature Test Complete ===")

@@ -58,6 +58,9 @@ typedef struct Py68Code {
        module-level (top) code objects. */
     Py68U16 local_count;
     Py68U16 argument_count;
+    /* Non-zero when the body contains OP_YIELD_VALUE: calling this code
+       object builds a generator instead of running the body (D-0045). */
+    Py68U16 is_generator;
     /* Bodies of functions defined directly in this code object. Owned;
        destroyed recursively by py68_code_destroy. Nested defs are rejected
        by symbol analysis, so in practice this is only populated on the
