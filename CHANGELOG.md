@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
+
+- Language Level 0.7: generators. `yield` in a module-level `def` makes the
+  function a generator factory; calling it builds a `PY68_OBJECT_GENERATOR` and
+  runs no body code. `for`, `iter`, and `next` resume generators, and an
+  exhausted generator iterates as empty (D-0045). `send`, `throw`, `close()`,
+  and `yield from` are not implemented.
+- Generator state lives in the generator object (locals, private operand stack
+  sized once to `maximum_stack`, try stack, resume IP), so suspending never
+  allocates and resuming never uses C recursion. Dropping the last reference
+  frees locals and saved operands without running user `finally` blocks
+  (D-0045).
+- New `OP_YIELD_VALUE` (0x3C) and `Py68Code.is_generator`; the verifier rejects
+  `OP_YIELD_VALUE` outside a code object marked as a generator.
+- Generator expressions `(elt for x in iterable if cond)`, including the
+  unparenthesized form as a call's only argument (`sum(x for x in range(5))`).
+  They compile to a synthetic nested generator code object; the outermost
+  iterable is evaluated eagerly and free variables of an enclosing function are
+  snapshotted as hidden arguments, so later rebinding is not observed
+  (D-0046, a documented divergence from CPython closures).
+- `list`, `tuple`, `set`, `sorted`, `sum`, `all`, and `any` drain a generator
+  argument into a list inside the VM before the native callback runs, so no
+  builtin re-enters the interpreter (D-0047). `min`, `max`, `len`, and `in` do
+  not accept generators.
 
 - I/O failures report as `OSError` (Python 3); `IOError` remains an accepted
   alias for the same catchable kind (D-0044).
@@ -46,6 +69,7 @@
 - Amiga LoadSeg extensions: `load_library(path)` loads `*.py68k` plugins with a
   public export ABI (`include/py68k_ext.h`); sample `ext/demo_add` (vbcc C +
   vasm) via `make amiga-ext` (D-0027).
+- Version string `Python68K 0.7.0`.
 
 ## 0.6.0
 

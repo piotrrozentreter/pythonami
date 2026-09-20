@@ -1,10 +1,12 @@
 # Grammar
 
 The Language Level 0.1–0.5 grammar remains described in the implementation brief
-and the parser sources. Language Level 0.6 adds the comprehension forms below.
-Comprehension targets remain a single `NAME`. Assignment and `for` statements
-accept a fixed name list (D-0038). `star_expr`, async, nested unpack, and
-generator expressions are not part of this increment.
+and the parser sources. Language Level 0.6 adds the comprehension forms below,
+and Language Level 0.7 adds `yield_statement` and `generator_expression`.
+Comprehension and generator-expression targets remain a single `NAME`.
+Assignment and `for` statements accept a fixed name list (D-0038). `star_expr`,
+async, nested unpack, and `yield` as an expression (including `yield from`) are
+not part of this grammar.
 
 Comparison operators include membership:
 
@@ -45,6 +47,17 @@ comp_if          ::= "if" or_test [comp_iter]
 ```
 
 `{x for x in it}` is a set comprehension; `{k: v for k in it}` is a dict
-comprehension; `{}` remains an empty dict. `(x for x in it)` is rejected with a
-targeted diagnostic. Comprehension names bind in the enclosing scope (D-0026).
-String iterables yield one-character strings.
+comprehension; `{}` remains an empty dict. Comprehension names bind in the
+enclosing scope (D-0026). String iterables yield one-character strings.
+
+```ebnf
+yield_statement  ::= "yield" expression
+generator_expression ::= "(" expression comp_for ")"
+call             ::= primary "(" [argument_list | expression comp_for] ")"
+```
+
+`yield` is a statement only; it is a syntax error outside a `def` and in any
+expression position (D-0045). A generator expression needs its parentheses
+except as a call's only argument, where `f(x for x in it)` uses the call
+parentheses. Generator-expression names do not bind in the enclosing scope,
+unlike comprehension names (D-0046).

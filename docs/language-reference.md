@@ -1,6 +1,6 @@
 # Language Reference
 
-Python68K is a restricted Python-compatible language. Language Levels **0.1** (core), **0.2.0** (file/env I/O), **0.3** (types and limited attributes), **0.4** (exceptions and `with`), **0.5** (import/modules), and **0.6** (comprehensions) are executable on the host and Amiga builds.
+Python68K is a restricted Python-compatible language. Language Levels **0.1** (core), **0.2.0** (file/env I/O), **0.3** (types and limited attributes), **0.4** (exceptions and `with`), **0.5** (import/modules), **0.6** (comprehensions), and **0.7** (generators) are executable on the host and Amiga builds.
 
 Symbol analysis classifies names using local, module-global, builtin, and undefined lookup order; parameters occupy the first local slots and later assignment targets use deterministic source order. Referencing a local before assignment is a runtime `NameError`. Empty strings, lists, tuples, dicts, and sets are falsy. `input([prompt])` writes an optional prompt, reads one line, and returns it without the trailing newline; EOF raises an I/O error.
 
@@ -23,7 +23,8 @@ Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool 
 - `if` / `elif` / `else` (statements). Value-level `then if cond else else` is an expression (D-0040).
 - `while` … `else`, `for … in iterable` … `else` (`range`, list, tuple, dict keys, set, string → one-char strings). `for a, b in pairs:` unpacks each item (D-0038).
 - Assignment: `NAME = expr`, index/attribute stores, augmented assignment on names/index/attributes (`name += expr`, `L[i] += expr`), and fixed-count unpacking `a, b = seq` (list, tuple, or string). Assignment RHS may be an unparenthesized expression list (`a, b = 1, 2`). Starred and nested unpacking are not supported.
-- List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026). Generator expressions are not supported.
+- List, set, and dict comprehensions: `[elt for x in iterable if cond]`, nested `for`, `{elt for ...}`, `{k: v for ...}`. Loop targets bind in the enclosing function or module, matching `for` (D-0026).
+- Generator expressions: `(elt for x in iterable if cond)` (0.7). See "Generators".
 - Comparisons: `== != < <= > >=`, membership `in` / `not in` (str substring; item in list/tuple; key in dict; member in set), identity `is` / `is not`
 - `break` / `continue` / `return` / `pass`
 - `try` / `except` / `except TypeError` / `except TypeError as e` / `finally`
@@ -50,11 +51,56 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 
 `sys` is a builtin module: `sys.path` (list), `sys.modules`, `sys.argv`.
 
+## Generators (0.7)
+
+A `def` whose body contains `yield` is a generator factory. Calling it builds a
+generator and runs no body code; the body advances only while the generator is
+resumed, and each `yield expr` suspends it, saving the locals, operand stack,
+try blocks, and resume point in the generator object (D-0045).
+
+```python
+def counter(limit):
+    index = 0
+    while index < limit:
+        yield index
+        index = index + 1
+
+for value in counter(3):
+    print(value)
+```
+
+- `for x in gen`, `iter(gen)` (which returns the same generator), and
+  `next(gen[, default])` resume the generator. Exhaustion raises catchable
+  `StopIteration` from `next(gen)`, returns the default from
+  `next(gen, default)`, and ends a `for` loop.
+- Reaching the end of the body or executing `return` finishes the generator. A
+  returned value is discarded; `StopIteration.value` does not exist.
+- A finished generator iterates as empty and is never restarted. Resuming one
+  that is already running raises `ValueError: generator is already executing`.
+- `yield` is a statement, so `x = yield v` is a syntax error, as is `yield`
+  outside a `def`. `send`, `throw`, `close()`, and `yield from` do not exist.
+- When an unfinished generator loses its last reference, its locals and saved
+  operands are freed immediately, but its `finally` blocks do not run (D-0045).
+- `list`, `tuple`, `set`, `sorted`, `sum`, `all`, and `any` consume a generator
+  argument (D-0047). `min`, `max`, `len`, and `in` / `not in` do not and raise
+  `TypeError`; generators also have no `str`/`print` form.
+
+Generator expressions `(elt for x in iterable if cond)` accept the same `for` /
+`if` clause chain as comprehensions and evaluate to a generator. The
+parentheses are required unless the expression is a call's only argument, so
+`sum(x for x in range(5))` is accepted while `f(x for x in it, 1)` is not.
+Unlike comprehension targets, generator-expression targets do not bind in the
+enclosing scope. The outermost iterable is evaluated when the generator is
+created, and free variables of an enclosing function are snapshotted by value at
+that moment, so rebinding such a local afterwards is not observed; module
+globals stay late-bound (D-0046). CPython re-reads the enclosing variable when
+each element is produced, so that case differs deliberately.
+
 ## Builtins
 
 `print`, `input`, `len`, `range`, `list`, `tuple`, `dict`, `set`, `list_pop`, `list_append`, `int`, `float`, `str`, `bool`, `abs`, `min`, `max`, `sum`, `iter`, `next`, `sorted`, `ord`, `chr`, `repr`, `ascii`, `all`, `any`, `format`, `maketrans`, `exit`, plus 0.2.0 file builtins `fopen`/`fclose`/`fread`/`freadline`/`fwrite`/`exists`/`remove`/`rename` (modes `r`/`w`/`a`/`rb`/`wb`/`ab`). Host: `getenv`/`setenv`/`unsetenv`. Amiga: `assign_get`/`assign_add`/`assign_remove`, and `load_library(path)` for LoadSeg `*.py68k` plugins (see `docs/amiga-extensions.md`).
 
-`ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`. `sum(iterable[, start])` adds list/tuple numbers with optional numeric `start` (default `0`); float promotes like `+` (D-0041). `iter(x)` / `next(it[, default])` use the same `Py68Range` cursor as `for`; exhaustion raises catchable `StopIteration` (D-0042). Restricted f-strings `f"...{expr}..."` support `!s`/`!r`/`!a` and literal `:spec` matching `format()` (D-0043).
+`ord`/`chr` operate on one byte (`0..255`). `format` supports a minimal int subset (`''`, `d`, width, zero-pad such as `04d`). `maketrans` builds a translation `dict` for `str.translate`. `ascii` escapes bytes `>= 128` as `\xHH`. `sum(iterable[, start])` adds list/tuple numbers with optional numeric `start` (default `0`); float promotes like `+` (D-0041). `iter(x)` / `next(it[, default])` use the same `Py68Range` cursor as `for`, and accept generators (D-0042, D-0045); exhaustion raises catchable `StopIteration`. Restricted f-strings `f"...{expr}..."` support `!s`/`!r`/`!a` and literal `:spec` matching `format()` (D-0043).
 
 Time builtins are `time()` (epoch seconds as binary32 `float`), `sleep(seconds)`,
 `ctime([seconds])`, `localtime([seconds])`, `strftime(format, [localtime])`,
@@ -77,4 +123,4 @@ multitasking, so no program has to yield for other programs to run.
 
 ## Still not implemented
 
-Classes and instances, Unicode, bytes/bytearray/`encode`, generator expressions, closures, nested `def`, async, `match`, starred unpacking (`a, *rest`, `*args`/`**kwargs`), nested unpacking (`(a, b), c = …`), relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, nested/raw/bytes f-string prefixes, `eval`/`exec`/`compile`, `enumerate`/`reversed` and `iter(callable, sentinel)`, and Language Level freeze after owner emulator/hardware verification.
+Classes and instances, Unicode, bytes/bytearray/`encode`, generator `send`/`throw`/`close()`, `yield from`, `yield` as an expression, async generators, closures, nested `def`, async, `match`, starred unpacking (`a, *rest`, `*args`/`**kwargs`), nested unpacking (`(a, b), c = …`), relative imports, `from x import *`, AmigaDOS `ENV:` GetVar/SetVar, file seek, encodings, method-style `open()` / `file.read()` with keyword `encoding=` and `FileNotFoundError` (post-0.6 option 1; today use `fopen`/`fread`), full `str.format`/`format_map`, nested/raw/bytes f-string prefixes, `eval`/`exec`/`compile`, `enumerate`/`reversed` and `iter(callable, sentinel)`, and Language Level freeze after owner emulator/hardware verification.

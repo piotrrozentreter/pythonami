@@ -49,6 +49,15 @@ marked. Generator expressions compile to a synthetic nested code object with
 `OP_LIST_APPEND`; the creation site emits `OP_MAKE_FUNCTION`, pushes the
 snapshotted free names as arguments, and calls it (D-0045, D-0046).
 
+Resuming a generator records why on the activation frame. `PY68_RESUME_FOR`
+returns to `OP_RANGE_NEXT`, `PY68_RESUME_NEXT` / `PY68_RESUME_NEXT_DEFAULT`
+return to the instruction after an inline `next()` call, and
+`PY68_RESUME_COLLECT` drains the generator for a builtin flagged
+`consumes_iterable`: each yield appends to the list below the activation and
+keeps running, and completion swaps that list in for the generator argument and
+re-executes the same `OP_CALL`, so no native callback re-enters the VM
+(D-0047).
+
 Local variables use `OP_LOAD_LOCAL`/`OP_STORE_LOCAL` with a `u8` slot operand, verified against `code->local_count`. Reading a local before it has been assigned yields a runtime error rather than a stale/garbage value, because unassigned slots are initialized to the `PY68_VALUE_UNBOUND` sentinel by the frame setup code.
 
 Function objects are represented in bytecode as nested code objects: a `Py68Code` may own an array of nested `Py68Code` structures, each referenced from the constant pool as `PY68_CONSTANT_CODE`. `OP_MAKE_FUNCTION` takes a `u16` constant-pool index operand; the verifier checks that the referenced constant is `PY68_CONSTANT_CODE` and that it indexes a valid nested code object before the VM is allowed to execute the instruction. At runtime, `OP_MAKE_FUNCTION` builds a `Py68Function` object bound to the current runtime, which is then callable through the existing `OP_CALL` dispatch alongside native functions.
