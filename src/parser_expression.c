@@ -237,6 +237,7 @@ static void py68_ast_rebase_offsets(Py68AstNode *node, Py68U32 base)
     case PY68_AST_LIST_COMP:
     case PY68_AST_SET_COMP:
     case PY68_AST_DICT_COMP:
+    case PY68_AST_GENERATOR_EXP:
         py68_ast_rebase_offsets(node->as.comprehension.elt, base);
         py68_ast_rebase_offsets(node->as.comprehension.value, base);
         for (index = 0; index < node->as.comprehension.generators.count;
@@ -792,10 +793,26 @@ static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
         status = py68_parse_expression(parser, &first);
         if (status != PY68_STATUS_OK) return status;
         if (py68_check(parser, PY68_TOKEN_FOR)) {
-            token = py68_current(parser);
-            py68_parser_error(parser, token->location,
-                "generator expressions are not supported by Python68K Language Level 0.6");
-            return PY68_STATUS_SOURCE_ERROR;
+            status = py68_ast_arena_new(parser->arena, PY68_AST_GENERATOR_EXP,
+                                        token->location, &node);
+            if (status != PY68_STATUS_OK) return status;
+            node->as.comprehension.elt = first;
+            node->as.comprehension.value = NULL;
+            py68_ast_list_initialize(&node->as.comprehension.generators);
+            status = py68_parse_comprehension_fors(
+                parser, &node->as.comprehension.generators);
+            if (status != PY68_STATUS_OK) return status;
+            if (!py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
+                token = py68_current(parser);
+                py68_parser_error(parser, token->location,
+                                  "expected closing parenthesis");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            node->location.length =
+                (Py68U16)(py68_current(parser)->location.offset -
+                          node->location.offset);
+            *node_out = node;
+            return PY68_STATUS_OK;
         }
         if (py68_accept(parser, PY68_TOKEN_COMMA)) {
             status = py68_ast_arena_new(parser->arena, PY68_AST_TUPLE,
@@ -1030,6 +1047,33 @@ static Py68Status py68_parse_postfix(Py68ExpressionParser *parser,
                 for (;;) {
                     status = py68_parse_expression(parser, &argument);
                     if (status != PY68_STATUS_OK) return status;
+                    /* `f(x for x in xs)`: the call parentheses double as the
+                       generator-expression parentheses, so this is only legal
+                       as the single argument. */
+                    if (py68_check(parser, PY68_TOKEN_FOR)) {
+                        Py68AstNode *generator_exp;
+                        if (call->as.call.arguments.count != 0) {
+                            py68_parser_error(
+                                parser, py68_current(parser)->location,
+                                "a generator expression must be parenthesized "
+                                "when it is not the only argument");
+                            return PY68_STATUS_SOURCE_ERROR;
+                        }
+                        status = py68_ast_arena_new(parser->arena,
+                                                    PY68_AST_GENERATOR_EXP,
+                                                    argument->location,
+                                                    &generator_exp);
+                        if (status != PY68_STATUS_OK) return status;
+                        generator_exp->as.comprehension.elt = argument;
+                        generator_exp->as.comprehension.value = NULL;
+                        py68_ast_list_initialize(
+                            &generator_exp->as.comprehension.generators);
+                        status = py68_parse_comprehension_fors(
+                            parser,
+                            &generator_exp->as.comprehension.generators);
+                        if (status != PY68_STATUS_OK) return status;
+                        argument = generator_exp;
+                    }
                     status = py68_ast_list_append(
                         parser->arena, &call->as.call.arguments, argument);
                     if (status != PY68_STATUS_OK) return status;

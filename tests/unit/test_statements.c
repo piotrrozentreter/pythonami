@@ -118,11 +118,45 @@ int main(void)
     passed &= check(strstr(error.message, "relative imports") != NULL,
                     "relative import diagnostic is targeted");
     py68_ast_arena_destroy(&arena);
-    passed &= check(!parse_module(&allocator, "ys = (x for x in xs)\n",
+    passed &= check(parse_module(&allocator, "ys = (x for x in xs)\n",
+                                 &arena, &module, &error),
+                    "generator expression parses as an assignment value");
+    if (module != NULL) {
+        passed &= check(module->as.module.statements.count == 1 &&
+                        module->as.module.statements.items[0]->kind ==
+                            PY68_AST_ASSIGN &&
+                        module->as.module.statements.items[0]
+                            ->as.assign.value->kind == PY68_AST_GENERATOR_EXP,
+                        "assignment value is a GENERATOR_EXP node");
+    }
+    py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "def f():\n    x = yield 1\n",
                                   &arena, &module, &error),
-                    "generator expression is rejected");
-    passed &= check(strstr(error.message, "generator expressions") != NULL,
-                    "generator-expression diagnostic is targeted");
+                    "yield as an expression is rejected");
+    passed &= check(strstr(error.message, "yield is a statement") != NULL,
+                    "yield-expression diagnostic is targeted");
+    py68_ast_arena_destroy(&arena);
+    passed &= check(parse_module(&allocator, "def f():\n    yield 1\n    yield\n",
+                                 &arena, &module, &error),
+                    "yield statement parses inside a function");
+    if (module != NULL) {
+        Py68AstNode *body_statement =
+            module->as.module.statements.items[0]->as.function_def.body.items[0];
+        passed &= check(body_statement->kind == PY68_AST_YIELD &&
+                        body_statement->as.return_statement.value != NULL,
+                        "yield with a value builds a YIELD node");
+        body_statement =
+            module->as.module.statements.items[0]->as.function_def.body.items[1];
+        passed &= check(body_statement->kind == PY68_AST_YIELD &&
+                        body_statement->as.return_statement.value == NULL,
+                        "bare yield builds a YIELD node with no value");
+    }
+    py68_ast_arena_destroy(&arena);
+    passed &= check(!parse_module(&allocator, "yield 1\n",
+                                  &arena, &module, &error),
+                    "yield outside a function is rejected");
+    passed &= check(strstr(error.message, "yield outside function") != NULL,
+                    "yield-outside-function diagnostic is targeted");
     py68_ast_arena_destroy(&arena);
     passed &= check(parse_module(&allocator, "a, b = (1, 2)\n",
                                  &arena, &module, &error),

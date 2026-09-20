@@ -420,10 +420,45 @@ int main(void)
         parser.position = 0;
         parser.arena = &arena;
         parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "generator expressions parse");
+        passed &= check(node != NULL && node->kind == PY68_AST_GENERATOR_EXP,
+                        "generator expression builds a GENERATOR_EXP node");
+        if (node != NULL && node->kind == PY68_AST_GENERATOR_EXP) {
+            passed &= check(node->as.comprehension.value == NULL,
+                            "generator expression has no value node");
+            passed &= check(node->as.comprehension.generators.count == 1,
+                            "generator expression has one for clause");
+            passed &= check(node->as.comprehension.generators.items[0]->kind ==
+                                PY68_AST_COMP_FOR,
+                            "generator clause is a COMP_FOR");
+        }
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "generator expression releases allocations");
+    }
+
+    {
+        /* A `for` inside parentheses still needs a closing parenthesis. */
+        const char *bad_text = "(x for x in items 5)";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "gen.py",
+            (const Py68U8 *)bad_text, (Py68U32)strlen(bad_text)) ==
+            PY68_STATUS_OK, "unclosed generator source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "unclosed generator tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
         passed &= check(py68_parse_expression(&parser, &node) != PY68_STATUS_OK,
-                        "generator expressions are rejected");
-        passed &= check(strstr(error.message, "generator expressions") != NULL,
-                        "generator-expression diagnostic is targeted");
+                        "unclosed generator expression is rejected");
+        passed &= check(strstr(error.message, "closing parenthesis") != NULL,
+                        "unclosed generator diagnostic is targeted");
         py68_ast_arena_destroy(&arena);
         py68_token_array_destroy(&allocator, &tokens);
         py68_source_destroy(&allocator, &source);

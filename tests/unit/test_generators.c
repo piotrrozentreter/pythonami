@@ -482,6 +482,120 @@ static int test_generator_abandon(void)
     return passed;
 }
 
+/* A generator expression compiles to a synthetic nested generator code object
+   with one hidden iterator parameter; it never binds its loop variable in the
+   enclosing scope. */
+static int test_generator_exp_shape(void)
+{
+    Py68Runtime runtime;
+    Program program;
+    Py68Error error;
+    Py68Status status;
+    Py68Value leaked;
+    int passed = 1;
+    const char *text = "items = [1, 2]\n"
+                       "g = (x for x in items)\n";
+
+    passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+    passed &= py68_builtins_install(&runtime) == PY68_STATUS_OK;
+    passed &= program_build(&runtime, &program, text, &status, &error);
+    passed &= status == PY68_STATUS_OK;
+    if (status == PY68_STATUS_OK) {
+        passed &= program.code.nested_count == 1;
+        if (program.code.nested_count == 1) {
+            Py68Code *body = &program.code.nested[0];
+            passed &= body->is_generator == 1;
+            /* Hidden iterator only: `items` is a global, so nothing is
+               snapshotted at module level. */
+            passed &= body->argument_count == 1;
+            passed &= body->local_count == 2;
+        }
+        passed &= py68_vm_execute(&runtime, &program.code) == PY68_STATUS_OK;
+        passed &= runtime.value_stack_count == 0;
+        passed &= runtime.frame_count == 0;
+        /* The loop variable belongs to the generator, not the module. */
+        passed &= py68_global_get_copy(&runtime, (const Py68U8 *)"x", 1,
+                                      &leaked) != PY68_STATUS_OK;
+        py68_error_clear(&runtime.error);
+    }
+    program_destroy(&runtime, &program);
+    py68_runtime_shutdown(&runtime);
+    passed &= runtime.allocator.stats.current_bytes == 0;
+    return passed;
+}
+
+/* Free variables of an enclosing function are snapshotted by value at creation
+   time, so later rebinding is not observed (D-0046). */
+static int test_generator_exp_snapshot(void)
+{
+    Py68Runtime runtime;
+    Program program;
+    Py68Error error;
+    Py68Status status;
+    int passed = 1;
+    const char *text =
+        "def snapshot():\n"
+        "    bias = 100\n"
+        "    g = (x + bias for x in [1, 2])\n"
+        "    bias = 900\n"
+        "    total = 0\n"
+        "    for v in g:\n"
+        "        total = total + v\n"
+        "    return total\n"
+        "captured = snapshot()\n"
+        "def filtered(limit):\n"
+        "    g = (x for x in [1, 2, 3, 4] if x < limit)\n"
+        "    total = 0\n"
+        "    for v in g:\n"
+        "        total = total + v\n"
+        "    return total\n"
+        "kept = filtered(3)\n"
+        "lazy = 0\n"
+        "spy = (x for x in [1, 2, 3])\n"
+        "first = next(spy)\n";
+
+    passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+    passed &= py68_builtins_install(&runtime) == PY68_STATUS_OK;
+    passed &= program_build(&runtime, &program, text, &status, &error);
+    passed &= status == PY68_STATUS_OK;
+    if (status == PY68_STATUS_OK) {
+        /* A genexp inside a function body is nested under that function's code
+           object, which is where OP_MAKE_FUNCTION resolves it from. */
+        passed &= program.code.nested_count == 3;
+        if (program.code.nested_count == 3) {
+            Py68Code *snapshot_fn = &program.code.nested[0];
+            Py68Code *filtered_fn = &program.code.nested[1];
+            passed &= snapshot_fn->is_generator == 0;
+            passed &= snapshot_fn->nested_count == 1;
+            if (snapshot_fn->nested_count == 1) {
+                /* Hidden iterator plus the captured `bias`. */
+                passed &= snapshot_fn->nested[0].is_generator == 1;
+                passed &= snapshot_fn->nested[0].argument_count == 2;
+                passed &= snapshot_fn->nested[0].local_count == 3;
+            }
+            passed &= filtered_fn->nested_count == 1;
+            if (filtered_fn->nested_count == 1) {
+                /* Hidden iterator plus the captured parameter `limit`. */
+                passed &= filtered_fn->nested[0].is_generator == 1;
+                passed &= filtered_fn->nested[0].argument_count == 2;
+            }
+            /* The module-level genexp binding `spy`. */
+            passed &= program.code.nested[2].is_generator == 1;
+            passed &= program.code.nested[2].argument_count == 1;
+        }
+        passed &= py68_vm_execute(&runtime, &program.code) == PY68_STATUS_OK;
+        passed &= runtime.value_stack_count == 0;
+        passed &= runtime.frame_count == 0;
+        passed &= global_int_is(&runtime, "captured", 203);
+        passed &= global_int_is(&runtime, "kept", 3);
+        passed &= global_int_is(&runtime, "first", 1);
+    }
+    program_destroy(&runtime, &program);
+    py68_runtime_shutdown(&runtime);
+    passed &= runtime.allocator.stats.current_bytes == 0;
+    return passed;
+}
+
 int main(void)
 {
     int passed = 1;
@@ -496,6 +610,8 @@ int main(void)
     passed &= test_generator_exhaustion();
     passed &= test_generator_try_state();
     passed &= test_generator_abandon();
+    passed &= test_generator_exp_shape();
+    passed &= test_generator_exp_snapshot();
     if (passed) { puts("PASS: generator tests"); return 0; }
     return 1;
 }

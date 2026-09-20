@@ -1,0 +1,94 @@
+=== basic ===
+0
+1
+2
+3
+=== expression element ===
+1
+4
+9
+16
+=== filter ===
+0
+3
+6
+9
+=== multiple filters ===
+0
+6
+12
+18
+=== nested for clauses ===
+0
+1
+10
+11
+20
+21
+=== inner iterable depends on the outer name ===
+10
+20
+21
+=== laziness ===
+created
+0
+stepped once
+1
+2
+-1
+=== generator expression is its own iterator ===
+True
+1
+2
+=== StopIteration ===
+5
+1
+=== break abandons it ===
+0
+1
+=== over a list, tuple, string and dict ===
+1
+2
+3
+4
+a
+b
+=== globals are looked up late ===
+0
+10
+20
+=== outermost iterable is evaluated eagerly ===
+1
+2
+=== mutating the captured iterable is visible ===
+1
+2
+=== inside a function ===
+36
+0
+2
+3
+=== freevar snapshot (D-0046, differs from CPython) ===
+203
+=== generator expression feeding a generator function ===
+0
+3
+6
+=== generator expression over a generator ===
+10
+20
+30
+=== list comprehension nested inside ===
+2
+2
+=== conditional element ===
+0
+-1
+2
+-3
+=== stored in a list and consumed later ===
+1
+2
+3
+=== many steps ===
+100

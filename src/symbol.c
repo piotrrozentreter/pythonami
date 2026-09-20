@@ -332,6 +332,16 @@ static Py68Status py68_collect_expression(Py68Allocator *allocator,
         if (status != PY68_STATUS_OK) return status;
         return py68_collect_expression(allocator, source, function,
                                        node->as.formatted_value.format_spec);
+    case PY68_AST_GENERATOR_EXP:
+        /* A generator expression compiles to its own code object, so its loop
+           variables never bind in this scope. Only the outermost iterable is
+           evaluated here, at creation time (D-0046). */
+        if (node->as.comprehension.generators.count == 0)
+            return PY68_STATUS_OK;
+        return py68_collect_expression(
+            allocator, source, function,
+            node->as.comprehension.generators.items[0]
+                ->as.comprehension_for.iterable);
     case PY68_AST_LIST_COMP:
     case PY68_AST_SET_COMP:
     case PY68_AST_DICT_COMP: {
@@ -749,6 +759,51 @@ int py68_symbol_lookup_local(const Py68Source *source,
         return 1;
     }
     return 0;
+}
+
+void py68_symbol_scope_initialize(Py68FunctionSymbols *scope,
+                                 Py68AstNode *node)
+{
+    scope->function = node;
+    scope->parameters = NULL;
+    scope->parameter_count = 0;
+    scope->parameter_capacity = 0;
+    scope->locals = NULL;
+    scope->local_count = 0;
+    scope->local_capacity = 0;
+}
+
+void py68_symbol_scope_destroy(Py68Allocator *allocator,
+                               Py68FunctionSymbols *scope)
+{
+    py68_free(allocator, PY68_MEM_SYMBOL, scope->parameters,
+              (Py68U32)scope->parameter_capacity * (Py68U32)sizeof(Py68Symbol));
+    py68_free(allocator, PY68_MEM_SYMBOL, scope->locals,
+              (Py68U32)scope->local_capacity * (Py68U32)sizeof(Py68Symbol));
+    py68_symbol_scope_initialize(scope, scope->function);
+}
+
+Py68Status py68_symbol_scope_add_parameter(Py68Allocator *allocator,
+                                          Py68FunctionSymbols *scope,
+                                          Py68U32 offset, Py68U16 length)
+{
+    Py68Symbol symbol;
+    if (scope->local_count != 0) return PY68_STATUS_INTERNAL_ERROR;
+    if (scope->parameter_count == 65535U) return PY68_STATUS_MEMORY_ERROR;
+    symbol.offset = offset;
+    symbol.length = length;
+    symbol.slot = scope->parameter_count;
+    return py68_add_symbol(allocator, &scope->parameters,
+                           &scope->parameter_count,
+                           &scope->parameter_capacity, symbol);
+}
+
+Py68Status py68_symbol_scope_add_local(Py68Allocator *allocator,
+                                      const Py68Source *source,
+                                      Py68FunctionSymbols *scope,
+                                      Py68U32 offset, Py68U16 length)
+{
+    return py68_add_local(allocator, source, scope, offset, length);
 }
 
 const Py68FunctionSymbols *py68_symbol_find_function(

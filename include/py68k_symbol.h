@@ -63,4 +63,22 @@ int py68_symbol_lookup_local(const Py68Source *source,
 const Py68FunctionSymbols *py68_symbol_find_function(
     const Py68SymbolAnalysis *analysis, const Py68AstNode *function_def);
 
+/* Standalone scope for a compiler-synthesised code object, currently only the
+   body of a generator expression (D-0046). It is not stored in the analysis:
+   the compiler owns it and must destroy it. Every parameter has to be added
+   before the first local so slots stay contiguous. A zero-length name can
+   never match a source identifier, which is how the hidden iterator argument
+   stays unreachable from script code. */
+void py68_symbol_scope_initialize(Py68FunctionSymbols *scope,
+                                  Py68AstNode *node);
+void py68_symbol_scope_destroy(Py68Allocator *allocator,
+                               Py68FunctionSymbols *scope);
+Py68Status py68_symbol_scope_add_parameter(Py68Allocator *allocator,
+                                           Py68FunctionSymbols *scope,
+                                           Py68U32 offset, Py68U16 length);
+Py68Status py68_symbol_scope_add_local(Py68Allocator *allocator,
+                                       const Py68Source *source,
+                                       Py68FunctionSymbols *scope,
+                                       Py68U32 offset, Py68U16 length);
+
 #endif

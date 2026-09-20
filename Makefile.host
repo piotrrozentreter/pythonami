@@ -195,6 +195,7 @@ language-test: $(HOST_PROGRAM)
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/iterators/test_iter_next.py tests/fixtures/language/iterators/test_iter_next.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/comprehensions/test_comprehensions.py tests/fixtures/language/comprehensions/test_comprehensions.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/generators/test_generators.py tests/fixtures/language/generators/test_generators.expected.txt
+	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/generators/test_generator_exp.py tests/fixtures/language/generators/test_generator_exp.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_strings_advanced.py tests/fixtures/language/strings/test_strings_advanced.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_string_methods.py tests/fixtures/language/strings/test_string_methods.expected.txt
 	$(LANGUAGE_CHECK) $(HOST_PROGRAM) tests/language/strings/test_fstrings.py tests/fixtures/language/strings/test_fstrings.expected.txt
