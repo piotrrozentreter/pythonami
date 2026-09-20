@@ -28,7 +28,7 @@ Process coverage now includes repeated `os.system` launches with native exit-sta
 - `tests/language/comprehensions/` — list/set/dict comprehensions, empty iterables, filters, nested `for`, name-binding leakage matching `for`, and unbound-local interaction. `tests/unit/test_parser.c` adds the generator-expression syntax rules: the parenthesized form, the unparenthesized form as a call's only argument, and rejection when another argument precedes or follows it.
 - `tests/language/strings/` — concat, index/slice, falsy empty string, `str`/`int` conversions, ASCII string methods, text builtins (`ord`/`chr`/`repr`/`format`/`maketrans`, `all`/`any`, `sum`, …), and restricted f-strings (`!s`/`!r`/`!a`, `:04d`, `{{`/`}}`).
 - `tests/language/test_advanced_suite.py` — single cross-cutting differential fixture combining the above.
-- `examples/test_features.py` sections 13–18 extend the incremental demo with the same advanced behaviors.
+- `examples/test_features.py` sections 13–18 extend the incremental demo with the same advanced behaviors, and section 30 demonstrates generators: a `yield` countdown in `for`, `next`/`next(…, default)`, `iter(gen) is gen`, a generator expression drained by `list`, `sum` over a filtered genexp, and a genexp returned from a function.
 
 A host bug in `OP_NOT` (truthiness evaluated after overwriting the value type, and missing release of object operands) was fixed so `not []` / `not ""` match Language Level 0.1 falsiness rules; language fixtures assert the corrected behavior.
 
