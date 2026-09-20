@@ -15,7 +15,8 @@
 - New `OP_YIELD_VALUE` (0x3C) and `Py68Code.is_generator`; the verifier rejects
   `OP_YIELD_VALUE` outside a code object marked as a generator.
 - Generator expressions `(elt for x in iterable if cond)`, including the
-  unparenthesized form as a call's only argument (`sum(x for x in range(5))`).
+  unparenthesized form as a call's only argument (`sum(x for x in range(5))`);
+  alongside another argument it is a syntax error, as in CPython.
   They compile to a synthetic nested generator code object; the outermost
   iterable is evaluated eagerly and free variables of an enclosing function are
   snapshotted as hidden arguments, so later rebinding is not observed
@@ -24,6 +25,9 @@
   argument into a list inside the VM before the native callback runs, so no
   builtin re-enters the interpreter (D-0047). `min`, `max`, `len`, and `in` do
   not accept generators.
+- A builtin called with the wrong number of arguments now raises a catchable
+  `TypeError` naming the builtin and its accepted count; it previously failed
+  with a blank `Exception:` line.
 
 - I/O failures report as `OSError` (Python 3); `IOError` remains an accepted
   alias for the same catchable kind (D-0044).
