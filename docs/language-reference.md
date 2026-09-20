@@ -30,7 +30,7 @@ Arithmetic `+ - * / // %`, unary `+ - not`, comparisons `== != < <= > >=` (bool 
 - `raise` and `raise TypeError("msg")`
 - `with EXPR as NAME` (file handles from `fopen` implement `__enter__` / `__exit__`)
 
-Catchable runtime kinds: `TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `IOError`, `RecursionError`, `ImportError`. Token, syntax, bytecode, memory, and internal errors are not catchable. Matching is by kind name, not a class hierarchy.
+Catchable runtime kinds: `TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `OSError` (alias `IOError`), `RecursionError`, `ImportError`, `StopIteration`. Token, syntax, bytecode, memory, and internal errors are not catchable. Matching is by kind, not a class hierarchy; `OSError` and `IOError` share one kind (D-0044).
 
 ## Attributes
 

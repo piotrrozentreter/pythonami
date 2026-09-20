@@ -3,6 +3,8 @@
 #include "py68k_ast_arena.h"
 #include "py68k_builtin.h"
 #include "py68k_compiler.h"
+#include "py68k_error.h"
+#include "py68k_exception.h"
 #include "py68k_global.h"
 #include "py68k_parser.h"
 #include "py68k_runtime.h"
@@ -24,6 +26,9 @@ int main(void)
     Py68Code code;
     Py68Error error;
     Py68Value value;
+    Py68Value os_error;
+    Py68Value io_error;
+    Py68Exception *raised = NULL;
     int passed = 1;
     const char *text =
         "caught = 0\n"
@@ -31,6 +36,10 @@ int main(void)
         "    1 // 0\n"
         "except ZeroDivisionError:\n"
         "    caught = 1\n";
+
+    passed &= strcmp(py68_error_kind_name(PY68_ERROR_IO), "OSError") == 0;
+    passed &= py68_error_kind_from_name("OSError", 7) == PY68_ERROR_IO;
+    passed &= py68_error_kind_from_name("IOError", 7) == PY68_ERROR_IO;
 
     passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
     py68_token_array_initialize(&tokens);
@@ -56,6 +65,19 @@ int main(void)
                                    &value) == PY68_STATUS_OK;
     passed &= value.type == PY68_VALUE_INT && value.as.integer == 1;
     py68_value_release(&runtime, value);
+
+    passed &= py68_builtin_get_copy(&runtime, (const Py68U8 *)"OSError", 7,
+                                    &os_error) == PY68_STATUS_OK;
+    passed &= py68_builtin_get_copy(&runtime, (const Py68U8 *)"IOError", 7,
+                                    &io_error) == PY68_STATUS_OK;
+    passed &= py68_exception_new(&runtime, PY68_ERROR_IO, "disk", &raised) ==
+              PY68_STATUS_OK;
+    passed &= py68_exception_matches(raised, os_error) != 0;
+    passed &= py68_exception_matches(raised, io_error) != 0;
+    py68_object_release(&runtime, &raised->base);
+    py68_value_release(&runtime, os_error);
+    py68_value_release(&runtime, io_error);
+
     py68_code_destroy(&runtime.allocator, &code);
     py68_ast_arena_destroy(&arena);
     py68_token_array_destroy(&runtime.allocator, &tokens);

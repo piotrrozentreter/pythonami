@@ -219,6 +219,7 @@ Py68Status py68_builtins_install(Py68Runtime *runtime)
             { "ZeroDivisionError", PY68_ERROR_ZERO_DIVISION },
             { "OverflowError", PY68_ERROR_OVERFLOW },
             { "NameError", PY68_ERROR_NAME },
+            { "OSError", PY68_ERROR_IO },
             { "IOError", PY68_ERROR_IO },
             { "RecursionError", PY68_ERROR_RECURSION },
             { "ImportError", PY68_ERROR_IMPORT },

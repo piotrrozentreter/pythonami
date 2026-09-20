@@ -9,7 +9,7 @@ def main():
             # Large count means "up to EOF"; runtime sizes the buffer from the
             # remaining file length (not the count), so this is Amiga-safe.
             text = fread(f, 2147483647)
-    except IOError:
+    except OSError:
         print("Error reading the file.")
         return
     except ValueError:

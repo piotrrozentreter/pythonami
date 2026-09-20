@@ -1,5 +1,20 @@
 # Decisions
 
+## D-0044: `OSError` primary name; `IOError` alias
+
+- Context: Python 3 renamed the catchable I/O failure type to `OSError`;
+	`IOError` remains only as an alias. Python68K still reported and
+	registered `IOError` alone, which was a Python 2-era surface.
+- Decision: `py68_error_kind_name(PY68_ERROR_IO)` returns `"OSError"`.
+	Both `OSError` and `IOError` builtins map to `PY68_ERROR_IO`, so
+	`except OSError` and `except IOError` both match. Name lookup accepts
+	either spelling. Kind numbers are unchanged.
+- Alternatives considered: Drop `IOError` entirely; keep `IOError` as the
+	printed name with an `OSError` alias only.
+- Consequences: Printed/raised type strings say `OSError`. Existing scripts
+	that catch `IOError` keep working. Aligns process/file docs that already
+	described `OSError`.
+
 ## D-0043: Restricted f-strings via JOINED_STR / FORMATTED_VALUE
 
 - Context: Scripts want interpolated strings. Full `str.format` / format-map /

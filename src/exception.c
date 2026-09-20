@@ -20,7 +20,7 @@ const char *py68_error_kind_name(Py68U16 kind)
     case PY68_ERROR_OVERFLOW: return "OverflowError";
     case PY68_ERROR_RECURSION: return "RecursionError";
     case PY68_ERROR_MEMORY: return "MemoryError";
-    case PY68_ERROR_IO: return "IOError";
+    case PY68_ERROR_IO: return "OSError";
     case PY68_ERROR_IMPORT: return "ImportError";
     case PY68_ERROR_BYTECODE: return "BytecodeError";
     case PY68_ERROR_INTERNAL: return "InternalError";
@@ -46,6 +46,9 @@ Py68U16 py68_error_kind_from_name(const char *name, Py68U16 length)
         return PY68_ERROR_OVERFLOW;
     if (length == 9 && memcmp(name, "NameError", 9) == 0)
         return PY68_ERROR_NAME;
+    /* Python 3 primary name; IOError remains an accepted alias (D-0044). */
+    if (length == 7 && memcmp(name, "OSError", 7) == 0)
+        return PY68_ERROR_IO;
     if (length == 7 && memcmp(name, "IOError", 7) == 0)
         return PY68_ERROR_IO;
     if (length == 14 && memcmp(name, "RecursionError", 14) == 0)

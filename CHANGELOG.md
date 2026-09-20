@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- I/O failures report as `OSError` (Python 3); `IOError` remains an accepted
+  alias for the same catchable kind (D-0044).
+
 - Restricted f-strings: `f"...{expr}...{expr!r}...{expr:04d}..."` with
   `!s`/`!r`/`!a`, literal format specs matching `format()`, and `{{`/`}}`
   escapes (D-0043). Nested f-strings, raw/bytes prefixes, and `str.format`
@@ -36,7 +39,7 @@
 - Membership operators `in` / `not in` (`OP_CONTAINS` / `OP_NOT_CONTAINS`) for
   str substring, list/tuple equality scan, dict keys, and set members.
 - `for` / comprehensions iterate strings as successive one-character strings.
-- Example `examples/wordcount.py` fixed for Level APIs (`IOError`, `fread`).
+- Example `examples/wordcount.py` fixed for Level APIs (`OSError`, `fread`).
 - `fread` allocates from remaining file size (Seek/ftell), not the full count,
   so large “read all” counts work on Amiga without multi-GiB pre-allocation.
 

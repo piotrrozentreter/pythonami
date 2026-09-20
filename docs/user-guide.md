@@ -211,7 +211,7 @@ decisions.
 | Imports | Packages, relative imports, `from x import *` | Single-level `.py` modules, explicit names only |
 | File I/O | `open()`, file objects with `.read()`/`.write()`/`seek()` | `fopen`/`fread`/`freadline`/`fwrite`/`fclose` procedural API; no `seek` |
 | Process control | `subprocess.run`/`Popen`, async process APIs | Synchronous `os.system` and `os.popen` (captured text only) |
-| Error handling | Full exception class hierarchy, `except (A, B)` | Flat catchable kind set (`TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `IOError`, `RecursionError`, `ImportError`, `StopIteration`); matching by kind name, not hierarchy |
+| Error handling | Full exception class hierarchy, `except (A, B)` | Flat catchable kind set (`TypeError`, `ValueError`, `IndexError`, `KeyError`, `ZeroDivisionError`, `OverflowError`, `NameError`, `OSError`/`IOError`, `RecursionError`, `ImportError`, `StopIteration`); matching by kind, not hierarchy |
 | Dynamic execution | `eval`, `exec`, `compile` | Not implemented |
 | Pattern matching | `match` / `case` | Not implemented |
 
