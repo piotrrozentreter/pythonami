@@ -203,6 +203,55 @@ static Py68Status py68_compile_unpack_stores(Py68Allocator *allocator,
     return PY68_STATUS_OK;
 }
 
+static int py68_statements_yield(Py68AstList *statements);
+
+/* Does this statement yield in the body it belongs to? Nested function
+   bodies are not inspected because nested defs are rejected earlier. */
+static int py68_statement_yields(Py68AstNode *statement)
+{
+    Py68U16 index;
+    if (statement == NULL) return 0;
+    switch ((Py68AstKind)statement->kind) {
+    case PY68_AST_YIELD:
+        return 1;
+    case PY68_AST_IF:
+        return py68_statements_yield(&statement->as.if_statement.body) ||
+               py68_statements_yield(&statement->as.if_statement.else_body);
+    case PY68_AST_WHILE:
+        return py68_statements_yield(&statement->as.while_statement.body) ||
+               py68_statements_yield(&statement->as.while_statement.else_body);
+    case PY68_AST_FOR:
+        return py68_statements_yield(&statement->as.for_statement.body) ||
+               py68_statements_yield(&statement->as.for_statement.else_body);
+    case PY68_AST_WITH:
+        return py68_statements_yield(&statement->as.with_statement.body);
+    case PY68_AST_TRY:
+        if (py68_statements_yield(&statement->as.try_statement.body) ||
+            py68_statements_yield(&statement->as.try_statement.finally_body))
+            return 1;
+        for (index = 0; index < statement->as.try_statement.handlers.count;
+             ++index) {
+            Py68AstNode *handler =
+                statement->as.try_statement.handlers.items[index];
+            if (handler != NULL &&
+                py68_statements_yield(&handler->as.except_handler.body))
+                return 1;
+        }
+        return 0;
+    default:
+        return 0;
+    }
+}
+
+static int py68_statements_yield(Py68AstList *statements)
+{
+    Py68U16 index;
+    if (statements == NULL) return 0;
+    for (index = 0; index < statements->count; ++index)
+        if (py68_statement_yields(statements->items[index])) return 1;
+    return 0;
+}
+
 static Py68U8 py68_augmented_opcode(Py68U16 operator_kind)
 {
     switch ((Py68TokenKind)operator_kind) {
@@ -709,6 +758,22 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
                 status = py68_emit_op(allocator, code, OP_RETURN_NONE);
             }
             break;
+        case PY68_AST_YIELD:
+            if (function == NULL || code->is_generator == 0) {
+                py68_compile_error(error, source, statement->location,
+                                   "yield outside a generator function");
+                return PY68_STATUS_SOURCE_ERROR;
+            }
+            if (statement->as.return_statement.value != NULL) {
+                status = py68_compile_expression(
+                    allocator, source, statement->as.return_statement.value,
+                    code, error, analysis, function);
+            } else {
+                status = py68_emit_op(allocator, code, OP_LOAD_NONE);
+            }
+            if (status != PY68_STATUS_OK) return status;
+            status = py68_emit_op(allocator, code, OP_YIELD_VALUE);
+            break;
         case PY68_AST_PASS:
             status = PY68_STATUS_OK;
             break;
@@ -740,6 +805,10 @@ static Py68Status py68_compile_statements(Py68Allocator *allocator,
             nested_code->argument_count = nested_symbols->parameter_count;
             nested_code->local_count = (Py68U16)(
                 nested_symbols->parameter_count + nested_symbols->local_count);
+            /* A body that yields makes this a generator factory (D-0045). */
+            nested_code->is_generator =
+                py68_statements_yield(&statement->as.function_def.body)
+                    ? (Py68U16)1 : (Py68U16)0;
             status = py68_compile_statements(
                 allocator, source, &statement->as.function_def.body,
                 nested_code, error, NULL, analysis, nested_symbols, NULL);

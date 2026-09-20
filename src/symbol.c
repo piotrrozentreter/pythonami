@@ -481,6 +481,7 @@ static Py68Status py68_collect_statements(Py68Allocator *allocator,
                               "nested functions are not supported");
             return PY68_STATUS_SOURCE_ERROR;
         case PY68_AST_RETURN:
+        case PY68_AST_YIELD:
             status = py68_collect_expression(allocator, source, function,
                                               statement->as.return_statement.value);
             break;

@@ -233,9 +233,6 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         if (token->location.length == 5 && memcmp(text, "await", 5) == 0)
             return py68_statement_error(parser, token,
                 "await is not supported by Python68K Language Level 0.6");
-        if (token->location.length == 5 && memcmp(text, "yield", 5) == 0)
-            return py68_statement_error(parser, token,
-                "yield is not supported by Python68K Language Level 0.6");
         if (token->location.length == 5 && memcmp(text, "match", 5) == 0)
             return py68_statement_error(parser, token,
                 "match is not supported by Python68K Language Level 0.6");
@@ -677,6 +674,24 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
                                         "return outside function");
         }
         status = py68_statement_new(parser, PY68_AST_RETURN, token, &node);
+        if (status != PY68_STATUS_OK) return status;
+        if (py68_statement_current(parser)->kind == PY68_TOKEN_NEWLINE) {
+            value = NULL;
+        } else {
+            status = py68_parse_expression(&parser->expression, &value);
+            if (status != PY68_STATUS_OK) return status;
+        }
+        node->as.return_statement.value = value;
+        *node_out = node;
+        return PY68_STATUS_OK;
+    }
+    if (token->kind == PY68_TOKEN_YIELD) {
+        ++parser->expression.position;
+        if (!parser->inside_function) {
+            return py68_statement_error(parser, token,
+                                        "yield outside function");
+        }
+        status = py68_statement_new(parser, PY68_AST_YIELD, token, &node);
         if (status != PY68_STATUS_OK) return status;
         if (py68_statement_current(parser)->kind == PY68_TOKEN_NEWLINE) {
             value = NULL;

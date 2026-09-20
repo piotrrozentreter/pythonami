@@ -13,6 +13,7 @@
 #include "py68k_set.h"
 #include "py68k_attr.h"
 #include "py68k_exception.h"
+#include "py68k_generator.h"
 #include "py68k_module.h"
 #include "py68k_time.h"
 #include "py68k_native.h"
@@ -127,6 +128,10 @@ void py68_object_release(Py68Runtime *runtime, Py68Object *object)
     } else if (object->type == PY68_OBJECT_STRUCT_TIME) {
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
                   sizeof(Py68StructTime));
+    } else if (object->type == PY68_OBJECT_GENERATOR) {
+        /* Close on release: state is freed deterministically, but the
+           script's finally blocks do not run (D-0045). */
+        py68_generator_destroy(runtime, (Py68Generator *)object);
     } else {
         py68_free(&runtime->allocator, PY68_MEM_RUNTIME, object,
                   (Py68U32)sizeof(Py68Object));

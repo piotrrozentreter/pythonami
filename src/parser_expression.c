@@ -967,6 +967,12 @@ static Py68Status py68_parse_primary(Py68ExpressionParser *parser,
         *node_out = node;
         return PY68_STATUS_OK;
     }
+    if (token->kind == PY68_TOKEN_YIELD) {
+        py68_parser_error(parser, token->location,
+                          "yield is a statement in Python68K Language "
+                          "Level 0.7; it produces no value");
+        return PY68_STATUS_SOURCE_ERROR;
+    }
     py68_parser_error(parser, token->location, "expected expression");
     return PY68_STATUS_SOURCE_ERROR;
 }

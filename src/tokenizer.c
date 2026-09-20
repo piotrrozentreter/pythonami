@@ -103,8 +103,9 @@ static Py68TokenKind py68_keyword(const Py68U8 *data, Py68U32 start,
         "if", "elif", "else", "while", "for", "in", "def",
         "return", "break", "continue", "pass", "and", "or", "not",
         "True", "False", "None", "try", "except", "finally", "raise",
-        "with", "import", "from", "as", "is", "class", "lambda", "nonlocal",
-        "async", "await", "yield", "match", "case", "global", "eval",
+        "with", "import", "from", "as", "is", "yield",
+        "class", "lambda", "nonlocal",
+        "async", "await", "match", "case", "global", "eval",
         "exec"
     };
     static const Py68TokenKind kinds[] = {
@@ -115,13 +116,12 @@ static Py68TokenKind py68_keyword(const Py68U8 *data, Py68U32 start,
         PY68_TOKEN_TRUE, PY68_TOKEN_FALSE, PY68_TOKEN_NONE,
         PY68_TOKEN_TRY, PY68_TOKEN_EXCEPT, PY68_TOKEN_FINALLY,
         PY68_TOKEN_RAISE, PY68_TOKEN_WITH, PY68_TOKEN_IMPORT,
-        PY68_TOKEN_FROM, PY68_TOKEN_AS, PY68_TOKEN_IS,
+        PY68_TOKEN_FROM, PY68_TOKEN_AS, PY68_TOKEN_IS, PY68_TOKEN_YIELD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
         PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD,
-        PY68_TOKEN_UNSUPPORTED_KEYWORD
+        PY68_TOKEN_UNSUPPORTED_KEYWORD, PY68_TOKEN_UNSUPPORTED_KEYWORD
     };
     Py68U16 index;
 

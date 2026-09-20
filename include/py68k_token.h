@@ -74,6 +74,7 @@ typedef enum Py68TokenKind {
     PY68_TOKEN_IMPORT,
     PY68_TOKEN_FROM,
     PY68_TOKEN_AS,
+    PY68_TOKEN_YIELD,
     PY68_TOKEN_UNSUPPORTED_KEYWORD
 } Py68TokenKind;
 

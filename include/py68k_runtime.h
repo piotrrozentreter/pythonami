@@ -16,6 +16,19 @@
 /* Backward branches between two py68_platform_poll calls. */
 #define PY68_POLL_INTERVAL_DEFAULT 256U
 
+struct Py68Generator;
+
+/* How a generator activation hands its result back to the resuming site
+   (D-0045). PY68_RESUME_NONE marks an ordinary call frame. */
+#define PY68_RESUME_NONE 0
+/* return_ip addresses the OP_RANGE_NEXT that resumed the generator: a yield
+   continues after it, exhaustion re-executes it and takes its exit branch. */
+#define PY68_RESUME_FOR 1
+/* return_ip addresses the instruction after OP_CALL and stack_base - 1 holds
+   the result slot: None for next(it), the default for next(it, default). */
+#define PY68_RESUME_NEXT 2
+#define PY68_RESUME_NEXT_DEFAULT 3
+
 typedef struct Py68TryBlock {
     Py68U32 handler_ip;
     Py68U16 stack_depth;
@@ -32,6 +45,12 @@ typedef struct Py68Frame {
     Py68U32 return_ip;
     Py68TryBlock try_stack[PY68_TRY_MAX];
     Py68U16 try_count;
+    /* Generator activation (D-0045): retained generator whose locals this
+       frame borrows, the value-stack index where its operands begin, and how
+       to deliver the next yielded value. NULL for ordinary call frames. */
+    struct Py68Generator *generator;
+    Py68U16 stack_base;
+    Py68U16 resume_kind;
 } Py68Frame;
 
 typedef struct Py68GlobalEntry {

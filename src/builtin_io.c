@@ -767,6 +767,14 @@ Py68Status py68_builtin_iter(Py68Runtime *runtime, Py68U16 argument_count,
                            "iter expects one argument");
         return PY68_STATUS_RUNTIME_ERROR;
     }
+    /* A generator is its own iterator (D-0045). */
+    if (arguments[0].type == PY68_VALUE_OBJECT &&
+        arguments[0].as.object != NULL &&
+        arguments[0].as.object->type == PY68_OBJECT_GENERATOR) {
+        *result = arguments[0];
+        py68_value_retain(*result);
+        return PY68_STATUS_OK;
+    }
     status = py68_iterable_get_iter(runtime, arguments[0], &range_obj);
     if (status == PY68_STATUS_SOURCE_ERROR) {
         py68_builtin_error(runtime, PY68_ERROR_TYPE,
@@ -787,6 +795,15 @@ Py68Status py68_builtin_next(Py68Runtime *runtime, Py68U16 argument_count,
     if (argument_count < 1 || argument_count > 2) {
         py68_builtin_error(runtime, PY68_ERROR_TYPE,
                            "next expects one or two arguments");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if (arguments[0].type == PY68_VALUE_OBJECT &&
+        arguments[0].as.object != NULL &&
+        arguments[0].as.object->type == PY68_OBJECT_GENERATOR) {
+        /* OP_CALL resumes generators inline, so reaching the callback with a
+           generator means it was invoked outside a script call (D-0045). */
+        py68_builtin_error(runtime, PY68_ERROR_TYPE,
+                           "next() on a generator requires a direct call");
         return PY68_STATUS_RUNTIME_ERROR;
     }
     if (arguments[0].type != PY68_VALUE_OBJECT ||

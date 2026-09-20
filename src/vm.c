@@ -16,6 +16,7 @@
 #include "py68k_attr.h"
 #include "py68k_exception.h"
 #include "py68k_float.h"
+#include "py68k_generator.h"
 #include "py68k_import.h"
 #include "py68k_module.h"
 
@@ -146,6 +147,44 @@ static Py68Status py68_vm_push(Py68Runtime *runtime, Py68Value value)
 Py68Status py68_vm_push_owned(Py68Runtime *runtime, Py68Value value)
 {
     return py68_vm_push(runtime, value);
+}
+
+/* Resume `generator` in a fresh activation frame whose operands start at the
+   current stack top. Growth happens up front so restoring the saved operands
+   cannot fail halfway through (D-0045). */
+static Py68Status py68_vm_resume_generator(Py68Runtime *runtime,
+                                           Py68Generator *generator,
+                                           Py68Code *return_code,
+                                           Py68U32 return_ip,
+                                           Py68U16 resume_kind)
+{
+    Py68U16 stack_base = runtime->value_stack_count;
+    Py68U16 index;
+    Py68Status status;
+    if (generator->state == PY68_GENERATOR_RUNNING) {
+        py68_vm_error(runtime, PY68_ERROR_VALUE,
+                      "generator is already executing");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    if ((Py68U32)stack_base + (Py68U32)generator->stack_count > 65535UL) {
+        py68_vm_error(runtime, PY68_ERROR_MEMORY, "value stack is too deep");
+        return PY68_STATUS_RUNTIME_ERROR;
+    }
+    while ((Py68U32)runtime->value_stack_capacity <
+           (Py68U32)stack_base + (Py68U32)generator->stack_count) {
+        status = py68_vm_grow(runtime);
+        if (status != PY68_STATUS_OK) return status;
+    }
+    status = py68_frame_push_generator(runtime, generator, return_code,
+                                       return_ip, stack_base, resume_kind);
+    if (status != PY68_STATUS_OK) return status;
+    for (index = 0; index < generator->stack_count; ++index)
+        runtime->value_stack[stack_base + index] = generator->stack[index];
+    runtime->value_stack_count =
+        (Py68U16)(stack_base + generator->stack_count);
+    generator->stack_count = 0;
+    generator->state = PY68_GENERATOR_RUNNING;
+    return PY68_STATUS_OK;
 }
 
 static Py68Status py68_vm_pop(Py68Runtime *runtime, Py68Value *value)
@@ -913,8 +952,11 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             if (argc == 1) {
                 status = py68_vm_pop(runtime, &arg0);
                 if (status != PY68_STATUS_OK) break;
+                /* Iterators pass straight through: a range iterator, or a
+                   generator, which is its own iterator (D-0045). */
                 if (arg0.type == PY68_VALUE_OBJECT && arg0.as.object != NULL &&
-                    arg0.as.object->type == PY68_OBJECT_RANGE) {
+                    (arg0.as.object->type == PY68_OBJECT_RANGE ||
+                     arg0.as.object->type == PY68_OBJECT_GENERATOR)) {
                     status = py68_vm_push(runtime, arg0);
                     ip += 2;
                     break;
@@ -1001,6 +1043,28 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 break;
             }
             range_val = runtime->value_stack[runtime->value_stack_count - 1];
+            if (range_val.type == PY68_VALUE_OBJECT &&
+                range_val.as.object != NULL &&
+                range_val.as.object->type == PY68_OBJECT_GENERATOR) {
+                Py68Generator *generator = (Py68Generator *)range_val.as.object;
+                if (generator->state == PY68_GENERATOR_DONE) {
+                    /* An exhausted generator iterates as empty, as in
+                       CPython: pop it and take the loop-exit branch. */
+                    --runtime->value_stack_count;
+                    py68_value_release(runtime, range_val);
+                    ip = (Py68U32)((Py68I32)(ip + 3) + (Py68I32)displacement);
+                    status = PY68_STATUS_OK;
+                    break;
+                }
+                status = py68_vm_resume_generator(runtime, generator,
+                                                  current_code, ip,
+                                                  PY68_RESUME_FOR);
+                if (status == PY68_STATUS_OK) {
+                    current_code = generator->code;
+                    ip = generator->resume_ip;
+                }
+                break;
+            }
             if (range_val.type != PY68_VALUE_OBJECT || range_val.as.object == NULL ||
                 range_val.as.object->type != PY68_OBJECT_RANGE) {
                 py68_vm_error(runtime, PY68_ERROR_TYPE, "range iterator required");
@@ -1306,6 +1370,51 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 ip = current_code->bytecode_length;
                 break;
             }
+            /* next(gen) and next(gen, default) resume the generator inline:
+               a native callback could not re-enter the interpreter without
+               C recursion (D-0045). */
+            if (callee.as.object->type == PY68_OBJECT_NATIVE_FUNCTION &&
+                ((Py68NativeFunction *)callee.as.object)->callback ==
+                    py68_builtin_next &&
+                argument_count >= 1 && argument_count <= 2 &&
+                arguments[0].type == PY68_VALUE_OBJECT &&
+                arguments[0].as.object != NULL &&
+                arguments[0].as.object->type == PY68_OBJECT_GENERATOR) {
+                Py68Generator *generator =
+                    (Py68Generator *)arguments[0].as.object;
+                Py68U16 slot = (Py68U16)(runtime->value_stack_count -
+                                         argument_count - 1);
+                Py68Value placeholder = argument_count == 2 ? arguments[1]
+                                                           : py68_value_none();
+                py68_object_retain(&generator->base);
+                py68_value_release(runtime, callee);
+                py68_value_release(runtime, arguments[0]);
+                runtime->value_stack[slot] = placeholder;
+                runtime->value_stack_count = (Py68U16)(slot + 1);
+                if (generator->state == PY68_GENERATOR_DONE) {
+                    if (argument_count == 2) {
+                        status = PY68_STATUS_OK;
+                        ip += 2;
+                    } else {
+                        --runtime->value_stack_count;
+                        py68_vm_error(runtime, PY68_ERROR_STOP_ITERATION,
+                                      "StopIteration");
+                        status = PY68_STATUS_RUNTIME_ERROR;
+                    }
+                    py68_object_release(runtime, &generator->base);
+                    break;
+                }
+                status = py68_vm_resume_generator(
+                    runtime, generator, current_code, ip + 2,
+                    argument_count == 2 ? PY68_RESUME_NEXT_DEFAULT
+                                        : PY68_RESUME_NEXT);
+                if (status == PY68_STATUS_OK) {
+                    current_code = generator->code;
+                    ip = generator->resume_ip;
+                }
+                py68_object_release(runtime, &generator->base);
+                break;
+            }
             if (callee.as.object->type == PY68_OBJECT_NATIVE_FUNCTION) {
                 status = py68_native_call(
                     (Py68NativeFunction *)callee.as.object, runtime,
@@ -1315,25 +1424,46 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 Py68Code *callee_code = function->code;
                 Py68U16 local_count = function->local_count;
                 status = py68_function_check_arguments(function, argument_count);
+                if (status != PY68_STATUS_OK)
+                    py68_vm_error(runtime, PY68_ERROR_TYPE,
+                                  "function called with the wrong "
+                                  "number of arguments");
                 if (status == PY68_STATUS_OK)
                     status = py68_verify_code(callee_code, &runtime->error);
-                if (status == PY68_STATUS_OK)
-                    status = py68_frame_push(runtime, callee_code,
-                                             current_code, local_count,
-                                             argument_count, arguments, ip + 2,
-                                             function->globals_owner);
-                if (status == PY68_STATUS_OK) {
-                    runtime->value_stack_count = (Py68U16)(
-                        runtime->value_stack_count - argument_count - 1);
-                    py68_value_release(runtime, callee);
-                    while (argument_count != 0) {
-                        --argument_count;
-                        py68_value_release(runtime, arguments[argument_count]);
+                if (status == PY68_STATUS_OK && callee_code->is_generator != 0) {
+                    /* Calling a generator factory builds the generator and
+                       runs no bytecode (D-0045). */
+                    Py68Generator *generator;
+                    status = py68_generator_new(runtime, callee_code,
+                                                function->globals_owner,
+                                                argument_count, arguments,
+                                                &generator);
+                    if (status == PY68_STATUS_OK)
+                        result = py68_value_from_object(&generator->base);
+                    else
+                        py68_vm_error(runtime, PY68_ERROR_MEMORY,
+                                      "generator allocation failed");
+                } else {
+                    if (status == PY68_STATUS_OK)
+                        status = py68_frame_push(runtime, callee_code,
+                                                 current_code, local_count,
+                                                 argument_count, arguments,
+                                                 ip + 2,
+                                                 function->globals_owner);
+                    if (status == PY68_STATUS_OK) {
+                        runtime->value_stack_count = (Py68U16)(
+                            runtime->value_stack_count - argument_count - 1);
+                        py68_value_release(runtime, callee);
+                        while (argument_count != 0) {
+                            --argument_count;
+                            py68_value_release(runtime,
+                                               arguments[argument_count]);
+                        }
+                        current_code = callee_code;
+                        ip = 0;
                     }
-                    current_code = callee_code;
-                    ip = 0;
+                    break;
                 }
-                break;
             } else if (callee.as.object->type == PY68_OBJECT_BOUND_METHOD) {
                 Py68BoundMethod *method =
                     (Py68BoundMethod *)callee.as.object;
@@ -1373,6 +1503,75 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             ip += 2;
             break;
         }
+        case OP_YIELD_VALUE: {
+            Py68Frame *frame;
+            Py68Generator *generator;
+            Py68Value yielded;
+            Py68Code *caller_code;
+            Py68U32 caller_ip;
+            Py68U16 resume_kind;
+            Py68U16 stack_base;
+            Py68U16 saved_count;
+            Py68U16 try_index;
+            if (runtime->frame_count == 0 ||
+                runtime->frames[runtime->frame_count - 1].generator == NULL) {
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "yield outside a generator frame");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                break;
+            }
+            frame = &runtime->frames[runtime->frame_count - 1];
+            generator = frame->generator;
+            stack_base = frame->stack_base;
+            resume_kind = frame->resume_kind;
+            caller_code = frame->return_code;
+            caller_ip = frame->return_ip;
+            status = py68_vm_pop(runtime, &yielded);
+            if (status != PY68_STATUS_OK) break;
+            if (runtime->value_stack_count < stack_base ||
+                (resume_kind != PY68_RESUME_FOR && stack_base == 0)) {
+                py68_value_release(runtime, yielded);
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "generator stack is inconsistent");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                break;
+            }
+            saved_count = (Py68U16)(runtime->value_stack_count - stack_base);
+            status = py68_generator_store_stack(
+                generator, &runtime->value_stack[stack_base], saved_count);
+            if (status != PY68_STATUS_OK) {
+                py68_value_release(runtime, yielded);
+                py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                              "generator operand stack overflow");
+                status = PY68_STATUS_RUNTIME_ERROR;
+                break;
+            }
+            runtime->value_stack_count = stack_base;
+            generator->resume_ip = ip + 1;
+            generator->state = PY68_GENERATOR_SUSPENDED;
+            generator->try_count = frame->try_count;
+            for (try_index = 0; try_index < frame->try_count; ++try_index) {
+                generator->try_stack[try_index].handler_ip =
+                    frame->try_stack[try_index].handler_ip;
+                generator->try_stack[try_index].stack_depth = (Py68U16)(
+                    frame->try_stack[try_index].stack_depth - stack_base);
+            }
+            py68_frame_pop_suspend(runtime);
+            current_code = caller_code;
+            if (resume_kind == PY68_RESUME_FOR) {
+                /* Leaves [.., generator, yielded] for the loop body; the
+                   slot is already inside the stack capacity. */
+                ip = caller_ip + 3;
+                status = py68_vm_push(runtime, yielded);
+            } else {
+                ip = caller_ip;
+                py68_value_release(runtime,
+                                   runtime->value_stack[stack_base - 1]);
+                runtime->value_stack[stack_base - 1] = yielded;
+                status = PY68_STATUS_OK;
+            }
+            break;
+        }
         case OP_RETURN_VALUE: case OP_RETURN_NONE: {
             Py68Value return_value;
             Py68Code *caller_code;
@@ -1388,6 +1587,39 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 if (status != PY68_STATUS_OK) break;
             } else {
                 return_value = py68_value_none();
+            }
+            if (runtime->frames[runtime->frame_count - 1].generator != NULL) {
+                /* return finishes the generator; the value is discarded
+                   because StopIteration.value does not exist here (D-0045). */
+                Py68Frame *frame = &runtime->frames[runtime->frame_count - 1];
+                Py68U16 resume_kind = frame->resume_kind;
+                Py68U16 stack_base = frame->stack_base;
+                caller_code = frame->return_code;
+                caller_ip = frame->return_ip;
+                py68_value_release(runtime, return_value);
+                while (runtime->value_stack_count > stack_base) {
+                    --runtime->value_stack_count;
+                    py68_value_release(
+                        runtime,
+                        runtime->value_stack[runtime->value_stack_count]);
+                }
+                py68_frame_pop(runtime);
+                current_code = caller_code;
+                ip = caller_ip;
+                status = PY68_STATUS_OK;
+                if (resume_kind == PY68_RESUME_NEXT) {
+                    /* Drop the None placeholder and report exhaustion. */
+                    if (runtime->value_stack_count != 0) {
+                        --runtime->value_stack_count;
+                        py68_value_release(
+                            runtime,
+                            runtime->value_stack[runtime->value_stack_count]);
+                    }
+                    py68_vm_error(runtime, PY68_ERROR_STOP_ITERATION,
+                                  "StopIteration");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                }
+                break;
             }
             caller_code = runtime->frames[runtime->frame_count - 1].return_code;
             caller_ip = runtime->frames[runtime->frame_count - 1].return_ip;
