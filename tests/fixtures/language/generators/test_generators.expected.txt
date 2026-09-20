@@ -1,0 +1,79 @@
+=== simple counter ===
+0
+1
+2
+3
+=== laziness ===
+created
+start
+1
+middle
+2
+=== next default and StopIteration ===
+0
+1
+-1
+-1
+0
+1
+=== bare yield ===
+None
+7
+=== generator is its own iterator ===
+True
+3
+=== arguments and locals ===
+row0
+row1
+row2
+=== early return ends the generator ===
+stop:
+1
+run:
+1
+2
+=== break abandons the generator ===
+1
+=== partially consumed generator resumes ===
+1
+5
+exhausted
+=== nested generators ===
+10
+20
+99
+=== yield inside for with else ===
+0
+1
+-1
+=== try / except / finally across yields ===
+1
+2
+3
+=== exception escapes the generator ===
+1
+1
+=== generator over a list and a string ===
+2
+4
+6
+aa
+bb
+=== accumulating without materializing ===
+30
+=== many independent generators ===
+0
+0
+1
+1
+-1
+2
+=== generators in a list ===
+0
+0
+1
+=== truthiness and identity ===
+True
+False
+=== recursion depth is not consumed ===
+200
