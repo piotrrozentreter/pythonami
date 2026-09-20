@@ -1,5 +1,35 @@
 # Decisions
 
+## D-0047: Builtins consume a generator through a VM-driven collect frame
+
+- Context: `sum(x * x for x in range(10))` and `list(gen())` are the ordinary
+	way to use a generator, but `py68_builtin_sum` and friends walk a
+	`Py68List`/`Py68Tuple` directly. A native cannot step a generator, because
+	resuming one means running bytecode, and the explicit VM value and frame
+	stacks exist precisely so that no script call recurses in C (D-0045).
+- Decision: `Py68NativeFunction` gains `consumes_iterable`. It is set for
+	`list`, `tuple`, `set`, `sorted`, `sum`, `all`, and `any` — the builtins that
+	read their first argument as an iterable. When `OP_CALL` sees such a native
+	with a generator in that position it pushes an empty list, then resumes the
+	generator with `PY68_RESUME_COLLECT` and `return_ip` pointing back at the
+	`OP_CALL` itself. Each `OP_YIELD_VALUE` in that mode appends to the list at
+	`stack_base - 1` and keeps the activation running, so no generator state is
+	saved and no frame is popped. When the generator finishes, the list replaces
+	the generator argument in place and the same `OP_CALL` re-executes, this time
+	reaching the callback with a list.
+- Alternatives considered: A `next()`-style inline special case per builtin
+	(duplicates the drain loop several times); letting natives call back into
+	`py68_vm_run` (C recursion per nesting level); converting every generator
+	argument to a list regardless of the callee (`print(gen)` and `type(gen)`
+	would stop reporting the generator); requiring scripts to write an explicit
+	`for` loop.
+- Consequences: The drain is eager, so `sum(infinite_generator())` never
+	returns, exactly as in CPython. Memory use is that of the materialized list,
+	which CPython avoids for `sum`/`any`/`all`; on a 68000 a long generator can
+	therefore fail with `MemoryError` where CPython would stream. `any`/`all` do
+	not short-circuit over a generator. Builtins outside the list still see the
+	generator object itself, so `print(gen)` and `len(gen)` stay `TypeError`.
+
 ## D-0046: Generator expressions snapshot free names as synthetic arguments
 
 - Context: `(elt for x in it)` needs its own suspended frame, but Language
@@ -7,25 +37,37 @@
 	written inside a `def` can still read that function's locals.
 - Decision: The compiler synthesizes a nested `Py68Code` with
 	`is_generator = 1` whose body is the comprehension loop ending in
-	`OP_YIELD_VALUE`. Names used inside the genexp that resolve to a local or
-	parameter of the enclosing function become **leading synthetic parameters**.
-	At the creation site the compiler emits `OP_MAKE_FUNCTION`, loads those
-	names in the enclosing scope, and calls the factory, so the values are
-	**snapshotted by reference at construction time**. Names that are not
+	`OP_YIELD_VALUE`. Its **first parameter is a hidden iterator**: the creation
+	site evaluates the outermost iterable eagerly, as CPython does, and the body
+	starts with `OP_LOAD_LOCAL 0` + `OP_RANGE_INIT 1`. The parameter is recorded
+	with a zero-length name, which can never match a source identifier, so script
+	code cannot reach it. Names used inside the genexp that resolve to a local or
+	parameter of the enclosing function become **additional leading parameters**.
+	At the creation site the compiler emits `OP_MAKE_FUNCTION`, the outer
+	iterable, then loads those names in the enclosing scope and emits `OP_CALL`,
+	so the values are **snapshotted at construction time**. Names that are not
 	enclosing locals stay `OP_LOAD_GLOBAL` (module global, then builtin) and are
-	therefore resolved lazily on each iteration step. Genexp loop targets bind
-	only inside the generator and never in the enclosing scope (unlike list/set/
-	dict comprehensions, D-0026).
+	therefore resolved lazily on each iteration step, and inner `for` clauses
+	evaluate their iterables lazily as in CPython. Genexp loop targets bind only
+	inside the generator and never in the enclosing scope (unlike list/set/dict
+	comprehensions, D-0026); loop targets of a comprehension nested inside the
+	genexp become locals of the synthetic scope for the same reason.
+	`f(x for x in xs)` is accepted when the genexp is the only argument, reusing
+	the call parentheses as CPython does; alongside other arguments it must be
+	parenthesized.
 - Alternatives considered: Real cell objects with late binding (needs a closure
 	model and cycle handling); inline the genexp into a list (loses laziness);
-	reject genexps inside functions.
+	reject genexps inside functions; snapshot every enclosing local
+	unconditionally (an unbound local could not be pushed without a new opcode).
 - Consequences: Rebinding an enclosing local after the genexp is created does
-	not change what the generator sees; CPython's late-binding cells would.
-	Rebinding a *global* does change it, which matches CPython. CPython also
-	evaluates the outermost iterable eagerly at construction; Python68K
-	evaluates every iterable on first resume, so a genexp over a global name
-	that is rebound before the first step iterates the new object. Both
-	deviations are documented in `docs/language-reference.md`.
+	not change what the generator sees; CPython's late-binding cells would. This
+	is the one documented behavioral divergence, covered by
+	`tests/language/generators/test_generator_exp.py`. Rebinding a *global* does
+	change it, which matches CPython. A genexp captures at most
+	`PY68_GENEXP_MAX_FREE` free names and binds at most `PY68_GENEXP_MAX_BOUND`,
+	both reported as targeted syntax errors, because the sets live on the C stack
+	during compilation and `OP_CALL` encodes its argument count in one byte. The
+	divergence is documented in `docs/language-reference.md`.
 
 ## D-0045: Generators (`yield`) with private frame state; no `send`/`throw`
 
@@ -61,7 +103,8 @@
 		one argument passes a generator through unchanged, `OP_RANGE_NEXT`
 		resumes a generator TOS, `iter(gen)` returns the same generator, and
 		`next(gen[, default])` resumes it (the VM handles this `next` inline so a
-		native callback never re-enters the interpreter). An exhausted generator
+		native callback never re-enters the interpreter; builtins that consume a
+		whole iterable are handled by D-0047). An exhausted generator
 		iterates as empty, matching CPython, rather than raising; the plan's
 		"reject DONE" reading would have diverged from CPython for
 		`for x in exhausted_gen`.

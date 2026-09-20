@@ -92,3 +92,17 @@ b
 3
 === many steps ===
 100
+=== consumed by a builtin ===
+30
+[0, 1, 2, 3]
+[1, 2, 3]
+(0, 1, 2)
+7
+106
+True
+False
+3
+[0, 0, 0, 1, 1, 2, 2]
+=== unparenthesized only as the single argument ===
+6
+6

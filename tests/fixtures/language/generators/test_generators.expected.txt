@@ -77,3 +77,26 @@ True
 False
 === recursion depth is not consumed ===
 200
+=== builtins that consume an iterable ===
+[0, 1, 2, 3]
+(0, 1, 2)
+[0, 1, 2]
+10
+103
+6
+[]
+0
+True
+True
+False
+False
+=== consuming a partially stepped generator ===
+0
+[1, 2, 3]
+[]
+=== a raise during collection propagates ===
+collect caught
+0
+=== nested collection ===
+6
+[0, 1, 2]

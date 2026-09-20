@@ -168,3 +168,19 @@ count = 0
 for v in (x for x in range(200) if x % 2 == 0):
     count = count + 1
 print(count)
+
+print("=== consumed by a builtin ===")
+print(sum(x * x for x in range(5)))
+print(list(x for x in range(4)))
+print(sorted(x for x in [3, 1, 2]))
+print(tuple(x for x in range(3)))
+print(len(list(x for x in range(7))))
+print(sum((x for x in range(4)), 100))
+print(any(x > 2 for x in range(5)))
+print(all(x > 2 for x in range(5)))
+print(sum(len(row) for row in [[1], [2, 3]]))
+print(sorted(x % 3 for x in range(7)))
+
+print("=== unparenthesized only as the single argument ===")
+print(sum(x for x in range(4)))
+print(sum((x for x in range(4)), 0))

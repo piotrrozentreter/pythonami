@@ -243,3 +243,35 @@ count = 0
 for v in deep(200):
     count = count + 1
 print(count)
+
+print("=== builtins that consume an iterable ===")
+print(list(counter(4)))
+print(tuple(counter(3)))
+print(sorted(counter(3)))
+print(sum(counter(5)))
+print(sum(counter(3), 100))
+print(len(list(counter(6))))
+print(list(counter(0)))
+print(sum(counter(0)))
+print(any(v == 2 for v in counter(4)))
+print(all(v < 4 for v in counter(4)))
+print(any(v == 9 for v in counter(4)))
+print(all(v == 0 for v in counter(4)))
+
+print("=== consuming a partially stepped generator ===")
+partial = counter(4)
+print(next(partial))
+print(list(partial))
+print(list(partial))
+
+print("=== a raise during collection propagates ===")
+collected = 0
+try:
+    collected = list(raiser())
+except ValueError:
+    print("collect caught")
+print(collected)
+
+print("=== nested collection ===")
+print(sum(sum(inner()) for i in range(2)))
+print(list(sorted(counter(3))))

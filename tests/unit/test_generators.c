@@ -6,6 +6,7 @@
 #include "py68k_error.h"
 #include "py68k_generator.h"
 #include "py68k_global.h"
+#include "py68k_list.h"
 #include "py68k_parser.h"
 #include "py68k_runtime.h"
 #include "py68k_source.h"
@@ -596,6 +597,138 @@ static int test_generator_exp_snapshot(void)
     return passed;
 }
 
+/* Builtins that consume an iterable drain a generator argument through a
+   VM-driven collect loop, so no native ever re-enters the interpreter. */
+static int test_generator_collect(void)
+{
+    Py68Runtime runtime;
+    Program program;
+    Py68Error error;
+    Py68Status status;
+    Py68Value value;
+    int passed = 1;
+    const char *text =
+        "def gen(n):\n"
+        "    i = 0\n"
+        "    while i < n:\n"
+        "        yield i\n"
+        "        i = i + 1\n"
+        "total = sum(gen(5))\n"
+        "biased = sum(gen(3), 100)\n"
+        "squares = sum(x * x for x in range(4))\n"
+        "collected = list(gen(3))\n"
+        "empty = list(gen(0))\n"
+        "ordered = sorted(x for x in [3, 1, 2])\n"
+        "some = any(x > 3 for x in range(5))\n"
+        "every = all(x > 3 for x in range(5))\n"
+        "partial = gen(3)\n"
+        "head = next(partial)\n"
+        "tail = list(partial)\n"
+        "again = list(partial)\n"
+        "deep = sum(sum(y for y in range(x)) for x in range(4))\n";
+
+    passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+    passed &= py68_builtins_install(&runtime) == PY68_STATUS_OK;
+    passed &= program_build(&runtime, &program, text, &status, &error);
+    passed &= status == PY68_STATUS_OK;
+    if (status == PY68_STATUS_OK) {
+        passed &= py68_vm_execute(&runtime, &program.code) == PY68_STATUS_OK;
+        passed &= runtime.value_stack_count == 0;
+        passed &= runtime.frame_count == 0;
+        passed &= global_int_is(&runtime, "total", 10);
+        passed &= global_int_is(&runtime, "biased", 103);
+        passed &= global_int_is(&runtime, "squares", 14);
+        passed &= global_int_is(&runtime, "head", 0);
+        passed &= global_int_is(&runtime, "deep", 4);
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"collected", 9,
+                                &value) == PY68_STATUS_OK) {
+            passed &= value.type == PY68_VALUE_OBJECT &&
+                      value.as.object->type == PY68_OBJECT_LIST &&
+                      ((Py68List *)value.as.object)->count == 3;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"empty", 5,
+                                &value) == PY68_STATUS_OK) {
+            passed &= value.type == PY68_VALUE_OBJECT &&
+                      value.as.object->type == PY68_OBJECT_LIST &&
+                      ((Py68List *)value.as.object)->count == 0;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+        /* The partially consumed generator yields its remainder once. */
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"tail", 4,
+                                &value) == PY68_STATUS_OK) {
+            passed &= ((Py68List *)value.as.object)->count == 2;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"again", 5,
+                                &value) == PY68_STATUS_OK) {
+            passed &= ((Py68List *)value.as.object)->count == 0;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"some", 4,
+                                &value) == PY68_STATUS_OK) {
+            passed &= value.type == PY68_VALUE_BOOL && value.as.integer != 0;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+        if (py68_global_get_copy(&runtime, (const Py68U8 *)"every", 5,
+                                &value) == PY68_STATUS_OK) {
+            passed &= value.type == PY68_VALUE_BOOL && value.as.integer == 0;
+            py68_value_release(&runtime, value);
+        } else {
+            passed = 0;
+        }
+    }
+    program_destroy(&runtime, &program);
+    py68_runtime_shutdown(&runtime);
+    passed &= runtime.allocator.stats.current_bytes == 0;
+    return passed;
+}
+
+/* An exception raised part-way through a collect unwinds the activation, the
+   partially filled list and the generator argument. */
+static int test_generator_collect_error(void)
+{
+    Py68Runtime runtime;
+    Program program;
+    Py68Error error;
+    Py68Status status;
+    int passed = 1;
+    const char *text =
+        "def boom():\n"
+        "    yield 1\n"
+        "    raise ValueError(\"inside\")\n"
+        "caught = 0\n"
+        "try:\n"
+        "    held = list(boom())\n"
+        "except ValueError:\n"
+        "    caught = 1\n";
+
+    passed &= py68_runtime_initialize(&runtime) == PY68_STATUS_OK;
+    passed &= py68_builtins_install(&runtime) == PY68_STATUS_OK;
+    passed &= program_build(&runtime, &program, text, &status, &error);
+    passed &= status == PY68_STATUS_OK;
+    if (status == PY68_STATUS_OK) {
+        passed &= py68_vm_execute(&runtime, &program.code) == PY68_STATUS_OK;
+        passed &= runtime.value_stack_count == 0;
+        passed &= runtime.frame_count == 0;
+        passed &= global_int_is(&runtime, "caught", 1);
+    }
+    program_destroy(&runtime, &program);
+    py68_runtime_shutdown(&runtime);
+    passed &= runtime.allocator.stats.current_bytes == 0;
+    return passed;
+}
+
 int main(void)
 {
     int passed = 1;
@@ -612,6 +745,8 @@ int main(void)
     passed &= test_generator_abandon();
     passed &= test_generator_exp_shape();
     passed &= test_generator_exp_snapshot();
+    passed &= test_generator_collect();
+    passed &= test_generator_collect_error();
     if (passed) { puts("PASS: generator tests"); return 0; }
     return 1;
 }

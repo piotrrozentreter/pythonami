@@ -22,6 +22,7 @@ Py68Status py68_native_new(Py68Runtime *runtime, const char *name,
     function->name = name;
     function->minimum_arguments = minimum_arguments;
     function->maximum_arguments = maximum_arguments;
+    function->consumes_iterable = 0;
     function->callback = callback;
     *result = function;
     return PY68_STATUS_OK;

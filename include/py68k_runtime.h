@@ -28,6 +28,11 @@ struct Py68Generator;
    the result slot: None for next(it), the default for next(it, default). */
 #define PY68_RESUME_NEXT 2
 #define PY68_RESUME_NEXT_DEFAULT 3
+/* Draining a generator argument into a list for a builtin that consumes an
+   iterable. return_ip addresses the OP_CALL itself and stack_base - 1 holds the
+   list being filled: each yield appends and keeps running, and exhaustion
+   replaces the generator argument with the list and re-executes the call. */
+#define PY68_RESUME_COLLECT 4
 
 typedef struct Py68TryBlock {
     Py68U32 handler_ip;

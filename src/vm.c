@@ -1415,6 +1415,56 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                 py68_object_release(runtime, &generator->base);
                 break;
             }
+            /* list(gen), sum(gen), ... : drain the generator into a list, then
+               re-execute this OP_CALL with the list in its place (D-0045). */
+            if (callee.as.object->type == PY68_OBJECT_NATIVE_FUNCTION &&
+                ((Py68NativeFunction *)callee.as.object)->consumes_iterable ==
+                    PY68_NATIVE_ITERABLE_ARG &&
+                argument_count >= 1 &&
+                arguments[0].type == PY68_VALUE_OBJECT &&
+                arguments[0].as.object != NULL &&
+                arguments[0].as.object->type == PY68_OBJECT_GENERATOR) {
+                Py68Generator *generator =
+                    (Py68Generator *)arguments[0].as.object;
+                Py68U16 generator_slot = (Py68U16)(
+                    runtime->value_stack_count - argument_count);
+                Py68List *collected;
+                status = py68_list_new(runtime, &collected);
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_MEMORY,
+                                  "list allocation failed");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    break;
+                }
+                status = py68_vm_push_owned(
+                    runtime, py68_value_from_object(&collected->base));
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_MEMORY,
+                                  "value stack growth failed");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    break;
+                }
+                if (generator->state == PY68_GENERATOR_DONE) {
+                    /* Already exhausted: hand over the empty list directly. */
+                    Py68U16 list_slot =
+                        (Py68U16)(runtime->value_stack_count - 1);
+                    py68_value_release(runtime,
+                                       runtime->value_stack[generator_slot]);
+                    runtime->value_stack[generator_slot] =
+                        runtime->value_stack[list_slot];
+                    runtime->value_stack_count = list_slot;
+                    status = PY68_STATUS_OK;
+                    break;
+                }
+                status = py68_vm_resume_generator(runtime, generator,
+                                                  current_code, ip,
+                                                  PY68_RESUME_COLLECT);
+                if (status == PY68_STATUS_OK) {
+                    current_code = generator->code;
+                    ip = generator->resume_ip;
+                }
+                break;
+            }
             if (callee.as.object->type == PY68_OBJECT_NATIVE_FUNCTION) {
                 status = py68_native_call(
                     (Py68NativeFunction *)callee.as.object, runtime,
@@ -1528,6 +1578,33 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
             caller_ip = frame->return_ip;
             status = py68_vm_pop(runtime, &yielded);
             if (status != PY68_STATUS_OK) break;
+            if (resume_kind == PY68_RESUME_COLLECT) {
+                /* Appending keeps this activation running, so no state is
+                   saved and no frame is popped. */
+                Py68Value target = stack_base == 0
+                    ? py68_value_none()
+                    : runtime->value_stack[stack_base - 1];
+                if (target.type != PY68_VALUE_OBJECT ||
+                    target.as.object == NULL ||
+                    target.as.object->type != PY68_OBJECT_LIST) {
+                    py68_value_release(runtime, yielded);
+                    py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                                  "generator collection target is not a list");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    break;
+                }
+                status = py68_list_append_copy(
+                    runtime, (Py68List *)target.as.object, yielded);
+                py68_value_release(runtime, yielded);
+                if (status != PY68_STATUS_OK) {
+                    py68_vm_error(runtime, PY68_ERROR_MEMORY,
+                                  "list append failed");
+                    status = PY68_STATUS_RUNTIME_ERROR;
+                    break;
+                }
+                ++ip;
+                break;
+            }
             if (runtime->value_stack_count < stack_base ||
                 (resume_kind != PY68_RESUME_FOR && stack_base == 0)) {
                 py68_value_release(runtime, yielded);
@@ -1618,6 +1695,34 @@ static Py68Status py68_vm_run(Py68Runtime *runtime, Py68Code *code,
                     py68_vm_error(runtime, PY68_ERROR_STOP_ITERATION,
                                   "StopIteration");
                     status = PY68_STATUS_RUNTIME_ERROR;
+                } else if (resume_kind == PY68_RESUME_COLLECT) {
+                    /* Replace the drained generator argument with the collected
+                       list and re-execute the call. */
+                    Py68U16 list_slot = (Py68U16)(stack_base - 1);
+                    Py68U8 collect_argc;
+                    Py68U16 generator_slot;
+                    if (stack_base == 0 || caller_code == NULL ||
+                        caller_ip + 1 >= caller_code->bytecode_length ||
+                        caller_code->bytecode[caller_ip] != OP_CALL) {
+                        py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                                      "generator collection site is invalid");
+                        status = PY68_STATUS_RUNTIME_ERROR;
+                        break;
+                    }
+                    collect_argc = caller_code->bytecode[caller_ip + 1];
+                    if (collect_argc == 0 || list_slot < collect_argc ||
+                        list_slot - collect_argc == 0) {
+                        py68_vm_error(runtime, PY68_ERROR_BYTECODE,
+                                      "generator collection site is invalid");
+                        status = PY68_STATUS_RUNTIME_ERROR;
+                        break;
+                    }
+                    generator_slot = (Py68U16)(list_slot - collect_argc);
+                    py68_value_release(runtime,
+                                       runtime->value_stack[generator_slot]);
+                    runtime->value_stack[generator_slot] =
+                        runtime->value_stack[list_slot];
+                    runtime->value_stack_count = list_slot;
                 }
                 break;
             }
