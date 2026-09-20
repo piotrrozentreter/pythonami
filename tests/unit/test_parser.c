@@ -466,6 +466,81 @@ int main(void)
                         "rejected generator expression releases allocations");
     }
 
+    {
+        /* Bare generator expressions are only legal as a call's one argument. */
+        const char *sole_text = "total(x for x in items)";
+        const char *trailing_text = "total(x for x in items, 1)";
+        const char *leading_text = "total(1, x for x in items)";
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "gen.py",
+            (const Py68U8 *)sole_text, (Py68U32)strlen(sole_text)) ==
+            PY68_STATUS_OK, "call-argument generator source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "call-argument generator tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) == PY68_STATUS_OK,
+                        "unparenthesized generator argument parses");
+        passed &= check(node != NULL && node->kind == PY68_AST_CALL &&
+                        node->as.call.arguments.count == 1 &&
+                        node->as.call.arguments.items[0]->kind ==
+                            PY68_AST_GENERATOR_EXP,
+                        "the sole argument is a GENERATOR_EXP node");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "call-argument generator releases allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "gen.py",
+            (const Py68U8 *)trailing_text, (Py68U32)strlen(trailing_text)) ==
+            PY68_STATUS_OK, "trailing-argument generator source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "trailing-argument generator tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) != PY68_STATUS_OK,
+                        "generator argument followed by another is rejected");
+        passed &= check(strstr(error.message, "must be parenthesized") != NULL,
+                        "trailing-argument generator diagnostic is targeted");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "trailing-argument generator releases allocations");
+
+        py68_allocator_initialize(&allocator);
+        passed &= check(py68_source_initialize(&allocator, &source, "gen.py",
+            (const Py68U8 *)leading_text, (Py68U32)strlen(leading_text)) ==
+            PY68_STATUS_OK, "second-argument generator source initializes");
+        passed &= check(py68_tokenize(&allocator, &source, &tokens, &error) ==
+                        PY68_STATUS_OK, "second-argument generator tokenizes");
+        py68_ast_arena_initialize(&arena, &allocator);
+        parser.source = &source;
+        parser.tokens = &tokens;
+        parser.position = 0;
+        parser.arena = &arena;
+        parser.error = &error;
+        passed &= check(py68_parse_expression(&parser, &node) != PY68_STATUS_OK,
+                        "generator expression after another argument is rejected");
+        passed &= check(strstr(error.message, "must be parenthesized") != NULL,
+                        "second-argument generator diagnostic is targeted");
+        py68_ast_arena_destroy(&arena);
+        py68_token_array_destroy(&allocator, &tokens);
+        py68_source_destroy(&allocator, &source);
+        passed &= check(allocator.stats.current_bytes == 0,
+                        "second-argument generator releases allocations");
+    }
+
     if (passed) {
         puts("PASS: expression parser tests");
         return 0;

@@ -1053,13 +1053,8 @@ static Py68Status py68_parse_postfix(Py68ExpressionParser *parser,
                        as the single argument. */
                     if (py68_check(parser, PY68_TOKEN_FOR)) {
                         Py68AstNode *generator_exp;
-                        if (call->as.call.arguments.count != 0) {
-                            py68_parser_error(
-                                parser, py68_current(parser)->location,
-                                "a generator expression must be parenthesized "
-                                "when it is not the only argument");
-                            return PY68_STATUS_SOURCE_ERROR;
-                        }
+                        int only_argument =
+                            call->as.call.arguments.count == 0;
                         status = py68_ast_arena_new(parser->arena,
                                                     PY68_AST_GENERATOR_EXP,
                                                     argument->location,
@@ -1074,6 +1069,23 @@ static Py68Status py68_parse_postfix(Py68ExpressionParser *parser,
                             &generator_exp->as.comprehension.generators);
                         if (status != PY68_STATUS_OK) return status;
                         argument = generator_exp;
+                        status = py68_ast_list_append(
+                            parser->arena, &call->as.call.arguments, argument);
+                        if (status != PY68_STATUS_OK) return status;
+                        /* Nothing may follow it either, so the closing
+                           parenthesis has to come next. */
+                        if (!only_argument ||
+                            !py68_accept(parser, PY68_TOKEN_RIGHT_PAREN)) {
+                            token = py68_current(parser);
+                            py68_parser_error(
+                                parser,
+                                token != NULL ? token->location
+                                              : call->location,
+                                "a generator expression must be parenthesized "
+                                "when it is not the only argument");
+                            return PY68_STATUS_SOURCE_ERROR;
+                        }
+                        break;
                     }
                     status = py68_ast_list_append(
                         parser->arena, &call->as.call.arguments, argument);
