@@ -1027,12 +1027,13 @@ static Py68Status py68_parse_unary(Py68ExpressionParser *parser,
 static Py68Status py68_parse_postfix(Py68ExpressionParser *parser,
                                      Py68AstNode **node_out)
 {
-    Py68AstNode *node;
+    Py68AstNode *node = NULL;
     Py68AstNode *argument;
     Py68Token *token;
     Py68Status status = py68_parse_primary(parser, &node);
 
     if (status != PY68_STATUS_OK) return status;
+    if (node == NULL) return PY68_STATUS_INTERNAL_ERROR;
     for (;;) {
         token = py68_current(parser);
         if (token == NULL) break;
