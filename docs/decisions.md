@@ -1,5 +1,92 @@
 # Decisions
 
+## D-0046: Generator expressions snapshot free names as synthetic arguments
+
+- Context: `(elt for x in it)` needs its own suspended frame, but Language
+	Level 0.7 has no cells, no closures, and no user nested `def`. A genexp
+	written inside a `def` can still read that function's locals.
+- Decision: The compiler synthesizes a nested `Py68Code` with
+	`is_generator = 1` whose body is the comprehension loop ending in
+	`OP_YIELD_VALUE`. Names used inside the genexp that resolve to a local or
+	parameter of the enclosing function become **leading synthetic parameters**.
+	At the creation site the compiler emits `OP_MAKE_FUNCTION`, loads those
+	names in the enclosing scope, and calls the factory, so the values are
+	**snapshotted by reference at construction time**. Names that are not
+	enclosing locals stay `OP_LOAD_GLOBAL` (module global, then builtin) and are
+	therefore resolved lazily on each iteration step. Genexp loop targets bind
+	only inside the generator and never in the enclosing scope (unlike list/set/
+	dict comprehensions, D-0026).
+- Alternatives considered: Real cell objects with late binding (needs a closure
+	model and cycle handling); inline the genexp into a list (loses laziness);
+	reject genexps inside functions.
+- Consequences: Rebinding an enclosing local after the genexp is created does
+	not change what the generator sees; CPython's late-binding cells would.
+	Rebinding a *global* does change it, which matches CPython. CPython also
+	evaluates the outermost iterable eagerly at construction; Python68K
+	evaluates every iterable on first resume, so a genexp over a global name
+	that is rebound before the first step iterates the new object. Both
+	deviations are documented in `docs/language-reference.md`.
+
+## D-0045: Generators (`yield`) with private frame state; no `send`/`throw`
+
+- Context: Level 0.7 adds suspended iteration. The VM has a single shared
+	`value_stack`, keeps the live instruction pointer only inside
+	`py68_vm_run`, and iterates exclusively through `OP_RANGE_INIT` /
+	`OP_RANGE_NEXT` over `Py68Range` (D-0042). Script calls must never use C
+	recursion.
+- Decision:
+	- A module-level (or imported-module) `def` whose body contains `yield` is a
+		**generator factory**: `OP_CALL` allocates a `PY68_OBJECT_GENERATOR`,
+		copies the arguments into its locals, and returns it without running the
+		body.
+	- A generator owns its locals, its saved operand stack, and its saved try
+		stack. While it runs, an **activation frame** on `runtime->frames`
+		points at the generator (`frame->generator`), borrows `generator->locals`
+		as the frame locals, and records `stack_base`, the caller resume point,
+		and how to finish (`for` step or `next()` call). Operands live on the
+		shared `runtime->value_stack` above `stack_base` while running and are
+		copied into the generator on `OP_YIELD_VALUE` (try-block depths are
+		rebased relative to `stack_base`). Suspended generators therefore hold no
+		frame slot and consume no recursion budget, and no script call uses C
+		recursion. This replaces the plan's separate `runtime->active_generator`
+		field: the activation frame already identifies the running generator.
+	- `OP_YIELD_VALUE` (0x3C, width 1, stack effect −1) pops the yielded value,
+		saves generator state, pops the activation without releasing locals, and
+		pushes the value on the caller's stack. `yield` always resumes with
+		`None` internally; there is no `send`, `throw`, or `close()` method and
+		no `yield from`. `yield` is a statement only.
+	- `return` inside a generator (with or without a value) finishes it; the
+		value is discarded because `StopIteration.value` does not exist here.
+	- Consumption reuses the iteration opcodes (D-0042): `OP_RANGE_INIT` with
+		one argument passes a generator through unchanged, `OP_RANGE_NEXT`
+		resumes a generator TOS, `iter(gen)` returns the same generator, and
+		`next(gen[, default])` resumes it (the VM handles this `next` inline so a
+		native callback never re-enters the interpreter). An exhausted generator
+		iterates as empty, matching CPython, rather than raising; the plan's
+		"reject DONE" reading would have diverged from CPython for
+		`for x in exhausted_gen`.
+	- An exception that escapes a generator marks it `DONE` and releases its
+		locals while it propagates to the caller.
+	- **Close on release**: dropping the last reference to an unfinished
+		generator releases its locals, saved operands, and retained code and
+		module references deterministically, but does **not** execute the
+		script's `finally` blocks. Executing bytecode from inside
+		`py68_object_release` would re-enter the interpreter from arbitrary
+		release points and recurse in C, which the 68000 stack budget forbids.
+- Alternatives considered: Routing every stack helper through
+	`runtime->active_generator` (touches every opcode handler); keeping
+	suspended generators on `runtime->frames` (burns recursion slots and
+	reorders unwinding); a nested `py68_vm_run` per resume (C recursion per
+	generator); a deferred close queue drained at instruction boundaries that
+	force-jumps through `finally` handlers (needs a `GeneratorExit`-like
+	uncatchable unwind and duplicates exception machinery).
+- Consequences: Resources held by a suspended generator are freed by reference
+	counting, so files close, but user-visible `finally` cleanup only runs when
+	the generator is driven to completion or raises. `print(gen)` is a
+	`TypeError`, as it already is for `Py68Range` iterators. Generators are
+	unhashable and are not cycle-checked; storing a generator inside a container
+	that the generator itself can reach is undefined and unsupported.
+
 ## D-0044: `OSError` primary name; `IOError` alias
 
 - Context: Python 3 renamed the catchable I/O failure type to `OSError`;

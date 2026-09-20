@@ -152,6 +152,12 @@ Py68Status py68_verify_code(Py68Code *code, Py68Error *error)
             status = PY68_STATUS_SOURCE_ERROR;
             goto cleanup;
         }
+        if (opcode == OP_YIELD_VALUE && code->is_generator == 0) {
+            py68_verify_error(error, "yield outside a generator code object",
+                              offset);
+            status = PY68_STATUS_SOURCE_ERROR;
+            goto cleanup;
+        }
         if (opcode == OP_MAKE_FUNCTION) {
             Py68U16 constant_index = py68_read_u16(code->bytecode, offset + 1);
             if (code->constants[constant_index].kind != PY68_CONSTANT_CODE ||
