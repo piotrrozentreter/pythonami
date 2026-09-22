@@ -1,4 +1,4 @@
-# Help me generate a maze using Pythonami
+# Maze generator
 
 import sys
 
