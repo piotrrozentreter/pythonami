@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1
+
+- Module identity: direct scripts and `-c` commands expose `__name__` as
+  `"__main__"`; imported modules expose their canonical import name, including
+  when accessed through an alias.
+- Version string `Python68K 0.7.1`.
+
 ## 0.7.0
 
 - Language Level 0.7: generators. `yield` in a module-level `def` makes the

@@ -11,8 +11,10 @@
 #include "py68k_vm.h"
 #include "py68k_builtin.h"
 #include "py68k_exception.h"
+#include "py68k_global.h"
 #include "py68k_import.h"
 #include "py68k_native.h"
+#include "py68k_string.h"
 
 #include <string.h>
 
@@ -27,7 +29,7 @@
 long __stack = 65536L;
 #endif
 
-#define PY68K_VERSION "Python68K 0.7.0\n"
+#define PY68K_VERSION "Python68K 0.7.1\n"
 #define PY68K_HELP \
     "Usage: pythonami [--debug] [--check] [-V|--help] [-c cmd | script.py]\n"
 
@@ -220,9 +222,19 @@ static Py68Status py68_execute_source(Py68Runtime *runtime, const char *path,
     status = py68_verify_code(&code, &runtime->error);
     if (status != PY68_STATUS_OK) goto cleanup_code;
     if (!check_only) {
+        Py68String *module_name = NULL;
         status = py68_builtins_install(runtime);
         if (status != PY68_STATUS_OK) goto cleanup_code;
         status = py68_sys_install(runtime);
+        if (status != PY68_STATUS_OK) goto cleanup_code;
+        status = py68_string_new_copy(runtime, "__main__", 8,
+                                      &module_name);
+        if (status == PY68_STATUS_OK)
+            status = py68_global_set_copy(
+                runtime, (const Py68U8 *)"__name__", 8,
+                py68_value_from_object(&module_name->base));
+        if (module_name != NULL)
+            py68_object_release(runtime, &module_name->base);
         if (status != PY68_STATUS_OK) goto cleanup_code;
         status = py68_vm_execute(runtime, &code);
     }

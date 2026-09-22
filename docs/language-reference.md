@@ -45,6 +45,7 @@ Limited attribute access: `obj.name` loads a bound method from a per-type table,
 - A successfully loaded module is cached and its top-level code runs once per runtime.
 - Module bytecode (including function bodies) is retained so imported defs stay callable.
 - Functions defined in a module resolve globals against that module (including after nested imports).
+- The main script and `-c` command use `__name__ == "__main__"`; an imported module uses its canonical import name, even when accessed through an alias.
 - A module that is currently loading is rejected with `ImportError: import cycle detected`.
 - Failed imports are removed from the cache; their partial globals are not published.
 - No relative imports, no `from x import *`, no multi-level packages
