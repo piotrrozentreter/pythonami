@@ -186,6 +186,7 @@ Makefile.amiga vbcc Amiga build
 | `docs/amiga-build.md` | vbcc / AmigaOS build and Workbench notes |
 | `docs/amiga-extensions.md` | LoadSeg `*.py68k` plugins (`load_library`) |
 | `docs/testing.md` | Test coverage narrative |
+| `docs/debug-statistics.md` | `--debug` report fields and interpretation |
 | `docs/decisions.md` | Design decisions (D-0001…) |
 | `docs/architecture.md` | Pipeline and module overview |
 | `docs/user-guide.md` | CLI, build, test, and script-running commands |

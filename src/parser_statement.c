@@ -678,7 +678,7 @@ static Py68Status py68_parse_statement(Py68StatementParser *parser,
         if (py68_statement_current(parser)->kind == PY68_TOKEN_NEWLINE) {
             value = NULL;
         } else {
-            status = py68_parse_expression(&parser->expression, &value);
+            status = py68_parse_assignment_rhs(parser, &value);
             if (status != PY68_STATUS_OK) return status;
         }
         node->as.return_statement.value = value;

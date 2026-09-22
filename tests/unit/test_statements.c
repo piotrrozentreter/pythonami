@@ -70,7 +70,7 @@ int main(void)
         "for item in items:\n"
         "    continue\n"
         "def add(a, b):\n"
-        "    return a + b\n";
+        "    return a, b\n";
     Py68Allocator allocator;
     Py68AstArena arena;
     Py68AstNode *module = NULL;
@@ -95,6 +95,14 @@ int main(void)
                         PY68_AST_FOR, "for node is created");
         passed &= check(module->as.module.statements.items[4]->kind ==
                         PY68_AST_FUNCTION_DEF, "function node is created");
+        passed &= check(module->as.module.statements.items[4]
+                            ->as.function_def.body.items[0]
+                            ->as.return_statement.value->kind == PY68_AST_TUPLE &&
+                        module->as.module.statements.items[4]
+                            ->as.function_def.body.items[0]
+                            ->as.return_statement.value
+                            ->as.list_literal.elements.count == 2,
+                        "return tuple value is created");
         py68_ast_arena_destroy(&arena);
     }
     check(!parse_module(&allocator, "return 1\n", &arena,
