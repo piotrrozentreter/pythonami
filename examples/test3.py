@@ -28,7 +28,12 @@ while i < len(text):
 
     print(ch, "->", code)
 
-    ascii_product = ascii_product * code
+    try:
+        ascii_product = ascii_product * code
+    except OverflowError:
+        print("Overflow occurred with character:", ch)
+        ascii_product = 0
+        break
 
     i = i + 1
 
