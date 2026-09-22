@@ -173,6 +173,7 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     Py68AstNode *tree;
     Py68Code code;
     Py68Module *module;
+    Py68String *module_name;
     Py68GlobalEntry *saved_globals;
     Py68U16 saved_count;
     Py68U16 saved_capacity;
@@ -209,6 +210,19 @@ static Py68Status py68_import_execute_file(Py68Runtime *runtime,
     if (status != PY68_STATUS_OK) goto cleanup_arena;
     status = py68_module_new(runtime, name, path, &module);
     if (status != PY68_STATUS_OK) goto cleanup_code;
+    module_name = NULL;
+    status = py68_string_new_copy(runtime, name, (Py68U32)strlen(name),
+                                  &module_name);
+    if (status == PY68_STATUS_OK)
+        status = py68_module_set(runtime, module,
+                                 (const Py68U8 *)"__name__", 8,
+                                 py68_value_from_object(&module_name->base));
+    if (module_name != NULL)
+        py68_object_release(runtime, &module_name->base);
+    if (status != PY68_STATUS_OK) {
+        py68_object_release(runtime, &module->base);
+        goto cleanup_code;
+    }
     module->base.flags |= 1;
     status = py68_import_cache_add(runtime, module);
     if (status != PY68_STATUS_OK) {

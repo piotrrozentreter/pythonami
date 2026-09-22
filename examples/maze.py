@@ -212,11 +212,12 @@ def print_maze(maze):
 
         y = y + 1
 
-random.seed(time_tick())
-width = 20
-height = 11
-maze = generate_maze(width, height)
-maze = generate_graves_and_portals(maze)
-maze = place_start_position(maze)
-print_maze(maze)
-save_to_file(maze, "maze.txt")
+if __name__ == "__main__":
+    random.seed(time_tick())
+    width = 20
+    height = 11
+    maze = generate_maze(width, height)
+    maze = generate_graves_and_portals(maze)
+    maze = place_start_position(maze)
+    print_maze(maze)
+    save_to_file(maze, "maze.txt")

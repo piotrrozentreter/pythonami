@@ -1,6 +1,6 @@
 # Python68K
 
-**Version 0.7.0** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
+**Version 0.7.1** — Copyright © 2026 Piotr Rozentreter (Rozsoft)
 
 Python68K is a deliberately restricted, Python-compatible language and runtime for classic **Motorola 68000** Amiga systems (AmigaOS 2.x+), with a modern **Linux/host** build for development and testing.
 
@@ -100,7 +100,7 @@ see `docs/amiga-extensions.md`. Host has no `load_library`.
 - Host unit tests and language fixture diffs (`make test`)
 - Error reporting with frame traceback
 
-### Not in 0.7.0
+### Not in 0.7.1
 Classes, Unicode, bytes, generator `send` / `throw` / `close()` / `yield from`, closures, nested `def`, method-style `open()` / `file.read()` / keyword `encoding=` / `FileNotFoundError` (post-0.6 option 1; `fopen` remains), seek, relative imports, `from x import *`, Amiga `ENV:` GetVar/SetVar, frozen emulator/hardware differential sign-off.
 
 ---
