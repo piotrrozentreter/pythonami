@@ -121,3 +121,25 @@ True
 ```
 
 Details: `tests/integration/amiga/test_load_library.md` and `docs/amiga-extensions.md`.
+
+## gui_intuition dialog smoke fixture
+
+After `make amiga-ext`, place `ext/gui_intuition/gui_intuition.py68k` so
+`PROGDIR:ext/gui_intuition/gui_intuition.py68k` resolves (or edit the script).
+
+```text
+pythonami tests/integration/amiga/test_gui_intuition.py >T:py68k-gui-out
+echo $RC
+type T:py68k-gui-out
+```
+
+Expected: `$RC` is `0`; stdout:
+
+```text
+init_ok
+shown
+closed
+```
+
+Details: `tests/integration/amiga/test_gui_intuition.md`. Owner-verified on
+emulator/hardware only.

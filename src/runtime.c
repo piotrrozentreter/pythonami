@@ -1,6 +1,8 @@
 /* 2026 by Piotr Rozentreter (Rozsoft) */
 
 #include "py68k_runtime.h"
+#define PY68K_EXT_OMIT_HELPERS
+#include "py68k_ext.h"
 #include "py68k_frame.h"
 #include "py68k_global.h"
 #include "py68k_builtin.h"
@@ -20,6 +22,7 @@ void py68_runtime_initialize_struct(Py68Runtime *runtime)
 Py68Status py68_runtime_initialize(Py68Runtime *runtime)
 {
     py68_runtime_initialize_struct(runtime);
+    py68_ext_services_install(runtime);
     runtime->recursion_limit = 64;
     runtime->poll_interval = PY68_POLL_INTERVAL_DEFAULT;
     runtime->poll_counter = PY68_POLL_INTERVAL_DEFAULT;

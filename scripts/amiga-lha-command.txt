@@ -6,3 +6,6 @@
 ; End-user extract (from the drawer where the .lha was copied):
 ; lha x python68k.lha
 ; then: execute Install
+
+; GUI extension build: make -f Makefile.amiga ext-gui_intuition 
+; find it in → ext/gui_intuition/gui_intuition.py68k

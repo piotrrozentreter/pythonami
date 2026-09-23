@@ -17,6 +17,7 @@
 #define PY68_POLL_INTERVAL_DEFAULT 256U
 
 struct Py68Generator;
+struct Py68ExtServices;
 
 /* How a generator activation hands its result back to the resuming site
    (D-0045). PY68_RESUME_NONE marks an ordinary call frame. */
@@ -66,6 +67,8 @@ typedef struct Py68GlobalEntry {
 } Py68GlobalEntry;
 
 struct Py68Runtime {
+    /* Must remain first: plugins read via Py68ExtRuntimeHead (D-0048). */
+    const struct Py68ExtServices *ext_services;
     Py68Allocator allocator;
     Py68Error error;
     Py68Value *value_stack;

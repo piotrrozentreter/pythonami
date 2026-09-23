@@ -403,6 +403,22 @@
 	64-bit integers or floating-point conversion. The tick wraps periodically,
 	so it is suitable for seeding and not a persistent timestamp.
 
+## D-0048: Extension runtime services for owned str/list results
+
+- Context: LoadSeg plugins (D-0027) cannot link pythonami, so they could only
+	return none/bool/int via inline helpers in `py68k_ext.h`. Dialog APIs need
+	owned `str` (and list helpers) without embedding the allocator.
+- Decision: `Py68Runtime` begins with a `const Py68ExtServices *ext_services`
+	pointer (plugins read it via `Py68ExtRuntimeHead` / `py68_ext_services()`).
+	The interpreter installs a table in `py68_runtime_initialize` that wraps
+	`py68_string_new_copy`, string borrow, list new/append/count/get, and
+	`py68_value_release`. Header magic and `PY68_EXT_ABI_VERSION` stay at 1;
+	services are runtime-side, not part of the hunk header.
+- Alternatives considered: Buffer-out APIs only; in-tree Intuition builtins;
+	bumping the hunk ABI version with an embedded services pointer in the header.
+- Consequences: `ext/gui_intuition/` can return real Python strings. Plugins must
+	release owned values obtained via `list_get_copy` using `value_release`.
+
 ## D-0027: Amiga LoadSeg extension plugins (not OpenLibrary)
 
 - Context: Authors want vbcc/vasm performance helpers callable from pythonami without rebuilding the interpreter. Classic AmigaOS `.library` (Resident/LibInit/LVOs) is heavy for this use case; host `dlopen` is out of scope.

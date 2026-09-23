@@ -50,10 +50,13 @@ Host `tests/unit/test_file_io.c` and `tests/language/test_file_io_suite.py` exer
 
 ## Amiga LoadSeg extensions
 
-`make amiga-ext` builds `ext/demo_add/demo_add.py68k` (vbcc + vasm + vlink). The
-Amiga interpreter (`src/ext_amiga.c`) installs `load_library`. Owner-run steps
-and expected stdout are in `tests/integration/amiga/README.md` and
-`tests/integration/amiga/test_load_library.py`. Host has no `load_library`.
+`make amiga-ext` builds `ext/demo_add/demo_add.py68k` and
+`ext/gui_intuition/gui_intuition.py68k` (vbcc + vasm + vlink). The Amiga
+interpreter (`src/ext_amiga.c`) installs `load_library`. Host unit coverage for
+extension services (D-0048) is `tests/unit/test_ext_services.c`. Owner-run steps
+are in `tests/integration/amiga/README.md`, `test_load_library.py`, and
+`test_gui_intuition.py`. Host has no `load_library`. Intuition GUI execution is
+owner-verified only (not Musashi).
 
 ## Cross-target fixture comparison (host vs. Amiga emulator/hardware)
 

@@ -1,6 +1,7 @@
 /* 2026 by Piotr Rozentreter (Rozsoft) */
 
 #include "py68k_ext_load.h"
+#define PY68K_EXT_OMIT_HELPERS
 #include "py68k_ext.h"
 #include "py68k_error.h"
 #include "py68k_module.h"

@@ -142,4 +142,12 @@ see `_my_fn` as `my_fn` from C tables.
 - Header magic/ABI correct; first hunk payload is the header
 - No `startup.o` / `vc.lib` / `amiga.lib` in the plugin link
 - Keep the `load_library` module alive while calling exports
+- For owned `str`/`list` results, use `py68_ext_services(runtime)` (D-0048)
 - Test on emulator or hardware (`tests/integration/amiga/`)
+
+## gui_intuition dialog plugin
+
+`make amiga-ext` also builds `ext/gui_intuition/gui_intuition.py68k` — Layer 1
+Intuition dialogs for guicreator-exported pythonami forms. Contract:
+highamigaassembler `docs/GUI_PYTHONAMI_API.md`. Layer 2 helper:
+`lib/gui_dialog.py`. Owner fixture: `tests/integration/amiga/test_gui_intuition.md`.

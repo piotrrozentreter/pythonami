@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.2
+
+- Extension ABI (D-0048): `Py68ExtServices` on `Py68Runtime` lets LoadSeg
+  plugins build owned `str`/`list` results without linking the interpreter.
+- New Amiga plugin `ext/gui_intuition/gui_intuition.py68k` — Layer 1 Intuition
+  dialog API for guicreator-exported forms (`make amiga-ext`). Behavioral
+  reference: HAS `lib/gui_intuition.s`; not linked from that object.
+- Pure-Python `lib/gui_dialog.py` Layer 2 helper (`run_modal` / `run_modal_fields`).
+- Owner Amiga fixture: `tests/integration/amiga/test_gui_intuition.*`.
+- Host unit test: `tests/unit/test_ext_services.c`.
+- gui_intuition close path matches HAS/RKM `CloseWindowSafely` (drain before
+  `ModifyIDCMP(0)`); button/string borders match HAS bevels (`GFLG_GADGHNONE`,
+  recessed edit frame with −2 inset) to fix close crashes and white/missing
+  frames.
+
 ## 0.7.1
 
 - Module identity: direct scripts and `-c` commands expose `__name__` as
