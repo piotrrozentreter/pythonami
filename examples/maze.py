@@ -2,7 +2,7 @@
 
 import sys
 
-sys.path.append('lib')
+sys.path.append('pythonami_lib:')
 
 import random
 

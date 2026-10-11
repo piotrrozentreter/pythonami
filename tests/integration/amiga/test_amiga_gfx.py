@@ -2,10 +2,10 @@
 # Opens a custom screen, draws, waits for ESC/q/close.
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import amiga_gfx
 
-GFX_PLUGIN = "PROGDIR:ext/amiga_gfx/amiga_gfx.py68k"
+GFX_PLUGIN = "SYS:Python68k/ext/amiga_gfx.py68k"
 
 gfx = load_library(GFX_PLUGIN)
 if gfx.init() != 0:

@@ -2,7 +2,7 @@
 # Build: make amiga && make amiga-ext
 # Opens a Workbench window briefly, then closes it (no event wait).
 
-gui = load_library("PROGDIR:ext/gui_intuition/gui_intuition.py68k")
+gui = load_library("SYS:Python68k/ext/gui_intuition.py68k")
 status = gui.init()
 if status != 0:
     print("init_fail")

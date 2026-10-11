@@ -8,7 +8,7 @@
 # and `lha` on PATH.
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import os
 import install_ami
 import install_startup
@@ -16,8 +16,8 @@ import install_lha
 import install_fs
 import install_uninstall
 
-GUI_PLUGIN = "PROGDIR:ext/gui_intuition/gui_intuition.py68k"
-ASL_PLUGIN = "PROGDIR:ext/asl/asl.py68k"
+GUI_PLUGIN = "SYS:Python68k/ext/gui_intuition.py68k"
+ASL_PLUGIN = "SYS:Python68k/ext/asl.py68k"
 
 GUI_EVT_CLOSE = 1
 GUI_EVT_BUTTON = 2

@@ -2,13 +2,13 @@
 # Controls: W/A/S/D move, R restarts, ESC/Q quits.
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 
 import amiga_gfx
 import random
 
 
-GFX_PLUGIN = "PROGDIR:ext/amiga_gfx/amiga_gfx.py68k"
+GFX_PLUGIN = "SYS:Python68k/ext/amiga_gfx.py68k"
 
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 200

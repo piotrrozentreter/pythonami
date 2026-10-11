@@ -3,10 +3,10 @@
 # Quit: close gadget / ESC / q.
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import amiga_gfx
 
-GFX_PLUGIN = "PROGDIR:ext/amiga_gfx/amiga_gfx.py68k"
+GFX_PLUGIN = "SYS:Python68k/ext/amiga_gfx.py68k"
 
 gfx = load_library(GFX_PLUGIN)
 if gfx.init() != 0:
@@ -21,7 +21,7 @@ if win == 0:
     exit(1)
 
 gfx.ink(1)
-gfx.text(8, 12, "WB window draw/blit")
+gfx.text(8, 32, "WB window draw/blit")
 gfx.line(8, 20, 200, 20)
 gfx.rect(20, 40, 60, 40, 1)
 gfx.circle(160, 70, 24, 0)

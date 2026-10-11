@@ -1,7 +1,7 @@
 # Example: importable random module (lib/random.py + lib/randgen.py)
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import random
 
 random.seed(time_tick())

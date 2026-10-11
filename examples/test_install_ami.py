@@ -1,6 +1,6 @@
 # Host-checkable install.ami / User-Startup upsert tests (no Amiga DOS).
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import install_ami
 import install_startup
 

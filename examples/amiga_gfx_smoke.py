@@ -1,6 +1,6 @@
 # Host --check smoke for amiga_gfx Layer 2 helpers (no load_library on host).
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import amiga_gfx
 print(amiga_gfx.MODE_LORES)
 print(amiga_gfx.MODE_HIRES)

@@ -48,11 +48,11 @@ ID_LIST_1    = 4
 EDIT_NAME_MAXLEN = 32
 list_1_ITEMS = ["Item 1"]
 
-GUI_PLUGIN = "PROGDIR:ext/gui_intuition/gui_intuition.py68k"
+GUI_PLUGIN = "SYS:Python68k/ext/gui_intuition.py68k"
 
 # USER CODE BEGIN form.externs
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import gui_dialog
 # USER CODE END form.externs
 

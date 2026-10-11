@@ -11,10 +11,10 @@
 # Host:  build/host/pythonami --check tests/integration/amiga/test_amiga_gfx_blit_sprites.py
 
 import sys
-sys.path.append("lib")
+sys.path.append("pythonami_lib:")
 import amiga_gfx
 
-GFX_PLUGIN = "PROGDIR:ext/amiga_gfx/amiga_gfx.py68k"
+GFX_PLUGIN = "SYS:Python68k/ext/amiga_gfx.py68k"
 WANT = 8
 
 gfx = load_library(GFX_PLUGIN)
