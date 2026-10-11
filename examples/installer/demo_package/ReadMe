@@ -1,6 +1,7 @@
 DemoApp for the pythonami GUI installer.
 
-Build an LHA on Amiga:
-  lha a -r demo_package.lha demo_package
+Build an LHA on Amiga (from inside this drawer so files are at archive root):
+  cd demo_package
+  lha a -a -r //demo_package.lha #?
 Place demo_package.lha next to installer.py, then:
   pythonami installer.py

@@ -138,7 +138,7 @@ static char s_captions[GUI_MAX_GADGETS][64];
 static UWORD s_gadget_count;
 
 static struct IntuiText s_labels[GUI_MAX_LABELS];
-static char s_label_text[GUI_MAX_LABELS][64];
+static char s_label_text[GUI_MAX_LABELS][128];
 static WORD s_label_xy[GUI_MAX_LABELS][2];
 static UWORD s_label_ids[GUI_MAX_LABELS];
 static UWORD s_label_count;
@@ -299,14 +299,49 @@ static void link_gadget(struct Gadget *g)
     }
 }
 
+/* Full-width erase: char*8 undercounts real fonts and leaves status-line garbage. */
+static WORD label_font_h(void)
+{
+    if (s_rport != 0 && s_rport->Font != 0 && s_rport->Font->tf_YSize > 0)
+        return (WORD)s_rport->Font->tf_YSize;
+    if (s_rport != 0 && s_rport->TxHeight > 0)
+        return (WORD)s_rport->TxHeight;
+    return GUI_FONT_H;
+}
+
+static void clear_label_area(UWORD i)
+{
+    WORD x, y, x1, y1, fh;
+    if (s_rport == 0 || GfxBase == 0)
+        return;
+    x = s_label_xy[i][0];
+    y = s_label_xy[i][1];
+    fh = label_font_h();
+    if (s_window != 0)
+        x1 = (WORD)(s_window->Width - s_window->BorderRight - 1);
+    else
+        x1 = (WORD)(x + (WORD)(sizeof(s_label_text[0]) * GUI_FONT_W) - 1);
+    if (x1 < x)
+        return;
+    y1 = (WORD)(y + fh - 1);
+    SetAPen(s_rport, 0);
+    SetDrMd(s_rport, JAM1);
+    RectFill(s_rport, x, y, x1, y1);
+}
+
+static void draw_label_at(UWORD i)
+{
+    if (s_rport == 0 || IntuitionBase == 0 || i >= s_label_count)
+        return;
+    clear_label_area(i);
+    PrintIText(s_rport, &s_labels[i], s_label_xy[i][0], s_label_xy[i][1]);
+}
+
 static void draw_labels(void)
 {
     UWORD i;
-    if (s_rport == 0 || IntuitionBase == 0)
-        return;
-    for (i = 0; i < s_label_count; ++i) {
-        PrintIText(s_rport, &s_labels[i], s_label_xy[i][0], s_label_xy[i][1]);
-    }
+    for (i = 0; i < s_label_count; ++i)
+        draw_label_at(i);
 }
 
 static void draw_progress_bars(void)
@@ -563,7 +598,8 @@ static Py68Status gui_add_label(Py68Runtime *runtime, Py68U16 argc, Py68Value *a
     }
     gui_memset(&s_labels[slot], 0, sizeof(s_labels[slot]));
     s_labels[slot].FrontPen = 1;
-    s_labels[slot].DrawMode = JAM1;
+    s_labels[slot].BackPen = 0;
+    s_labels[slot].DrawMode = JAM2;
     s_labels[slot].IText = (UBYTE *)s_label_text[slot];
     s_label_xy[slot][0] = (WORD)x;
     s_label_xy[slot][1] = (WORD)y;
@@ -1176,9 +1212,9 @@ static Py68Status gui_set_label_text(Py68Runtime *runtime, Py68U16 argc, Py68Val
                 *result = py68_ext_value_int(-1);
                 return PY68_STATUS_OK;
             }
-            s_labels[i].IText = s_label_text[i];
+            s_labels[i].IText = (UBYTE *)s_label_text[i];
             if (s_shown)
-                draw_labels();
+                draw_label_at(i);
             *result = py68_ext_value_int(0);
             return PY68_STATUS_OK;
         }

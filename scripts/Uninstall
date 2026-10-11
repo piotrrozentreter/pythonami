@@ -2,8 +2,8 @@
 ; Run from an AmigaDOS Shell:
 ;   execute Uninstall
 ;
-; Removes SYS:Python68k/pythonami and the complete SYS:Python68k/lib drawer.
-; Other files in SYS:Python68k are left untouched.
+; Removes SYS:Python68k/pythonami and the complete lib/, ext/, and examples/
+; drawers installed by Install. Other files in SYS:Python68k are left untouched.
 
 echo "pythonami Uninstall"
 echo "-------------------"
@@ -13,7 +13,7 @@ IF NOT EXISTS SYS:Python68k
   QUIT 20
 ENDIF
 
-Ask "Remove pythonami and its complete SYS:Python68k/lib drawer? (Y/N)"
+Ask "Remove pythonami and its SYS:Python68k/lib, ext, and examples drawers? (Y/N)"
 IF NOT WARN
   echo "Uninstall cancelled."
   QUIT 20
@@ -37,6 +37,24 @@ IF EXISTS SYS:Python68k/lib
   Delete SYS:Python68k/lib ALL
   IF ERROR
     echo "Error: could not delete SYS:Python68k/lib."
+    QUIT 20
+  ENDIF
+ENDIF
+
+IF EXISTS SYS:Python68k/ext
+  echo "Deleting SYS:Python68k/ext and its contents"
+  Delete SYS:Python68k/ext ALL
+  IF ERROR
+    echo "Error: could not delete SYS:Python68k/ext."
+    QUIT 20
+  ENDIF
+ENDIF
+
+IF EXISTS SYS:Python68k/examples
+  echo "Deleting SYS:Python68k/examples and its contents"
+  Delete SYS:Python68k/examples ALL
+  IF ERROR
+    echo "Error: could not delete SYS:Python68k/examples."
     QUIT 20
   ENDIF
 ENDIF

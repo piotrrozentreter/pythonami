@@ -30,18 +30,26 @@ Build: `make amiga-ext` (requires vbcc/vasm/vlink).
 ## Run (Amiga)
 
 ```text
-lha a -r demo_package.lha demo_package
+cd examples/installer/demo_package
+lha a -a -r //demo_package.lha #?
+cd //
 pythonami examples/installer/installer.py
 ```
+
+Archive members must sit at the LHA root (`install.ami`, app files). Do not wrap
+them in an extra `demo_package/` prefix, or extract lands in a nested drawer.
+Extract uses `lha x -a … dest/` (attributes on; trailing `/` marks the destination).
 
 Requires `lha` on PATH and write access to the chosen HD drawer.
 
 ## Runtime package shell scripts
 
 The separate AmigaDOS scripts in `scripts/Install` and `scripts/Uninstall`
-install the `pythonami` executable and `lib/` under `SYS:Python68k`, then
-configure the current-session Assign and command Path. `Uninstall` removes the
-runtime and `lib/` and clears those current-session entries. It does not edit
+install the `pythonami` executable and the `lib/`, `ext/`, and `examples/`
+drawers under `SYS:Python68k`, then configure the current-session Assign and
+command Path. `Uninstall` removes the executable and those three drawers,
+then clears the current-session entries. The `Uninstall` script itself and any
+other files in `SYS:Python68k` are left untouched. It does not edit
 `S:User-Startup`; remove any persistent Assign/Path lines there manually.
 
 ## Related HAS docs

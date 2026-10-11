@@ -3,9 +3,22 @@
 import os
 
 
+def drawer_dest(path):
+    # Amiga LhA treats a bare last argument as a member name filter unless it
+    # ends with ':' or '/' (destination drawer).
+    if path == "":
+        return path
+    last = path[len(path) - 1]
+    if last == ":" or last == "/":
+        return path
+    return path + "/"
+
+
 def lha_extract(archive_path, dest_drawer):
     # Returns (ok, rc, message). ok is 1 on DOS RETURN_OK (0).
-    cmd = 'lha x -n "' + archive_path + '" "' + dest_drawer + '"'
+    # Match archive build flags: lha a -a -r …  →  lha x -a …
+    dest = drawer_dest(dest_drawer)
+    cmd = 'lha x -a "' + archive_path + '" "' + dest + '"'
     rc = os.system(cmd)
     if rc == 0:
         return (1, rc, "ok")

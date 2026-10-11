@@ -6,6 +6,8 @@
 ; Installs:
 ;   SYS:Python68k/pythonami   — Hunk executable
 ;   SYS:Python68k/lib/        — stdlib (.py modules)
+;   SYS:Python68k/ext/        - Amiga Python Extensions
+;   SYS:Python68k/examples/   - Examples
 ;
 ; Session setup (current boot):
 ;   Assign pythonami_lib: SYS:Python68k/lib
@@ -35,10 +37,36 @@ ENDIF
 
 echo "Copying pythonami -> SYS:Python68k/"
 copy pythonami SYS:Python68k/
+IF WARN
+  echo "Error: could not copy pythonami to SYS:Python68k."
+  QUIT 20
+ENDIF
 copy Uninstall SYS:Python68k/
+IF WARN
+  echo "Error: could not copy Uninstall to SYS:Python68k."
+  QUIT 20
+ENDIF
 
 echo "Copying lib -> SYS:Python68k/lib"
 copy lib SYS:Python68k/lib ALL
+IF WARN
+  echo "Error: could not copy lib to SYS:Python68k/lib."
+  QUIT 20
+ENDIF
+
+echo "Copying ext -> SYS:Python68k/ext"
+copy ext SYS:Python68k/ext ALL
+IF WARN
+  echo "Error: could not copy ext to SYS:Python68k/ext."
+  QUIT 20
+ENDIF
+
+echo "Copying examples -> SYS:Python68k/examples"
+copy examples SYS:Python68k/examples ALL
+IF WARN
+  echo "Error: could not copy examples to SYS:Python68k/examples."
+  QUIT 20
+ENDIF
 
 echo "Assign pythonami_lib: SYS:Python68k/lib"
 Assign pythonami_lib: SYS:Python68k/lib
