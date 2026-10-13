@@ -56,6 +56,11 @@ static struct Screen *s_screen;
 static struct Window *s_window;
 static struct RastPort *s_rp;
 static struct ViewPort *s_vp;
+/* Flood() requires a chip TmpRas on the draw RastPort (InitTmpRas + AllocRaster). */
+static struct TmpRas s_tmpras;
+static PLANEPTR s_tmpras_buf;
+static LONG s_tmpras_w;
+static LONG s_tmpras_h;
 static struct BitMap *s_bitmaps[GFX_MAX_BITMAPS];
 static LONG s_bm_w[GFX_MAX_BITMAPS];
 static LONG s_bm_h[GFX_MAX_BITMAPS];
@@ -275,11 +280,49 @@ static void close_window_safely(void)
     s_window = 0;
 }
 
+/* Detach TmpRas while the RastPort is still valid, then FreeRaster the plane. */
+static void free_tmpras(void)
+{
+    if (s_rp != 0)
+        s_rp->TmpRas = 0;
+    if (s_tmpras_buf != 0) {
+        if (GfxBase != 0)
+            FreeRaster(s_tmpras_buf, (ULONG)s_tmpras_w, (ULONG)s_tmpras_h);
+        s_tmpras_buf = 0;
+        s_tmpras_w = 0;
+        s_tmpras_h = 0;
+    }
+    gfx_memset(&s_tmpras, 0, sizeof(s_tmpras));
+}
+
+/* AllocRaster chip plane + InitTmpRas; attach to s_rp. Returns 1 on success. */
+static int setup_tmpras(LONG w, LONG h)
+{
+    PLANEPTR buf;
+    ULONG size;
+
+    if (w <= 0 || h <= 0 || s_rp == 0 || GfxBase == 0)
+        return 0;
+    free_tmpras();
+    buf = AllocRaster((ULONG)w, (ULONG)h);
+    if (buf == 0)
+        return 0;
+    s_tmpras_buf = buf;
+    s_tmpras_w = w;
+    s_tmpras_h = h;
+    size = RASSIZE(w, h);
+    InitTmpRas(&s_tmpras, buf, (LONG)size);
+    s_rp->TmpRas = &s_tmpras;
+    return 1;
+}
+
 static void do_close_display(void)
 {
     free_all_sprites();
     free_all_bobs();
     free_all_bitmaps();
+    /* Detach/free TmpRas before Window/Screen (and their RastPorts) go away. */
+    free_tmpras();
     close_window_safely();
     if (s_owns_screen && s_screen != 0)
         CloseScreen(s_screen);
@@ -507,6 +550,17 @@ static Py68Status gfx_open_screen(Py68Runtime *runtime, Py68U16 argc, Py68Value 
         *result = py68_ext_value_int(0);
         return PY68_STATUS_OK;
     }
+    /* Flood() needs chip TmpRas on the RP we draw into (screen RastPort). */
+    if (!setup_tmpras(w, h)) {
+        close_window_safely();
+        CloseScreen(s_screen);
+        s_screen = 0;
+        s_owns_screen = 0;
+        s_rp = 0;
+        s_vp = 0;
+        *result = py68_ext_value_int(0);
+        return PY68_STATUS_OK;
+    }
     reset_input();
     *result = py68_ext_value_int((Py68I32)(ULONG)s_screen);
     return PY68_STATUS_OK;
@@ -564,6 +618,15 @@ static Py68Status gfx_open_window(Py68Runtime *runtime, Py68U16 argc, Py68Value 
     s_vp = &s_screen->ViewPort;
     SetDrMd(s_rp, JAM1);
     SetAPen(s_rp, 1);
+    /* Same Flood contract as custom screen: chip TmpRas on Window->RPort. */
+    if (!setup_tmpras(w, h)) {
+        close_window_safely();
+        s_screen = 0;
+        s_rp = 0;
+        s_vp = 0;
+        *result = py68_ext_value_int(0);
+        return PY68_STATUS_OK;
+    }
     reset_input();
     *result = py68_ext_value_int((Py68I32)(ULONG)s_window);
     return PY68_STATUS_OK;
@@ -733,8 +796,11 @@ static Py68Status gfx_fill(Py68Runtime *runtime, Py68U16 argc, Py68Value *args,
     Py68I32 x, y;
     (void)runtime;
     (void)argc;
-    if (display_ready() && require_int(args[0], &x) && require_int(args[1], &y))
-        Flood(s_rp, 0, x, y);
+    /* Mode 1: fill pixels matching the seed pen (paint-bucket). Never Flood
+     * without TmpRas — AmigaOS crashes on a NULL RastPort.TmpRas. */
+    if (display_ready() && s_rp->TmpRas != 0 && s_tmpras_buf != 0 &&
+        require_int(args[0], &x) && require_int(args[1], &y))
+        Flood(s_rp, 1, x, y);
     *result = py68_ext_value_none();
     return PY68_STATUS_OK;
 }

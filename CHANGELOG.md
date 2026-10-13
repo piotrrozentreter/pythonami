@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- **amiga_gfx `fill` / Flood TmpRas:** `Flood()` requires a chip `TmpRas` on the
+  draw RastPort. `open_screen` / `open_window` now `AllocRaster` + `InitTmpRas`
+  and attach it; close/shutdown frees it before Window/Screen. `fill` uses Flood
+  mode 1 and no-ops if `TmpRas` is missing (was mode 0 with NULL TmpRas → crash).
 - **Amiga sibling imports:** `py68_set_script_dir` kept volume/assign names
   without the trailing colon (`PROGDIR` → `PROGDIR/myclass.py`). It now
   preserves `PROGDIR:` / `DH0:` so `import` finds modules next to the script.

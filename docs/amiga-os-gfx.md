@@ -10,7 +10,9 @@ Contract: sibling HAS `docs/AMIGA_OS_GFX_API.md`.
 | `open_screen(x,y,w,h,depth,mode)` | Custom screen (own palette). Draw on screen RastPort. SimpleSprites OK with `MODE_SPRITES`. |
 | `open_window(title,x,y,w,h)` | **Normal Workbench window** with close/depth/drag. Draw + blit on `Window->RPort`. Sprites use the WB screen ViewPort (pointer shares slots). |
 
-Yes: a normal window supports plot/line/rect/circle/text/blit. Palette `color()` on WB changes shared pens—prefer custom screens for full palette ownership.
+Yes: a normal window supports plot/line/rect/circle/`fill`/text/blit. Palette `color()` on WB changes shared pens—prefer custom screens for full palette ownership.
+
+`fill(x, y)` is Flood mode 1 (paint-bucket: fill pixels matching the seed pen). Both `open_screen` and `open_window` attach a chip `TmpRas` (`AllocRaster` + `InitTmpRas`) to the draw RastPort; without it AmigaOS crashes. `fill` no-ops if `TmpRas` is missing.
 
 ## Input (AmigaOS only)
 
