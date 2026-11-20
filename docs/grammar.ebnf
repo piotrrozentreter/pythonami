@@ -1,7 +1,6 @@
 # Grammar
 
-The Language Level 0.1–0.5 grammar remains described in the implementation brief
-and the parser sources. Language Level 0.6 adds the comprehension forms below,
+The parser sources define the grammar. Language Level 0.6 adds the comprehension forms below,
 Language Level 0.7 adds `yield_statement` and `generator_expression`, and
 Language Level 0.8 adds `class_statement`. Comprehension and generator-expression
 targets remain a single `NAME`. Assignment and `for` statements accept a fixed

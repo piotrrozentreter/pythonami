@@ -18,7 +18,6 @@ Before editing documentation, read the relevant source of truth and the document
 
 - `README.md` — public feature, version, build, and limitation summary.
 - `CHANGELOG.md` — user-visible release and change history.
-- `Python68K_Final_Implementation_Checklist.md` — evidence-based delivery gates.
 - `docs/architecture.md`, `docs/language-reference.md`, and the most relevant `docs/*.md` file.
 - `docs/testing.md` — executed test and cross-target evidence.
 - `docs/decisions.md` — material design choices and rationale.
@@ -34,7 +33,6 @@ If a referenced file (e.g., `docs/testing.md`, `CHANGELOG.md`) does not exist, r
 - Keep `README.md` concise and user-facing: supported language levels, features, build commands, target differences, and important exclusions.
 - Keep technical details in the appropriate `docs/*.md` file rather than duplicating long explanations across the repository.
 - Keep `CHANGELOG.md` chronological and user-oriented; do not describe unverified future work as released behavior.
-- Keep the implementation checklist honest: mark an item complete only when its required implementation and evidence exist.
 - Keep `docs/testing.md` limited to tests that were written and executed, with exact host, sanitizer, vbcc, emulator, or hardware status.
 - Add a record to `docs/decisions.md` only for a material design decision, compatibility choice, or resolved conflict; include consequences and the evidence that motivated it.
 - Keep repository notes concise and factual. Update existing notes when possible instead of creating duplicate records.

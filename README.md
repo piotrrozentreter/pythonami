@@ -201,8 +201,6 @@ Makefile.amiga vbcc Amiga build
 | `docs/developer-guide.md` | Source layout, implementation pipeline, and contributor workflow |
 | `CHANGELOG.md` | Release history |
 
-Normative design briefs (for implementers): `Python68K_Full_Agent_Implementation_Brief.md`, `Python68K_Final_Implementation_Checklist.md`.
-
 ## Current verification status
 
 The host build and test suite are the primary executable checks. They cover the
